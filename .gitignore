@@ -42,6 +42,9 @@ __pycache__/
 GNUmakefile
 user.props
 
+# Buildozer directory
+android/.buildozer
+
 # Generated rst files
 ######################
 genrst/
