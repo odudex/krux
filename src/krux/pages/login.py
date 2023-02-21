@@ -480,6 +480,17 @@ class Login(Page):
         
     def scan_from_tiny_seed(self, w24=False):
         """Menu handler to scan key from Tiny Seed sheet metal storage method"""
+        intro = t(
+            "Paint punched dots black so they can be detected. "
+            + "Use a black background surface. "
+            + "Align camera and Tiny Seed precisely using the tracking rectangle."
+        )
+        if w24:
+            intro += t("Press ENTER when punches are correctly mapped")
+        self.ctx.display.draw_hcentered_text(intro)
+        if not self.prompt(t("Proceed?"), self.ctx.display.bottom_prompt_line):
+            return MENU_CONTINUE
+        
         tiny_scanner = TinyScanner(self.ctx)
         words = tiny_scanner.scanner(w24)
         del tiny_scanner
