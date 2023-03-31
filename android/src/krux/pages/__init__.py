@@ -24,6 +24,7 @@ import math
 import time
 import lcd
 import board
+import os
 from ..camera import OV7740_ID
 from ..ur.ur import UR
 from ..input import (
@@ -35,10 +36,13 @@ from ..input import (
     SWIPE_RIGHT,
     SWIPE_LEFT,
     SWIPE_UP,
+    PRESSED,
 )
-from ..display import DEFAULT_PADDING
+from ..display import DEFAULT_PADDING, FLASH_MSG_TIME
 from ..qr import to_qr_codes
-from ..krux_settings import t
+from ..krux_settings import t, Settings, LoggingSettings, BitcoinSettings
+from ..printers.cnc import FilePrinter
+from ..sd_card import SDHandler
 
 MENU_CONTINUE = 0
 MENU_EXIT = 1
@@ -47,8 +51,17 @@ MENU_SHUTDOWN = 2
 ESC_KEY = 1
 FIXED_KEYS = 3  # 'More' key only appears when there are multiple keysets
 
-BATTERY_FULL = 3900
-BATTERY_LOW = 3300
+WAIT_TO_CHECK_INPUT = 200
+ANTI_GLARE_WAIT_TIME = 500
+QR_CODE_STEP_TIME = 100
+CAMERA_INIT_TIME = 1000
+
+LIST_FILE_DIGITS = 9  # len on large devices per menu item
+LIST_FILE_DIGITS_SMALL = 5  # len on small devices per menu item
+
+SD_ROOT_PATH = "/sd"
+
+TOGGLE_BRIGHTNESS = 2
 
 
 class Page:
@@ -66,9 +79,14 @@ class Page:
         self.y_keypad_map = []
         self.x_keypad_map = []
 
-    def wait_for_proceed(self, block=True):
+    def wait_for_proceed_qr(self, block=True, any_btn=False):
         """Wrap acknowledgements which can be answared with multiple buttons"""
-        return self.ctx.input.wait_for_button(block) in (BUTTON_ENTER, BUTTON_TOUCH)
+        if any_btn:
+            return self.ctx.input.wait_for_button(block) is not None
+        btn = self.ctx.input.wait_for_button(block)
+        if btn == BUTTON_PAGE:
+            return TOGGLE_BRIGHTNESS
+        return btn in (BUTTON_ENTER, BUTTON_TOUCH)
 
     def esc_prompt(self):
         """Prompts user for leaving"""
@@ -89,6 +107,7 @@ class Page:
         delete_key_fn=None,
         go_on_change=False,
         starting_buffer="",
+        esc_prompt=True,
     ):
         """Displays a key pad and captures a series of keys until the user returns.
         Returns a string.
@@ -124,7 +143,10 @@ class Page:
                         buffer = buffer[: len(buffer) - 1]
                     changed = True
                 elif pad.cur_key_index == pad.esc_index:
-                    if self.esc_prompt() == ESC_KEY:
+                    if esc_prompt:
+                        if self.esc_prompt() == ESC_KEY:
+                            return ESC_KEY
+                    else:
                         return ESC_KEY
                     # remap keypad touch array
                     pad.map_keys_array(pad.width, pad.height)
@@ -143,12 +165,6 @@ class Page:
                             buffer = new_buffer
                             break  # auto-Go for load "Via Text"
 
-                    # auto-Go for load "Via Numbers"
-                    if len(pad.keys) == 10 and (
-                        len(buffer) == 4 or (len(buffer) == 3 and int(buffer) > 204)
-                    ):
-                        break
-
                 if changed and go_on_change:
                     break
 
@@ -164,12 +180,10 @@ class Page:
         Returns the contents of the QR code(s).
         """
         self._time_frame = time.ticks_ms()
-        anti_glare = False
 
         def callback(part_total, num_parts_captured, new_part):
-            nonlocal anti_glare
-            # Turn on the light as long as the enter button is held down
-            if time.ticks_ms() > self._time_frame + 1000:
+            # Turn on the light as long as the enter button is held down (M5stickV and Amigo)
+            if time.ticks_ms() > self._time_frame + CAMERA_INIT_TIME:
                 if self.ctx.light:
                     if not self.ctx.input.enter_value():
                         self.ctx.light.turn_on()
@@ -179,82 +193,62 @@ class Page:
                 elif not self.ctx.input.enter_value():
                     return 1
 
-                # Anti-glare mode - OV7740 only
-                if self.ctx.input.page_value() == 0:
-                    if self.ctx.camera.cam_id == OV7740_ID:
-                        if not anti_glare:
-                            self._time_frame = time.ticks_ms()
-                            anti_glare = True
-                            self.ctx.display.to_portrait()
-                            self.ctx.display.draw_centered_text("anti-glare mode")
-                            time.sleep_ms(500)
-                            self.ctx.display.to_landscape()
-                            return 2
+                # Anti-glare mode (M5stickV and Amigo)
+                if self.ctx.input.page_value() == PRESSED:
+                    if self.ctx.camera.has_antiglare():
                         self._time_frame = time.ticks_ms()
-                        anti_glare = False
                         self.ctx.display.to_portrait()
-                        self.ctx.display.draw_centered_text("standard mode")
-                        time.sleep_ms(500)
+                        if not self.ctx.camera.antiglare_enabled:
+                            self.ctx.camera.enable_antiglare()
+                            self.ctx.display.draw_centered_text(t("Anti-glare enabled"))
+                        else:
+                            self.ctx.camera.disable_antiglare()
+                            self.ctx.display.draw_centered_text(
+                                t("Anti-glare disabled")
+                            )
+                        time.sleep_ms(ANTI_GLARE_WAIT_TIME)
                         self.ctx.display.to_landscape()
-                        return 3
+                        return 0
                     return 1
-                # Exit the capture loop if a button is pressed
+
+                # Exit the capture loop with PAGE_PREV or TOUCH
                 if (
-                    self.ctx.input.page_prev_value() == 0
-                    or self.ctx.input.touch_value() == 0
+                    self.ctx.input.page_prev_value() == PRESSED
+                    or self.ctx.input.touch_value() == PRESSED
                 ):
                     return 1
 
             # Indicate progress to the user that a new part was captured
             if new_part:
                 self.ctx.display.to_portrait()
-                if self.ctx.display.width() < 320:
-                    self.ctx.display.draw_centered_text(
-                        "%.0f%%" % (100 * float(num_parts_captured) / float(part_total))
-                    )
-                    time.sleep_ms(100)
+                filled = self.ctx.display.width() * num_parts_captured
+                filled //= part_total
+                self.ctx.display.width()
+                if self.ctx.display.height() < 320:  # M5StickV
+                    height = 210
+                elif self.ctx.display.height() > 320:  # Amigo
+                    height = 380
                 else:
-                    filled = self.ctx.display.usable_width() * num_parts_captured
-                    filled //= part_total
-                    self.ctx.display.fill_rectangle(
-                        DEFAULT_PADDING,
-                        335,
-                        filled,
-                        self.ctx.display.font_height,
-                        lcd.WHITE,
-                    )
+                    height = 305
+                self.ctx.display.fill_rectangle(
+                    0,
+                    height,
+                    filled,
+                    15,
+                    lcd.WHITE,
+                )
+                time.sleep_ms(QR_CODE_STEP_TIME)
                 self.ctx.display.to_landscape()
 
             return 0
 
         self.ctx.display.clear()
-        self.ctx.display.draw_centered_text(t("Loading Camera"))
-        if self.ctx.display.width() < 320:
-            camera_offset = False
-        else:
-            camera_offset = True
-            self.ctx.display.draw_hcentered_text(
-                "Up: Abort\nDown: Anti-Glare\nEnter: Flashlight", 380
-            )
-            self.ctx.display.outline(
-                39,
-                1,
-                241,
-                321,
-            )
-            self.ctx.display.outline(
-                DEFAULT_PADDING,
-                335,
-                self.ctx.display.usable_width(),
-                self.ctx.display.font_height,
-            )
+        self.ctx.display.draw_centered_text(t("Loading Camera.."))
         self.ctx.display.to_landscape()
         code = None
         qr_format = None
         try:
-            code, qr_format = self.ctx.camera.capture_qr_code_loop(
-                callback, camera_offset
-            )
+            code, qr_format = self.ctx.camera.capture_qr_code_loop(callback)
         except:
             self.ctx.log.exception("Exception occurred capturing QR code")
         if self.ctx.light:
@@ -267,7 +261,41 @@ class Page:
             )
         return (code, qr_format)
 
-    def display_qr_codes(self, data, qr_format, title=None):
+    def highlight_qr_region(self, code, region=(0, 0, 0, 0), zoom=False):
+        """Draws in white a highlighted region of the QR code"""
+        reg_x, reg_y, reg_width, reg_height = region
+        size, code = self.ctx.display.add_qr_frame(code)
+        max_width = self.ctx.display.width()
+        if zoom:
+            max_width -= DEFAULT_PADDING
+            if size == 23:  # 21 + 2(frame)
+                qr_size = 7
+            else:
+                qr_size = 5
+            offset_x = 0
+            offset_y = 0
+        else:
+            qr_size = size
+            offset_x = reg_x + 1
+            offset_y = reg_y + 1
+
+        scale = max_width // qr_size
+        qr_width = qr_size * scale
+        offset = (self.ctx.display.width() - qr_width) // 2
+        for y in range(reg_height):  # vertical blocks loop
+            for x in range(reg_width):  # horizontal blocks loop
+                xy_index = (reg_y + y + 1) * (size + 1)
+                xy_index += reg_x + x + 1
+                if code[xy_index] == "0":
+                    self.ctx.display.fill_rectangle(
+                        offset + (offset_x + x) * scale,
+                        offset + (offset_y + y) * scale,
+                        scale,
+                        scale,
+                        lcd.WHITE,
+                    )
+
+    def display_qr_codes(self, data, qr_format, title="", allow_any_btn=False):
         """Displays a QR code or an animated series of QR codes to the user, encoding them
         in the specified format
         """
@@ -275,6 +303,7 @@ class Page:
         i = 0
         code_generator = to_qr_codes(data, self.ctx.display.qr_data_width(), qr_format)
         self.ctx.display.clear()
+        bright = False
         while not done:
             code = None
             num_parts = 0
@@ -285,12 +314,13 @@ class Page:
                     data, self.ctx.display.qr_data_width(), qr_format
                 )
                 code, num_parts = next(code_generator)
-            self.ctx.display.draw_qr_code(0, code)
-            subtitle = (
-                t("Part\n%d / %d") % (i + 1, num_parts) if title is None else title
-            )
+            if bright:
+                self.ctx.display.draw_qr_code(0, code, light_color=lcd.WHITE)
+            else:
+                self.ctx.display.draw_qr_code(0, code)
+            subtitle = t("Part\n%d / %d") % (i + 1, num_parts) if not title else title
             offset_y = self.ctx.display.qr_offset()
-            if title is not None:
+            if title:
                 offset_y += self.ctx.display.font_height
             self.ctx.display.fill_rectangle(
                 0,
@@ -301,7 +331,11 @@ class Page:
             )
             self.ctx.display.draw_hcentered_text(subtitle, offset_y, color=lcd.WHITE)
             i = (i + 1) % num_parts
-            if self.wait_for_proceed(block=num_parts == 1):
+            # There are cases we can allow any btn to change the screen
+            btn = self.wait_for_proceed_qr(block=num_parts == 1, any_btn=allow_any_btn)
+            if btn == TOGGLE_BRIGHTNESS:
+                bright = not bright
+            elif btn == True:
                 done = True
             # interval done in input.py using timers
 
@@ -342,15 +376,19 @@ class Page:
                         offset_x, offset_y, word, lcd.WHITE, lcd.BLACK
                     )
 
-    def print_qr_prompt(self, data, qr_format, width=33):
+    def print_qr_prompt(self, data, qr_format, title="", width=33):
         """Prompts the user to print a QR code in the specified format
         if a printer is connected
         """
         if self.ctx.printer is None:
             return
         self.ctx.display.clear()
-        if self.prompt(t("Print to QR?"), self.ctx.display.height() // 2):
-            self.ctx.printer.print_string("Plain Text QR\n\n")
+        if self.prompt(
+            t("Print to QR?\n\n%s\n\n") % Settings().printer.driver,
+            self.ctx.display.height() // 2,
+        ):
+            if title:
+                self.ctx.printer.print_string(title + "\n\n")
             i = 0
             for qr_code, count in to_qr_codes(data, width, qr_format):
                 if i == count:
@@ -359,6 +397,12 @@ class Page:
                 self.ctx.display.draw_centered_text(
                     t("Printing\n%d / %d") % (i + 1, count)
                 )
+
+                # Warn of SD read here because Printer don't have access to display
+                if isinstance(self.ctx.printer, FilePrinter):
+                    self.ctx.display.clear()
+                    self.ctx.display.draw_centered_text(t("Checking for SD card.."))
+
                 self.ctx.printer.print_qr_code(qr_code)
                 i += 1
 
@@ -443,6 +487,17 @@ class Page:
                     return True
         return answer
 
+    def display_centered_text(
+        self, message, duration=FLASH_MSG_TIME, color=lcd.WHITE, bg_color=lcd.BLACK
+    ):
+        """Display a text for duration ms or until you press a button"""
+        self.ctx.display.clear()
+        self.ctx.display.draw_centered_text(message, color, bg_color)
+        # this sleep protect form a double input at the same time (ENTER + PAGE on a rotary encoder)
+        time.sleep_ms(WAIT_TO_CHECK_INPUT)
+        self.ctx.input.wait_for_press(block=False, wait_duration=duration)
+        self.ctx.display.clear()
+
     def shutdown(self):
         """Handler for the 'shutdown' menu item"""
         if self.prompt(t("Are you sure?"), self.ctx.display.height() // 2):
@@ -453,6 +508,63 @@ class Page:
         """Runs the page's menu loop"""
         _, status = self.menu.run_loop()
         return status != MENU_SHUTDOWN
+
+    def select_file(self, select_file_handler=lambda *args: MENU_EXIT):
+        """Starts a file explorer on the SD folder and returns the file selected"""
+        custom_start_digits = LIST_FILE_DIGITS
+        custom_end_digts = LIST_FILE_DIGITS + 4  # 3 more because of file type
+        if board.config["type"] == "m5stickv":
+            custom_start_digits = LIST_FILE_DIGITS_SMALL
+            custom_end_digts = LIST_FILE_DIGITS_SMALL + 4  # 3 more because of file type
+
+        path = SD_ROOT_PATH
+        while True:
+            # if is a dir then list all files in it
+            if SDHandler.dir_exists(path):
+                items = []
+                menu_items = []
+
+                if path != SD_ROOT_PATH:
+                    items.append("..")
+                    menu_items.append(("..", lambda: MENU_EXIT))
+
+                dir_files = os.listdir(path)
+                for filename in dir_files:
+                    items.append(filename)
+                    display_filename = filename
+                    if len(filename) >= custom_start_digits + 2 + custom_end_digts:
+                        display_filename = (
+                            filename[:custom_start_digits]
+                            + ".."
+                            + filename[len(filename) - custom_end_digts :]
+                        )
+                    menu_items.append(
+                        (display_filename, select_file_handler, [path + "/" + filename])
+                    )
+
+                # We need to add this option because /sd can be empty!
+                items.append("Back")
+                menu_items.append((t("Back"), lambda: MENU_EXIT))
+
+                submenu = Menu(self.ctx, menu_items)
+                index, _ = submenu.run_loop()
+
+                # selected "Back"
+                if index == len(items) - 1:
+                    return ""
+                # selected ".."
+                if index == 0 and path != SD_ROOT_PATH:
+                    path = path.split("/")
+                    path.pop()
+                    path = "/".join(path)
+                else:
+                    path += "/" + items[index]
+            # it is a file!
+            else:
+                submenu, menu_items, items = (None, None, None)
+                del submenu, menu_items, items
+                gc.collect()
+                return path
 
 
 class ListView:
@@ -526,9 +638,10 @@ class Menu:
                 self._draw_touch_menu(selected_item_index)
             else:
                 self._draw_menu(selected_item_index)
-            self.draw_battery()
 
-            btn = self.ctx.input.wait_for_button(block=True)
+            self.draw_status_bar()
+
+            btn = self.ctx.input.wait_for_button()
             if self.ctx.input.touch is not None:
                 if btn == BUTTON_TOUCH:
                     selected_item_index = self.ctx.input.touch.current_index()
@@ -537,7 +650,12 @@ class Menu:
             if btn == BUTTON_ENTER:
                 try:
                     self.ctx.display.clear()
-                    status = self.menu_view[selected_item_index][1]()
+                    try:
+                        status = self.menu_view[selected_item_index][1](
+                            *self.menu_view[selected_item_index][2]
+                        )
+                    except:
+                        status = self.menu_view[selected_item_index][1]()
                     if status != MENU_CONTINUE:
                         return (self.menu_view.index(selected_item_index), status)
                 except Exception as e:
@@ -566,34 +684,66 @@ class Menu:
             elif btn == SWIPE_DOWN:
                 self.menu_view.move_backward()
 
-    def draw_battery(self):
+    def draw_status_bar(self):
+        """Draws a status bar along the top of the UI"""
+        self.draw_logging_indicator()
+        self.draw_battery_indicator()
+        self.draw_network_indicator()
+
+    def draw_logging_indicator(self):
+        """Draws a square mark if logging is enabled"""
+        log_level = Settings().logging.level
+
+        if log_level == LoggingSettings.NONE_TXT:
+            return
+
+        color = lcd.RED  # ERROR
+        if log_level == LoggingSettings.WARN_TXT:
+            color = lcd.ORANGE
+        if log_level == LoggingSettings.INFO_TXT:
+            color = lcd.GREEN
+        if log_level == LoggingSettings.DEBUG_TXT:
+            color = lcd.MAGENTA
+
+        # print the square at the top left
+        self.ctx.display.fill_rectangle(3, 3, 6, 6, color)
+
+    def draw_battery_indicator(self):
         """Draws a battery icon with depletion proportional to battery voltage"""
-        if self.ctx.power_manager.pmu is not None:
-            batt_mv = int(self.ctx.power_manager.batt_voltage())
-            if batt_mv > BATTERY_LOW:
-                batt_color = lcd.WHITE
-            else:
-                batt_color = lcd.RED
+        if not self.ctx.power_manager.has_battery():
+            return
+
+        charge = self.ctx.power_manager.battery_charge_remaining()
+        battery_color = lcd.RED if charge < 0.3 else lcd.WHITE
+
+        # Draw (filled) outline of battery in top-right corner of display
+        padding = 5
+        cylinder_length = 20
+        cylinder_height = 5
+        self.ctx.display.fill_rectangle(
+            self.ctx.display.width() - padding - cylinder_length,
+            padding,
+            cylinder_length,
+            cylinder_height,
+            battery_color,
+        )
+
+        # If not fully charged, overlay black rect to indicate how much battery is depleted
+        if charge < 1:
+            depleted_height = cylinder_height - 2
+            depleted_length = int((cylinder_length - 2) * (1 - charge))
             self.ctx.display.fill_rectangle(
-                self.ctx.display.width() - 30, 5, 20, 8, batt_color
+                self.ctx.display.width() - padding - depleted_length - 1,
+                padding + 1,
+                depleted_length,
+                depleted_height,
+                lcd.BLACK,
             )
-            self.ctx.display.fill_rectangle(
-                self.ctx.display.width() - 10, 7, 3, 4, batt_color
-            )
-            if batt_mv < BATTERY_FULL:
-                if batt_mv > BATTERY_LOW:
-                    depleted_lenght = BATTERY_FULL - batt_mv
-                    depleted_lenght *= 18  # 18 pixels
-                    depleted_lenght //= BATTERY_FULL - BATTERY_LOW  # possible range
-                else:
-                    depleted_lenght = 18
-                self.ctx.display.fill_rectangle(
-                    self.ctx.display.width() - 11 - depleted_lenght,
-                    6,
-                    depleted_lenght,
-                    6,
-                    lcd.BLACK,
-                )
+
+    def draw_network_indicator(self):
+        """Draws test at top if testnet is enabled"""
+        if Settings().bitcoin.network == BitcoinSettings.TEST_TXT:
+            self.ctx.display.draw_string(12, 0, "test", lcd.GREEN)
 
     def _draw_touch_menu(self, selected_item_index):
         # map regions with dynamic height to fill screen

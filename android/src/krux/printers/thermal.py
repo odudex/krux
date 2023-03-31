@@ -64,7 +64,7 @@ class AdafruitPrinter(Printer):
 
         self.character_height = 24
         self.byte_time = 1  # miliseconds
-        self.dot_print_time = 10  # miliseconds
+        self.dot_print_time = Settings().printer.thermal.adafruit.line_delay
         self.dot_feed_time = 2  # miliseconds
 
         self.setup()
@@ -108,7 +108,7 @@ class AdafruitPrinter(Printer):
         self.write_bytes(
             27,  # Esc
             55,  # 7 (print settings)
-            Settings().printer.thermal.adafruit.heat_dots,
+            11,  # Heat dots
             Settings().printer.thermal.adafruit.heat_time,
             Settings().printer.thermal.adafruit.heat_interval,
         )
@@ -184,8 +184,8 @@ class AdafruitPrinter(Printer):
             size += 1
 
         scale = Settings().printer.thermal.adafruit.paper_width // size
-        scale //= 3
-        # Maximum size is //2 Command will scale up by 2x later
+        scale *= Settings().printer.thermal.adafruit.scale
+        scale //= 200  # 100*2 because printer will scale 2X later to save data
         # Being at full size sometimes makes prints more faded (can't apply too much heat?)
 
         line_bytes_size = (size * scale + 7) // 8  # amount of bytes per line
@@ -200,7 +200,7 @@ class AdafruitPrinter(Printer):
                     line |= bit
             line_bytes = line.to_bytes(line_bytes_size, "big")
             # Print height * scale lines out to scale by
-            
+
             for _ in range(scale):
                 # command += line_bytes
                 self.uart_conn.write(line_bytes)
@@ -218,7 +218,6 @@ class AdafruitPrinter(Printer):
         command += bytes([height])
         command += b"\x00"
         self.uart_conn.write(command)
-
 
     def print_bitmap_line(self, data):
         """Print a bitmap line"""

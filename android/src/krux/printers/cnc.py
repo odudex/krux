@@ -24,6 +24,7 @@ import math
 from ..krux_settings import Settings
 from ..wdt import wdt
 from . import Printer
+from ..sd_card import SDHandler
 
 G0_XY = "G0 X%.4f Y%.4f"
 G0_Z = "G0 Z%.4f"
@@ -248,10 +249,19 @@ class FilePrinter(GCodeGenerator):
 
     def print_qr_code(self, qr_code):
         """Creates an nc file on the SD card with commands to cut out the specified QR code"""
-        self.file = open("/sd/qr.nc", "w")
-        super().print_qr_code(qr_code)
-        self.file.flush()
-        self.file.close()
+        try:
+            with SDHandler():
+                self.file = open("/sd/qr.nc", "w")
+                super().print_qr_code(qr_code)
+        except OSError:
+            pass
+        finally:
+            if self.file:
+                self.file.flush()
+                self.file.close()
+
+    def print_string(self, text):
+        """Print a text string. Avoided on CNC"""
 
     def clear(self):
         """Clears the printer's memory, resetting it"""

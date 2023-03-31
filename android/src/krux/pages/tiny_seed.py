@@ -8,14 +8,9 @@ from embit.wordlists.bip39 import WORDLIST
 from . import Page
 from ..wdt import wdt
 from ..krux_settings import t
-from ..display import DEFAULT_PADDING
+from ..display import DEFAULT_PADDING, FLASH_MSG_TIME
 from ..camera import OV7740_ID, OV2640_ID, OV5642_ID
-from ..input import (
-    BUTTON_ENTER,
-    BUTTON_PAGE,
-    BUTTON_PAGE_PREV,
-    BUTTON_TOUCH,
-)
+from ..input import BUTTON_ENTER, BUTTON_PAGE, BUTTON_PAGE_PREV, BUTTON_TOUCH, PRESSED
 
 # Tiny Seed last bit index positions according to checksums
 TS_LAST_BIT_NO_CS = 143
@@ -32,12 +27,14 @@ class TinySeed(Page):
         super().__init__(ctx, None)
         self.ctx = ctx
         self.x_offset = DEFAULT_PADDING // 2 + 2 * self.ctx.display.font_width
+        # case for non m5stickv
         if self.ctx.display.width() > 135:
             self.y_offset = DEFAULT_PADDING + 3 * self.ctx.display.font_height
             self.x_pad = self.ctx.display.width() * 2 // 27 # = width/13,5  #self.ctx.display.font_height
             self.y_pad = self.ctx.display.height() //16  #self.ctx.display.font_height
             #self.y_pad += self.ctx.display.height() // 120
         else:
+            # case for m5stickv
             self.y_offset = 2 * self.ctx.display.font_height
             self.x_pad = self.ctx.display.font_width + 1
             self.y_pad = self.ctx.display.font_height
@@ -66,7 +63,9 @@ class TinySeed(Page):
 
     def _draw_labels(self, page):
         """Draws labels for import and export Tinyseed UI"""
-        self.ctx.display.draw_hcentered_text("Tiny Seed")
+        self.ctx.display.draw_hcentered_text(t("Tiny Seed"))
+
+        # case for non m5stickv
         if self.ctx.display.width() > 135:
             self.ctx.display.to_landscape()
             bit_number = 2048
@@ -221,7 +220,7 @@ class TinySeed(Page):
             # self.ctx.input.wait_for_button()
 
             # Print
-            self.ctx.printer.set_bitmap_mode(image_size//8,image_size,3)
+            self.ctx.printer.set_bitmap_mode(image_size // 8, image_size, 3)
             for y in range(image_size):
                 line_bytes = bytes([])
                 x = 0
@@ -244,10 +243,18 @@ class TinySeed(Page):
     def _draw_index(self, index):
         """Outline index respective"""
         width = 6 * self.x_pad - 2
+        height = self.y_pad - 2
+
         if index >= 162:
             x_position = self.x_offset + 6 * self.x_pad + 1
+            # case for m5stickv
+            if self.ctx.display.width() == 135:
+                height = self.y_pad
         elif index >= 156:
             x_position = self.x_offset + 1
+            # case for m5stickv
+            if self.ctx.display.width() == 135:
+                height = self.y_pad
         elif index <= TS_LAST_BIT_NO_CS:
             x_position = index % 12
             x_position *= self.x_pad
@@ -262,7 +269,7 @@ class TinySeed(Page):
             x_position,
             y_position,
             width,
-            self.y_pad - 2,
+            height,
             lcd.WHITE,
         )
 
@@ -270,36 +277,41 @@ class TinySeed(Page):
         """Draws options to leave and proceed"""
         y_offset = self.y_offset + 13 * self.y_pad
         x_offset = self.x_offset
-        text_y_offset = y_offset + (self.y_pad - self.ctx.display.font_height)//2
+        esc_x_offset = round(x_offset + 1.9 * self.x_pad)
+
+        # case for non m5stickv
+        if self.ctx.display.width() > 135:
+            esc_x_offset = round(x_offset + 2.3 * self.x_pad)
+
+        self.ctx.display.draw_string(esc_x_offset, y_offset + 1, t("Esc"), lcd.WHITE)
         self.ctx.display.draw_string(
-            x_offset + (5 * self.x_pad) // 2, text_y_offset, t("Esc"), lcd.WHITE
+            round(x_offset + 8.4 * self.x_pad), y_offset + 1, t("Go"), lcd.WHITE
         )
-        self.ctx.display.draw_string(
-            x_offset + (17 * self.x_pad) // 2, text_y_offset, t("Go"), lcd.WHITE
-        )
-        self.ctx.display.fill_rectangle(
-            x_offset,
-            y_offset,
-            12 * self.x_pad,
-            1,
-            lcd.DARKGREY,
-        )
-        self.ctx.display.fill_rectangle(
-            x_offset,
-            y_offset + self.y_pad,
-            12 * self.x_pad,
-            1,
-            lcd.DARKGREY,
-        )
-        for _ in range(3):
+        # print border around buttons only on touch devices
+        if self.ctx.input.touch is not None:
             self.ctx.display.fill_rectangle(
                 x_offset,
                 y_offset,
+                12 * self.x_pad,
                 1,
-                self.y_pad,
                 lcd.DARKGREY,
             )
-            x_offset += 6 * self.x_pad
+            self.ctx.display.fill_rectangle(
+                x_offset,
+                y_offset + self.y_pad,
+                12 * self.x_pad,
+                1,
+                lcd.DARKGREY,
+            )
+            for _ in range(3):
+                self.ctx.display.fill_rectangle(
+                    x_offset,
+                    y_offset,
+                    1,
+                    self.y_pad,
+                    lcd.DARKGREY,
+                )
+                x_offset += 6 * self.x_pad
 
     def _map_keys_array(self):
         """Maps an array of regions for keys to be placed in"""
@@ -525,7 +537,7 @@ class TinyScanner(Page):
     def __init__(self, ctx):
         super().__init__(ctx, None)
         self.ctx = ctx
-        # Capturing flaf used for first page of 24 words seed
+        # Capturing flag used for first page of 24 words seed
         self.capturing = False
         # X, Y array map for punched area
         self.x_regions = []
@@ -694,6 +706,7 @@ class TinyScanner(Page):
                 ):
                     return rect
             return None
+
         # Big lenses cameras seems to distor aspect ratio to 1.1
         aspect_low = 1.1 if self.ctx.camera.cam_id in (OV2640_ID, OV5642_ID) else 1.2
         stats = img.get_statistics()
@@ -704,7 +717,7 @@ class TinyScanner(Page):
         # img.draw_string(10,70,"LQ:"+str(stats.lq()))
 
         # Luminosity
-        luminosity = stats.median()*2
+        luminosity = stats.median() * 2
         attempts = 3
         while attempts:
             blob_threshold = [
@@ -760,7 +773,7 @@ class TinyScanner(Page):
                     lcd.WHITE,
                 )
 
-    def _detect_punches(self, img):
+    def _detect_and_draw_punches(self, img):
         """Applies gradient threshold to detect punched(black painted) bits"""
         page_seed_numbers = [0] * 12
         index = 0
@@ -799,9 +812,8 @@ class TinyScanner(Page):
                     )
                     word_index = index // 12
                     bit = 11 - (index % 12)
-                    page_seed_numbers[word_index] = (
-                        self.tiny_seed.toggle_bit(page_seed_numbers[word_index], bit)
-                        % 2048
+                    page_seed_numbers[word_index] = self.tiny_seed.toggle_bit(
+                        page_seed_numbers[word_index], bit
                     )
                 index += 1
         return page_seed_numbers
@@ -841,9 +853,19 @@ class TinyScanner(Page):
 
     def _check_buttons(self, w24, page):
         if time.ticks_ms() > self.time_frame + 1000:
-            if w24 and not page and not self.ctx.input.enter_value():
-                self.capturing = True
-            if not self.ctx.input.page_value() or not self.ctx.input.page_prev_value():
+            enter_or_touch = (
+                self.ctx.input.enter_value() == PRESSED
+                or self.ctx.input.touch_value() == PRESSED
+            )
+            if w24:
+                if page == 0 and enter_or_touch:
+                    self.capturing = True
+            elif enter_or_touch:
+                return True
+            if (
+                self.ctx.input.page_value() == PRESSED
+                or self.ctx.input.page_prev_value() == PRESSED
+            ):
                 return True
         return False
 
@@ -862,7 +884,11 @@ class TinyScanner(Page):
                 words = self.tiny_seed.enter_tiny_seed(seed_numbers=page_seed_numbers)
                 if words:  # If words confirmed
                     return words
-                # Else turn camera on again and reset words
+                # Else esc command was given, turn camera on again and reset words
+                self.ctx.display.clear()
+                self.ctx.display.flash_text(
+                    t("Scanning words 1-12 again") + "\n\n" + t("Wait for the capture")
+                )
                 self._run_camera()
                 self.previous_seed_numbers = [1] * 12
             else:
@@ -880,11 +906,17 @@ class TinyScanner(Page):
             words = self.tiny_seed.enter_tiny_seed(True, page_seed_numbers, True)
             self.capturing = False
             if words is not None:  # Fisrt 12 words confirmed, moving to 13-24
+                self.ctx.display.clear()
+                self.ctx.display.flash_text(
+                    t("Scanning words 13-24") + "\n\n" + t("Wait for the capture")
+                )
                 self._run_camera()
                 return words
             # Esc command was given
             self.ctx.display.clear()
-            self.ctx.display.flash_text(t("Scanning words 1-12 again"), duration=700)
+            self.ctx.display.flash_text(
+                t("Scanning words 1-12 again") + "\n\n" + t("TOUCH or ENTER to capture")
+            )
             self._run_camera()  # Run camera and rotate screen after message was given
         elif self._valid_numbers(page_seed_numbers):
             self.previous_seed_numbers = page_seed_numbers
@@ -896,21 +928,23 @@ class TinyScanner(Page):
         if w24:
             w24_seed_numbers = [0] * 24
         self.previous_seed_numbers = [1] * 12
-        intro = t(
-            "Paint punched dots black so they can be detected. "
-            + "Use a black background surface. "
-            + "Align camera and Tiny Seed precisely using the tracking rectangle."
-        )
-        if w24:
-            intro += t(" Press ENTER when punches are correctly mapped")
-        self.ctx.display.draw_hcentered_text(intro)
-        if not self.prompt(t("Proceed?"), self.ctx.display.bottom_prompt_line):
-            return None
+
         self.ctx.display.clear()
-        self.ctx.display.draw_centered_text(t("Loading Camera"))
+        message = t("Wait for the capture")
+        if w24 and page == 0:
+            message = t("TOUCH or ENTER to capture")
+        self.ctx.display.draw_centered_text(message)
+
+        precamera_ticks = time.ticks_ms()
         self.ctx.camera.initialize_sensor(grayscale=True)
         self._set_camera_sensitivity()
         full_screen = self._run_camera()
+        postcamera_ticks = time.ticks_ms()
+
+        # check how much ms camera took to retain message on the screen
+        if precamera_ticks + FLASH_MSG_TIME > postcamera_ticks:
+            time.sleep_ms(precamera_ticks + FLASH_MSG_TIME - postcamera_ticks)
+        del message, precamera_ticks, postcamera_ticks
         # # Debug FPS 1/4
         # clock = time.clock()
         # fps = 0
@@ -928,7 +962,7 @@ class TinyScanner(Page):
 
                 # map_regions
                 self._map_punches_region(rect.rect(), page)
-                page_seed_numbers = self._detect_punches(img)
+                page_seed_numbers = self._detect_and_draw_punches(img)
                 self._draw_grid(img)
             if board.config["type"] == "m5stickv":
                 img.lens_corr(strength=1.0, zoom=0.56)
@@ -938,6 +972,7 @@ class TinyScanner(Page):
                 lcd.display(img)
             else:
                 lcd.display(img, oft=(2, 40))  # Centralize image in Amigo
+
             if page_seed_numbers:
                 if w24:
                     if page == 0:  # Scanning first 12 words (page 0)
@@ -965,6 +1000,4 @@ class TinyScanner(Page):
             # fps = clock.fps()
 
         self._exit_camera()
-        self.ctx.display.clear()
-        self.ctx.display.flash_text(t("Aborting scan"), duration=1000)
         return None

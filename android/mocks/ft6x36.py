@@ -48,6 +48,9 @@ class FT6X36:
             release = False
             touch_position = None
         return position
+    
+    def threshold(self):
+        pass
 
 ft6x36_singleton = FT6X36
 

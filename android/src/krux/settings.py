@@ -19,12 +19,27 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
+#
+# Removed SDHandler dependency, we check for SD remount, just before entering
+# the settings view
+# from .sd_card import SDHandler
+
 try:
     import ujson as json
 except ImportError:
     import json
 
-SETTINGS_FILE = "/sd/settings.json"
+from kivy.storage.jsonstore import JsonStore
+
+import os
+
+SETTINGS_FILENAME = "settings.json"
+SD_PATH = "sd"
+FLASH_PATH = "flash"
+
+# KRUX CUSTOM COLORS
+SLATEGRAY = 0x2E5B
+DARKGREEN = 0x2005
 
 
 class SettingsNamespace:
@@ -91,10 +106,38 @@ class Store:
 
     def __init__(self):
         self.settings = {}
+        self.file_location = "/" + FLASH_PATH + "/"
+
+        # Check for the correct settings persist location
         try:
-            self.settings = json.load(open(SETTINGS_FILE, "r"))
+            with open(self.file_location + SETTINGS_FILENAME, "r") as f:
+                self.settings = json.loads(f.read())
         except:
             pass
+
+        self.file_location = (
+            self.settings.get("settings", {})
+            .get("persist", {})
+            .get("location", "undefined")
+        )
+
+        # Settings file not found on flash, or key is missing
+        if self.file_location != FLASH_PATH:
+            self.file_location = "/" + SD_PATH + "/"
+            try:
+                with open(self.file_location + SETTINGS_FILENAME, "r") as f:
+                    self.settings = json.loads(f.read())
+            except:
+                pass
+
+        # Settings file location points to what is defined in SETTINGS_FILENAME or defaults to flash
+        self.file_location = (
+            "/"
+            + self.settings.get("settings", {})
+            .get("persist", {})
+            .get("location", FLASH_PATH)
+            + "/"
+        )
 
     def get(self, namespace, setting_name, default_value):
         """Loads a setting under the given namespace, returning the default value if not set"""
@@ -107,17 +150,57 @@ class Store:
         return s[setting_name]
 
     def set(self, namespace, setting_name, setting_value):
-        """Stores a setting value under the given namespace"""
+        """Stores a setting value under the given namespace. We don't use SDHandler
+        here because set is called too many times every time the user changes a setting
+        and SDHandler remount causes a small delay
+        """
         s = self.settings
         for level in namespace.split("."):
             s[level] = s.get(level, {})
             s = s[level]
+        old_value = s.get(setting_name, None)
         s[setting_name] = setting_value
+
+        # if is a change in settings persist location, delete file from old location,
+        # and later it will save on the new location
+        if setting_name == "location" and old_value:
+            # update the file location
+            self.file_location = "/" + setting_value + "/"
+            try:
+                # remove old SETTINGS_FILENAME
+                os.remove("/" + old_value + "/" + SETTINGS_FILENAME)
+            except:
+                pass
+
+        Store.save_settings()
+
+    @staticmethod
+    def save_settings():
+        """Helper to persist SETTINGS_FILENAME where user selected"""
         try:
-            json.dump(self.settings, open(SETTINGS_FILE, "w"))
+            # save the new SETTINGS_FILENAME
+            with open(store.file_location + SETTINGS_FILENAME, "w") as f:
+                f.write(json.dumps(store.settings))
         except:
             pass
 
+class AndroidStore:
+    """Acts as a simple JSON file store for settings for Android apps"""
+
+    def __init__(self):
+        self.settings = {}
+        self.kivy_store = JsonStore(SETTINGS_FILENAME)
+
+    def get(self, namespace, setting_name, default_value):
+        """Loads a setting under the given namespace, returning the default value if not set"""
+        if not namespace in self.kivy_store.keys():
+            self.set(namespace, setting_name, default_value)
+        return self.kivy_store.get(namespace)[setting_name]
+    
+    def set(self, namespace, setting_name, setting_value):
+        """Stores a setting value under the given namespace"""
+        self.kivy_store[namespace] = {setting_name : setting_value}
+
 
 # Initialize singleton
-store = Store()
+store = AndroidStore()

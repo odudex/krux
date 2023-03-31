@@ -33,6 +33,8 @@ QR_DARK_COLOR, QR_LIGHT_COLOR = board.config["krux"]["display"]["qr_colors"]
 MAX_BACKLIGHT = 8
 MIN_BACKLIGHT = 1
 
+FLASH_MSG_TIME = 2000
+
 
 class Display:
     """Display is a singleton interface for interacting with the device's display"""
@@ -272,6 +274,15 @@ class Display:
             x -= width
         lcd.fill_rectangle(x, y, width, height, color)
 
+    def draw_img_hcentered_other_img(
+        self, img, other_img, offset_y=DEFAULT_PADDING, alpha=255
+    ):
+        """Draws other_img horizontally-centered on the img, at the given offset_y.
+        Alpha value is used, so any value less than 256 makes black pixels invisible"""
+        img.draw_image(
+            other_img, offset_y, (img.height() - other_img.height()) // 2, alpha=alpha
+        )
+
     def draw_string(self, x, y, text, color, bg_color=lcd.BLACK):
         """Draws a string to the screen"""
         if board.config["krux"]["display"]["inverted_coordinates"]:
@@ -298,16 +309,17 @@ class Display:
         offset_y = max(0, (self.height() - lines_height) // 2)
         self.draw_hcentered_text(text, offset_y, color, bg_color)
 
-    def flash_text(self, text, color=lcd.WHITE, bg_color=lcd.BLACK, duration=3000):
+    def flash_text(
+        self, text, color=lcd.WHITE, bg_color=lcd.BLACK, duration=FLASH_MSG_TIME
+    ):
         """Flashes text centered on the display for duration ms"""
         self.clear()
         self.draw_centered_text(text, color, bg_color)
         time.sleep_ms(duration)
         self.clear()
 
-    def draw_qr_code(self, offset_y, qr_code, light_color=QR_LIGHT_COLOR, region=None):
-        """Draws a QR code on the screen"""
-        # Add a 1 block white border around the code before displaying
+    def add_qr_frame(self, qr_code):
+        """Add a 1 block white border around the code before displaying"""
         qr_code = qr_code.strip()
         lines = qr_code.split("\n")
         size = len(lines)
@@ -316,13 +328,14 @@ class Display:
         for line in lines:
             new_lines.append("0" + line + "0")
         new_lines.append("0" * size)
-        qr_code = "\n".join(new_lines)
-        if region is None:
+        return size, "\n".join(new_lines)
 
-            region = (0,0,size,size)
-        lcd.draw_qr_code(
-            offset_y, qr_code, self.width(), QR_DARK_COLOR, light_color, region
-        )
+    def draw_qr_code(
+        self, offset_y, qr_code, dark_color=QR_DARK_COLOR, light_color=QR_LIGHT_COLOR
+    ):
+        """Draws a QR code on the screen"""
+        _, qr_code = self.add_qr_frame(qr_code)
+        lcd.draw_qr_code(offset_y, qr_code, self.width(), dark_color, light_color)
 
     def set_backlight(self, level):
         """Sets the backlight of the display to the given power level, from 0 to 8"""

@@ -37,7 +37,10 @@ COLOR_WHITE = (1, 1, 1, 1)
 COLOR_RED = (1, 0, 0, 1)
 COLOR_BLUE = (0, 0, 1, 1)
 COLOR_GREEN = (0, 1, 0, 1)
+COLOR_ORANGE = (1, 0.647, 0, 1)
+COLOR_MAGENTA = (1, 0, 1, 1)
 COLOR_DARKGREY = (0.3, 0.3, 0.3, 1)
+COLOR_SLATEGREY = (0.5, 0.5, 0.5, 1)
 COLOR_LIGHTGREY = (0.8, 0.8, 0.8, 1)
 COLOR_LIGHTBLACK = (0.1, 0.1, 0.2, 1)
 
@@ -55,8 +58,11 @@ class LCD(Widget):
         self.RED = COLOR_RED
         self.BLUE = COLOR_BLUE
         self.GREEN = COLOR_GREEN
+        self.ORANGE = COLOR_ORANGE
+        self.MAGENTA = COLOR_MAGENTA
         self.DARKGREY = COLOR_DARKGREY
         self.LIGHTGREY = COLOR_LIGHTGREY
+        self.SLATEGREY = COLOR_SLATEGREY
         self.LIGHTBLACK = COLOR_LIGHTBLACK
         self.touch_release = False
         self.landscape = False
@@ -115,34 +121,27 @@ class LCD(Widget):
         return window_height
     
     @mainthread
-    def draw_qr_code(self, offset_y, code_str, max_width, dark_color=COLOR_BLACK, light_color=COLOR_WHITE, region=(0,0,0,0)):
-        reg_x, reg_y, reg_width, reg_height = region
+    def draw_qr_code(self, offset_y, code_str, max_width, dark_color=COLOR_BLACK, light_color=COLOR_WHITE):
         starting_size = 2
         while code_str[starting_size] != "\n":
             starting_size += 1
-        region_mode = (reg_width < starting_size)
         # starting size is the amount of blocks per line
         max_width = min(self._width(), self._height())
         # scale is how many pixels per block
         scale = max_width // starting_size
-        # scale_factor = 4
-        # scale //= (scale_factor)
         # qr_width is total QR width in pixels
         qr_width = starting_size * scale
         #texture = Texture.create(size=(starting_size, starting_size), colorfmt='rgb')
-        texture = Texture.create(size=(reg_width, reg_height), colorfmt='rgb')
+        texture = Texture.create(size=(starting_size, starting_size), colorfmt='rgb')
         # buf_size = starting_size * starting_size
-        buf_size = reg_width * reg_height
+        buf_size = starting_size * starting_size
         buf_size *= 3
         buf = [0 for x in range(buf_size)]
         pixel_index = 0
-        for inverted_y in range(reg_height): # vertical blocks loop
+        for inverted_y in range(starting_size): # vertical blocks loop
             y = starting_size - inverted_y - 1
-            for x in range(reg_width): # horizontal blocks loop
+            for x in range(starting_size): # horizontal blocks loop
                 xy_index = y * (starting_size+1) + x  # individual block index
-                if region_mode:
-                    xy_index += (reg_y + 2 - starting_size) * (starting_size+1)
-                    xy_index += reg_x + 1
                 color = dark_color if code_str[xy_index] == "1" else light_color
                 if isinstance(color, int):
                     color = int(str(color),16)
@@ -159,34 +158,20 @@ class LCD(Widget):
                 buf[pixel_index*3+2] = int(blue)
                 pixel_index += 1
         # offset will be used only in position for Android
-        offset = (max_width - qr_width) // 2
-        # if reg_height == 1:  # line mode
-        #     index = starting_size - 2 - reg_y
-        #     buf = buf[index*starting_size*3:(index+1)*starting_size*3]
-        #     buf = bytes(buf)
-        #     texture = Texture.create(size=(starting_size, 1), colorfmt='rgb')
-        #     texture.blit_buffer(buf, colorfmt='rgb', bufferfmt='ubyte')
-        #     texture.mag_filter = 'nearest'
-        #     y = self._height() - offset - (reg_y+2) * scale
-        #     y -= self._width() // 140  # - grid line thieckness
-        #     with self.canvas:
-        #         Rectangle(texture=texture, pos=(offset, y), size=(qr_width, scale + self._width() // 140))
-        #         # height = scale + grid line thieckness)
-        # else:        
+        offset = (max_width - qr_width) // 2      
         buf = bytes(buf)
         texture.blit_buffer(buf, colorfmt='rgb', bufferfmt='ubyte')
         texture.mag_filter = 'nearest'
-        offset_reg_x = (reg_x + 1) * scale if region_mode else 0
-        offset_reg_y = (reg_y + 2) * scale if region_mode else qr_width
+
         with self.canvas:
             Rectangle(
                 texture=texture,
-                pos=(offset + offset_reg_x, self._height() - offset - offset_reg_y),
-                size=(reg_width*scale, reg_height*scale)
+                pos=(offset + 0, self._height() - offset - qr_width),
+                size=(starting_size*scale, starting_size*scale)
             )
         
     @mainthread
-    def display(self, img, oft=None):
+    def display(self, img, oft=None, roi=None):
         return
         self.frame_counter += 1
         # self.clear()

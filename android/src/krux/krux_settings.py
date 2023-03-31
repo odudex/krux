@@ -20,7 +20,13 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-from .settings import SettingsNamespace, CategorySetting, NumberSetting
+from .settings import (
+    SettingsNamespace,
+    CategorySetting,
+    NumberSetting,
+    SD_PATH,
+    FLASH_PATH,
+)
 import board
 import binascii
 from .translations import translation_table
@@ -58,8 +64,11 @@ def t(slug):
 class BitcoinSettings(SettingsNamespace):
     """Bitcoin-specific settings"""
 
+    MAIN_TXT = "main"
+    TEST_TXT = "test"
+
     namespace = "settings.bitcoin"
-    network = CategorySetting("network", "main", ["main", "test"])
+    network = CategorySetting("network", MAIN_TXT, [MAIN_TXT, TEST_TXT])
 
     def label(self, attr):
         """Returns a label for UI when given a setting name or namespace"""
@@ -76,16 +85,21 @@ class LoggingSettings(SettingsNamespace):
     WARN = 30
     INFO = 20
     DEBUG = 10
+    NONE_TXT = "NONE"
+    ERROR_TXT = "ERROR"
+    WARN_TXT = "WARN"
+    INFO_TXT = "INFO"
+    DEBUG_TXT = "DEBUG"
     LEVEL_NAMES = {
-        NONE: "NONE",
-        ERROR: "ERROR",
-        WARN: "WARN",
-        INFO: "INFO",
-        DEBUG: "DEBUG",
+        NONE: NONE_TXT,
+        ERROR: ERROR_TXT,
+        WARN: WARN_TXT,
+        INFO: INFO_TXT,
+        DEBUG: DEBUG_TXT,
     }
 
     namespace = "settings.logging"
-    level = CategorySetting("level", "NONE", list(LEVEL_NAMES.values()))
+    level = CategorySetting("level", NONE_TXT, list(LEVEL_NAMES.values()))
 
     def label(self, attr):
         """Returns a label for UI when given a setting name or namespace"""
@@ -130,9 +144,10 @@ class AdafruitPrinterSettings(SettingsNamespace):
     paper_width = NumberSetting(int, "paper_width", 384, [100, 1000])
     tx_pin = NumberSetting(int, "tx_pin", DEFAULT_TX_PIN, [0, 10000])
     rx_pin = NumberSetting(int, "rx_pin", DEFAULT_RX_PIN, [0, 10000])
-    heat_dots = NumberSetting(int, "heat_dots", 11, [0, 255])
     heat_time = NumberSetting(int, "heat_time", 120, [3, 255])
     heat_interval = NumberSetting(int, "heat_interval", 40, [0, 255])
+    line_delay = NumberSetting(int, "line_delay", 20, [0, 255])
+    scale = NumberSetting(int, "scale", 75, [25, 100])
 
     def label(self, attr):
         """Returns a label for UI when given a setting name or namespace"""
@@ -141,9 +156,10 @@ class AdafruitPrinterSettings(SettingsNamespace):
             "paper_width": t("Paper Width"),
             "tx_pin": t("TX Pin"),
             "rx_pin": t("RX Pin"),
-            "heat_dots": t("Heat Dots"),
             "heat_time": t("Heat Time"),
             "heat_interval": t("Heat Interval"),
+            "line_delay": t("Line Delay"),
+            "scale": t("Scale"),
         }[attr]
 
 
@@ -203,12 +219,12 @@ class PrinterSettings(SettingsNamespace):
     """Printer-specific settings"""
 
     PRINTERS = {
-        "none": (None,None),
+        "none": ("none", None),
         "thermal/adafruit": ("thermal", "AdafruitPrinter"),
         "cnc/file": ("cnc", "FilePrinter"),
     }
     namespace = "settings.printer"
-    driver = CategorySetting("none", "none", list(PRINTERS.keys()))
+    driver = CategorySetting("driver", "none", list(PRINTERS.keys()))
 
     def __init__(self):
         self.thermal = ThermalSettings()
@@ -217,10 +233,35 @@ class PrinterSettings(SettingsNamespace):
     def label(self, attr):
         """Returns a label for UI when given a setting name or namespace"""
         return {
-            "none": t("None"),
             "thermal": t("Thermal"),
             "driver": t("Driver"),
             "cnc": t("CNC"),
+        }[attr]
+
+
+class TouchSettings(SettingsNamespace):
+    """Touch sensitivity settings"""
+
+    namespace = "settings.touchscreen"
+    threshold = NumberSetting(int, "threshold", 22, [10, 200])
+
+    def label(self, attr):
+        """Returns a label for UI when given a setting name or namespace"""
+        return {
+            "threshold": t("Touch Threshold"),
+        }[attr]
+
+
+class PersistSettings(SettingsNamespace):
+    """Persistent settings"""
+
+    namespace = "settings.persist"
+    location = CategorySetting("location", FLASH_PATH, [FLASH_PATH, SD_PATH])
+
+    def label(self, attr):
+        """Returns a label for UI when given a setting name or namespace"""
+        return {
+            "location": t("Location"),
         }[attr]
 
 
@@ -234,13 +275,19 @@ class Settings(SettingsNamespace):
         self.i18n = I18nSettings()
         self.logging = LoggingSettings()
         self.printer = PrinterSettings()
+        self.persist = PersistSettings()
+        if board.config["type"].startswith("amigo"):
+            self.touch = TouchSettings()
 
     def label(self, attr):
         """Returns a label for UI when given a setting name or namespace"""
-
-        return {
+        main_menu = {
             "bitcoin": t("Bitcoin"),
             "i18n": t("Language"),
             "logging": t("Logging"),
+            "persist": t("Persist"),
             "printer": t("Printer"),
-        }[attr]
+        }
+        if board.config["type"].startswith("amigo"):
+            main_menu["touchscreen"] = t("Touchscreen")
+        return main_menu[attr]
