@@ -4,6 +4,8 @@ from Crypto import Random
 from Crypto.Cipher import AES
 from kivy.storage.jsonstore import JsonStore
 
+STORE_FILE_PATH = "../seeds.json"
+
 class AESCipher(object):
 
     def __init__(self, key):
@@ -18,7 +20,7 @@ class AESCipher(object):
     
     def sotore_encrypted(self, fingerprint, seed):
         encrypted = self.encrypt(seed).decode('utf-8')
-        self.encrypted_store = JsonStore('seeds.json')
+        self.encrypted_store = JsonStore(STORE_FILE_PATH)
         self.encrypted_store.put(fingerprint, load=encrypted)
 
     def decrypt(self, enc):
@@ -36,7 +38,7 @@ class AESCipher(object):
     
 class StoredSeeds:
     def __init__(self) -> None:
-        self.encrypted_store = JsonStore('seeds.json')
+        self.encrypted_store = JsonStore(STORE_FILE_PATH)
 
     def list_fingerprints(self):
         fingerprints = []

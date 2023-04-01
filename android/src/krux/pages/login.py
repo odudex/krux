@@ -163,15 +163,15 @@ class Login(Page):
 
     def load_encrypted_seed(self, fingerprint):
         key =  self.capture_from_keypad(
-            t("Encryption Key"), [LETTERS, UPPERCASE_LETTERS, NUM_SPECIAL_1]
+            t("Encryption Key"), [LETTERS, UPPERCASE_LETTERS, NUM_SPECIAL_1, NUM_SPECIAL_2]
         )
         if key in ("", ESC_KEY):
-            return  # MENU_CONTINUE
+            raise ValueError("Decryption Failed")
         stored_seeds = StoredSeeds()
         try:
             words = stored_seeds.decrypt(key, fingerprint).split()
         except:
-            raise ValueError("Decryption failed")
+            raise ValueError("Decryption Failed")
         if len(words) not in (12,24):
             raise ValueError("Decryption failed")
         del stored_seeds

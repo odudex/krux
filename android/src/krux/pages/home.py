@@ -72,7 +72,9 @@ SCAN_ADDRESS_LIMIT = 20
 
 LETTERS = "abcdefghijklmnopqrstuvwxyz"
 UPPERCASE_LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-NUM_SPECIAL_1 = "0123456789()-.[]_~"
+NUM_SPECIAL_1 = "0123456789 !#$%&'()*"
+NUM_SPECIAL_2 = '+,-./:;<=>?@[\\]^_"{|}~'
+FILE_SPECIAL = "0123456789()-.[]_~"
 
 PSBT_FILE_SUFFIX = "-signed"
 PSBT_FILE_EXTENSION = ".psbt"
@@ -423,15 +425,18 @@ class Home(Page):
                 stored_seeds.del_seed(fingerprint)
         else:
             key =  self.capture_from_keypad(
-                t("Encryption Key"), [LETTERS, UPPERCASE_LETTERS, NUM_SPECIAL_1]
+                t("Encryption Key"), [LETTERS, UPPERCASE_LETTERS, NUM_SPECIAL_1, NUM_SPECIAL_2]
             )
             if key in ("", ESC_KEY):
+                self.ctx.display.flash_text(t("Encrypted seed was not stored"))
                 return  # MENU_CONTINUE
             words = self.ctx.wallet.key.mnemonic
             encryptor = AESCipher(key)
             encryptor.sotore_encrypted(fingerprint, words)
             del encryptor
-        
+            self.ctx.display.clear()
+            self.ctx.display.draw_centered_text(t("Encrypted seed was stored with ID: %s" % fingerprint))
+            self.ctx.input.wait_for_button()
 
     def public_key(self):
         """Handler for the 'xpub' menu item"""
@@ -1051,7 +1056,7 @@ class Home(Page):
 
         curr_filename = self.capture_from_keypad(
             t("Filename"),
-            [LETTERS, UPPERCASE_LETTERS, NUM_SPECIAL_1],
+            [LETTERS, UPPERCASE_LETTERS, FILE_SPECIAL],
             starting_buffer=("%s" + suffix) % curr_filename
             if curr_filename
             else empty_filename + suffix,
