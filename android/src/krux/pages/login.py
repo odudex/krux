@@ -181,11 +181,11 @@ class Login(Page):
         fingerprints_menu = []
         stored_seeds = StoredSeeds()
         for fingerprint in stored_seeds.list_fingerprints():
-            fingerprints_menu.append((fingerprint, lambda: self.load_encrypted_seed(fingerprint)))
-        del stored_seeds
+            fingerprints_menu.append((fingerprint, lambda f_print=fingerprint: self.load_encrypted_seed(f_print)))
         fingerprints_menu.append((t("Back"), lambda: MENU_EXIT))
         submenu = Menu(self.ctx, fingerprints_menu)
         index, status = submenu.run_loop()
+        del stored_seeds
         if index == len(submenu.menu) - 1:
             return MENU_CONTINUE
         return status
