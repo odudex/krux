@@ -47,7 +47,7 @@ from ..input import (
 import qrcode
 from ..printers import create_printer
 from ..printers.cnc import FilePrinter
-from ..encryption import AESCipher, StoredSeeds
+from ..encryption import StoredSeeds
 import board
 # import uos
 import time
@@ -429,14 +429,14 @@ class Home(Page):
             )
             if key in ("", ESC_KEY):
                 self.ctx.display.flash_text(t("Encrypted seed was not stored"))
+                del stored_seeds
                 return  # MENU_CONTINUE
             words = self.ctx.wallet.key.mnemonic
-            encryptor = AESCipher(key)
-            encryptor.sotore_encrypted(fingerprint, words)
-            del encryptor
+            stored_seeds.sotore_encrypted(key, fingerprint, words)
             self.ctx.display.clear()
             self.ctx.display.draw_centered_text(t("Encrypted seed was stored with ID: %s" % fingerprint))
             self.ctx.input.wait_for_button()
+        del stored_seeds
 
     def public_key(self):
         """Handler for the 'xpub' menu item"""

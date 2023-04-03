@@ -182,14 +182,13 @@ class Login(Page):
         stored_seeds = StoredSeeds()
         for fingerprint in stored_seeds.list_fingerprints():
             fingerprints_menu.append((fingerprint, lambda f_print=fingerprint: self.load_encrypted_seed(f_print)))
+        del stored_seeds
         fingerprints_menu.append((t("Back"), lambda: MENU_EXIT))
         submenu = Menu(self.ctx, fingerprints_menu)
         index, status = submenu.run_loop()
-        del stored_seeds
         if index == len(submenu.menu) - 1:
             return MENU_CONTINUE
         return status
-
 
 
     def new_key(self):
@@ -461,7 +460,9 @@ class Login(Page):
                         break
 
                 word = ""
+                word_num = ""
                 while True:
+                    word_num = ""
                     word = self.capture_from_keypad(
                         t("Word %d") % (len(words) + 1),
                         [charset],
@@ -483,6 +484,7 @@ class Login(Page):
                     ):
                         break
                     if word != "":
+                        word_num = word
                         word = to_word(word)
                     if word != "":
                         break
@@ -499,7 +501,14 @@ class Login(Page):
                         word = Key.pick_final_word(self.ctx.input.entropy, words)
 
                 self.ctx.display.clear()
-                if self.prompt(word, self.ctx.display.height() // 2):
+                if word_num == word:
+                    word_num = ""
+                else:
+                    word_num += ": "
+                if self.prompt(
+                    str(len(words) + 1) + ".\n\n" + word_num + word + "\n\n",
+                    self.ctx.display.height() // 2,
+                ):
                     words.append(word)
 
             return self._load_key_from_words(words)
@@ -850,36 +859,39 @@ class Login(Page):
 
         return MENU_CONTINUE
 
-    # def sd_check(self):
-    #     """Handler for the 'SD Check' menu item"""
-    #     self.ctx.display.clear()
-    #     self.ctx.display.draw_centered_text(t("Checking for SD card.."))
-    #     try:
-    #         # Check for SD hot-plug
-    #         with SDHandler():
-    #             sd_status = uos.statvfs(SD_ROOT_PATH)
-    #             sd_total = int(sd_status[2] * sd_status[1] / 1024 / 1024)
-    #             sd_free = int(sd_status[4] * sd_status[1] / 1024 / 1024)
+    def sd_check(self):
+        """Handler for the 'SD Check' menu item"""
+        self.ctx.display.clear()
+        self.ctx.display.draw_centered_text(t("Checking for SD card.."))
+        try:
+            # Check for SD hot-plug
+            with SDHandler():
+                sd_status = uos.statvfs(SD_ROOT_PATH)
+                sd_total = int(sd_status[2] * sd_status[1] / 1024 / 1024)
+                sd_free = int(sd_status[4] * sd_status[1] / 1024 / 1024)
 
-    #             self.ctx.display.clear()
-    #             self.ctx.display.draw_centered_text(
-    #                 t("SD card")
-    #                 + "\n\n"
-    #                 + t("Size: ")
-    #                 + "{:,}".format(sd_total)
-    #                 + " MB"
-    #                 + "\n\n"
-    #                 + t("Used: ")
-    #                 + "{:,}".format(sd_total - sd_free)
-    #                 + " MB"
-    #                 + "\n\n"
-    #                 + t("Free: ")
-    #                 + "{:,}".format(sd_free)
-    #                 + " MB"
-    #             )
-    #             self.ctx.input.wait_for_button()
-    #     except OSError:
-    #         self.ctx.display.flash_text(t("SD card not detected"), lcd.RED)
+                self.ctx.display.clear()
+                self.ctx.display.draw_hcentered_text(
+                    t("SD card")
+                    + "\n\n"
+                    + t("Size: ")
+                    + "{:,}".format(sd_total)
+                    + " MB"
+                    + "\n\n"
+                    + t("Used: ")
+                    + "{:,}".format(sd_total - sd_free)
+                    + " MB"
+                    + "\n\n"
+                    + t("Free: ")
+                    + "{:,}".format(sd_free)
+                    + " MB"
+                )
+                if self.prompt(
+                    t("Explore files?"), self.ctx.display.bottom_prompt_line
+                ):
+                    self.select_file(select_file_handler=self._show_file_details)
+        except OSError:
+            self.ctx.display.flash_text(t("SD card not detected"), lcd.RED)
 
     #     return MENU_CONTINUE
 
@@ -1070,6 +1082,8 @@ class Login(Page):
                         new_category = categories[(i - 1) % len(categories)]
                     setting.__set__(settings_namespace, new_category)
                     break
+
+        # When changing locale, exit Login to force recreate with new locale
         if (
             setting.attr == "locale"
             and setting.__get__(settings_namespace) != starting_category
