@@ -44,8 +44,6 @@ COLOR_SLATEGREY = (0.5, 0.5, 0.5, 1)
 COLOR_LIGHTGREY = (0.8, 0.8, 0.8, 1)
 COLOR_LIGHTBLACK = (0.1, 0.1, 0.2, 1)
 
-FONT_SIZE = 60
-
 class LCD(Widget):
 
     pressed = ListProperty([0, 0])
@@ -67,6 +65,8 @@ class LCD(Widget):
         self.touch_release = False
         self.landscape = False
         self.frame_counter = 0
+        _, window_height = Window.size
+        self.font_size = window_height * 0.04
         
     @mainthread
     def clear(self):
@@ -74,12 +74,12 @@ class LCD(Widget):
 
     @mainthread
     def draw_string(self, x, y, s, color=COLOR_WHITE, bgcolor=COLOR_BLACK):
-        label = CoreLabel(text=s, font_size=FONT_SIZE, color=color, font_name='Ubuntu' )
+        label = CoreLabel(text=s, font_size=self.font_size, color=color, font_name='Ubuntu' )
         label.refresh()
         text = label.texture
         if self.landscape:
             y = self._height() - y - text.size[1]
-            x -= (self._height() - self._width() + FONT_SIZE)//2
+            x -= (self._height() - self._width() + self.font_size)//2
             y += (self._height() - self._width())//2
             self.canvas.add(Rectangle(size=text.size, pos=(x,y), texture=text))
         else:

@@ -20,6 +20,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+from kivy.core.window import Window
+
 try:
     import ujson as json
 except ImportError:
@@ -75,3 +77,6 @@ config = json.loads("""
     }
 }
 """)
+
+_, window_height = Window.size            
+config["krux"]["display"]["font"] = [window_height * 0.02, window_height * 0.04]

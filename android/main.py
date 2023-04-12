@@ -31,7 +31,7 @@ Builder.load_string("""
 
     Label:
         id: label_1
-        font_size: 50
+        font_size: 0.04 * root.height
         size_hint_y: 1
         text_size: self.width, None
         height: self.texture_size[1]
@@ -40,7 +40,7 @@ Builder.load_string("""
 
     Button:
         id: but_1
-        font_size: 60
+        font_size: 0.05 * root.height
         background_color: 0, 0, 0, 1
         font_name: 'ubuntu.ttf'
         color: 0, 1, 0, 1
