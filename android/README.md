@@ -35,6 +35,15 @@ sudo apt install python3-zbar embit
 pip3 install embit pyqrcode pyzbar gestures4kivy camera4kivy
 ```
 
+## Download Krux
+
+```
+git clone https://github.com/odudex/krux.git
+cd krux
+git checkout android
+cd android
+```
+
 ## Run the app on your computer
 
 Enter the /android folder run:
