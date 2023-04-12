@@ -79,4 +79,4 @@ config = json.loads("""
 """)
 
 _, window_height = Window.size            
-config["krux"]["display"]["font"] = [window_height * 0.02, window_height * 0.04]
+config["krux"]["display"]["font"] = [window_height // 50, window_height // 25]

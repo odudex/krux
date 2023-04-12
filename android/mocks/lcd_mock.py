@@ -66,7 +66,7 @@ class LCD(Widget):
         self.landscape = False
         self.frame_counter = 0
         _, window_height = Window.size
-        self.font_size = window_height * 0.04
+        self.font_size = window_height // 25
         
     @mainthread
     def clear(self):

@@ -479,7 +479,6 @@ class Home(Page):
         zpub = "Zpub" if self.ctx.wallet.key.multisig else "zpub"
         for version in [None, self.ctx.wallet.key.network[zpub]]:
             self.ctx.display.clear()
-            print(version)
             self.ctx.display.draw_centered_text(
                 self.ctx.wallet.key.fingerprint_hex_str(True)
                 + "\n\n"
