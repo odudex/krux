@@ -111,9 +111,11 @@ class RootWidget(BoxLayout):
             self.remove_widget(mocks.load_mocks.lcd)
             mocks.load_mocks.main_sensor.qrreader.__init__()
             self.add_widget(mocks.load_mocks.main_sensor.qrreader)
-            mocks.load_mocks.main_sensor.qrreader.connect_camera(analyze_pixels_resolution = 640,
-                                     enable_analyze_pixels = True,
-                                     enable_focus_gesture = False)
+            mocks.load_mocks.main_sensor.qrreader.connect_camera(
+                enable_photo = False,
+                analyze_pixels_resolution = 640,
+                enable_analyze_pixels = True,
+            )
         else:
             mocks.load_mocks.main_sensor.qrreader.disconnect_camera()
             self.remove_widget(sensor.qrreader)
