@@ -53,8 +53,12 @@ from . import (
     ESC_KEY,
     DEFAULT_PADDING,
     SD_ROOT_PATH,
+    LETTERS,
+    UPPERCASE_LETTERS,
+    NUM_SPECIAL_1,
+    NUM_SPECIAL_2,
 )
-from ..encryption import StoredSeeds
+from ..encryption import MnemonicStorage
 import os
 # import uos
 import time
@@ -66,11 +70,6 @@ D20_STATES = [str(i + 1) for i in range(20)]
 DIGITS = "0123456789"
 DIGITS_HEX = "0123456789ABCDEF"
 DIGITS_OCT = "01234567"
-LETTERS = "abcdefghijklmnopqrstuvwxyz"
-UPPERCASE_LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-NUM_SPECIAL_1 = "0123456789 !#$%&'()*"
-NUM_SPECIAL_2 = '+,-./:;<=>?@[\\]^_"{|}~'
-NUMERALS = "0123456789."
 
 D6_12W_MIN_ROLLS = 50
 D6_24W_MIN_ROLLS = 99
@@ -117,7 +116,7 @@ class Login(Page):
             [
                 (t("Via Camera"), self.load_key_from_qr_code),
                 (t("Via Manual Input"), self.load_key_from_manual_input),
-                (t("From Storage"), self.load_key_from_storage),
+                (t("From Storage"), self.load_mnemonic_from_storage),
                 (t("Back"), lambda: MENU_EXIT),
             ],
         )
@@ -161,35 +160,59 @@ class Login(Page):
             return MENU_CONTINUE
         return status
 
-    def load_encrypted_seed(self, fingerprint):
-        key =  self.capture_from_keypad(
-            t("Encryption Key"), [LETTERS, UPPERCASE_LETTERS, NUM_SPECIAL_1, NUM_SPECIAL_2]
+    def load_encrypted_seed(self, mnemonic_id, sd_card=False, delete=False):
+        """Load a selected seed from the encrypted file"""
+        key = self.capture_from_keypad(
+            t("Encryption Key"),
+            [LETTERS, UPPERCASE_LETTERS, NUM_SPECIAL_1, NUM_SPECIAL_2],
         )
+        self.ctx.display.clear()
+        self.ctx.display.draw_centered_text( t("Processing ..."))
         if key in ("", ESC_KEY):
-            raise ValueError("Decryption Failed")
-        stored_seeds = StoredSeeds()
+            raise ValueError(t("Failed to decrypt"))
+        mnemonic_storage = MnemonicStorage()
         try:
-            words = stored_seeds.decrypt(key, fingerprint).split()
+            words = mnemonic_storage.decrypt(key, mnemonic_id, sd_card).split()
         except:
-            raise ValueError("Decryption Failed")
-        if len(words) not in (12,24):
-            raise ValueError("Decryption failed")
-        del stored_seeds
+            raise ValueError(t("Failed to decrypt"))
+
+        if len(words) not in (12, 24):
+            raise ValueError(t("Failed to decrypt"))
+        if delete:
+            self.ctx.display.clear()
+            if self.prompt( t("Delete %s?" % mnemonic_id), self.ctx.display.height() // 2):
+                mnemonic_storage.del_mnemonic(mnemonic_id, sd_card)
+        del mnemonic_storage
+        if delete:
+            return None
         return self._load_key_from_words(words)
 
-    def load_key_from_storage(self):
-        fingerprints_menu = []
-        stored_seeds = StoredSeeds()
-        for fingerprint in stored_seeds.list_fingerprints():
-            fingerprints_menu.append((fingerprint, lambda f_print=fingerprint: self.load_encrypted_seed(f_print)))
-        del stored_seeds
-        fingerprints_menu.append((t("Back"), lambda: MENU_EXIT))
-        submenu = Menu(self.ctx, fingerprints_menu)
+    def load_mnemonic_from_storage(self, delete=False):
+        """Lists all encrypted seeds stored on a file"""
+        mnemonic_ids_menu = []
+        mnemonic_storage = MnemonicStorage()
+        for mnemonic_id in mnemonic_storage.list_mnemonics():
+            mnemonic_ids_menu.append(
+                (
+                    mnemonic_id + "(flash)",
+                    lambda s_id=mnemonic_id: self.load_encrypted_seed(s_id, delete=delete),
+                )
+            )
+        if mnemonic_storage.has_sd_card:
+            for mnemonic_id in mnemonic_storage.list_mnemonics(sd_card=True):
+                mnemonic_ids_menu.append(
+                    (
+                        mnemonic_id + "(SD card)",
+                        lambda s_id=mnemonic_id: self.load_encrypted_seed(s_id, sd_card=True, delete=delete),
+                    )
+            )
+        del mnemonic_storage
+        mnemonic_ids_menu.append((t("Back"), lambda: MENU_EXIT))
+        submenu = Menu(self.ctx, mnemonic_ids_menu)
         index, status = submenu.run_loop()
         if index == len(submenu.menu) - 1:
             return MENU_CONTINUE
         return status
-
 
     def new_key(self):
         """Handler for the 'new mnemonic' menu item"""
@@ -812,6 +835,7 @@ class Login(Page):
             self.ctx,
             [
                 # (t("Check SD Card"), self.sd_check),
+                (t("Delete Mnemonic"), lambda: self.load_mnemonic_from_storage(delete=True)),
                 # (t("Print Test Page"), self.print_test),
                 (t("Create QR Code"), self.create_qr),
                 (t("Back"), lambda: MENU_EXIT),
@@ -843,7 +867,7 @@ class Login(Page):
         return MENU_CONTINUE
 
     def print_test(self):
-        """Handler for the 'Print Test Page' menu item"""
+        """Handler for the 'Print Test QR' menu item"""
         try:
             self.ctx.printer = create_printer()
             if not self.ctx.printer:
@@ -853,7 +877,7 @@ class Login(Page):
             self.ctx.log.exception("Exception occurred connecting to printer")
             raise
 
-        title = t("Krux Printer Test Page")
+        title = t("Krux Printer Test QR")
         self.display_qr_codes(title, FORMAT_NONE, title, allow_any_btn=True)
         self.print_qr_prompt(title, FORMAT_NONE, title)
 
@@ -893,7 +917,7 @@ class Login(Page):
         except OSError:
             self.ctx.display.flash_text(t("SD card not detected"), lcd.RED)
 
-    #     return MENU_CONTINUE
+        return MENU_CONTINUE
 
     # def _show_file_details(self, file):
     #     """Handler to print file info when selecting a file in the file explorer"""
@@ -1096,10 +1120,10 @@ class Login(Page):
 
         starting_value = setting.numtype(setting.__get__(settings_namespace))
 
-        numerals = NUMERALS
-        # remove the dot symbol when number is int
-        if setting.numtype == int:
-            numerals = NUMERALS[:-1]
+        numerals = DIGITS
+        # add the dot symbol when number type is float
+        if setting.numtype == float:
+            numerals += "."
 
         new_value = self.capture_from_keypad(
             settings_namespace.label(setting.attr),

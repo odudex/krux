@@ -1,5 +1,26 @@
+# The MIT License (MIT)
+
+# Copyright (c) 2021-2023 Krux contributors
+
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+
 import hashlib
-from Crypto import Random
 from Crypto.Cipher import AES
 import base64
 from kivy.storage.jsonstore import JsonStore
@@ -7,55 +28,72 @@ from kivy.storage.jsonstore import JsonStore
 STORE_FILE_PATH = "../seeds.json"
 
 class AESCipher(object):
+    """Helper for AES encrypt/decrypt"""
 
-    def __init__(self, key):
-        self.bs = AES.block_size
-        self.key = hashlib.sha256(key.encode()).digest()
+    def __init__(self, key, salt):
+        self.key = hashlib.pbkdf2_hmac(
+            'sha256',
+            key.encode(),
+            salt.encode(),
+            100000
+        )
 
     def encrypt(self, raw):
-        raw = self._pad(raw)
-        iv = Random.new().read(AES.block_size)
-        cipher = AES.new(self.key, AES.MODE_CBC, iv)
-        return base64.b64encode(iv + cipher.encrypt(raw.encode()))
+        """Encrypt using AES MODE_ECB and return the value encoded as base64"""
+        data_bytes = raw.encode()
+        encryptor = AES.new(self.key, AES.MODE_ECB)
+        encrypted = encryptor.encrypt(
+            data_bytes + b"\x00" * ((16 - (len(data_bytes) % 16)) % 16)
+        )
+        return base64.b64encode(encrypted)
 
     def decrypt(self, enc):
-        enc = base64.b64decode(enc)
-        iv = enc[:AES.block_size]
-        cipher = AES.new(self.key, AES.MODE_CBC, iv)
-        return self._unpad(cipher.decrypt(enc[AES.block_size:])).decode('utf-8')
+        """Decrypt a base64 using AES MODE_ECB and return the value decoded as string"""
+        encrypted = base64.b64decode(enc)
+        decryptor = AES.new(self.key, AES.MODE_ECB)
+        load = decryptor.decrypt(encrypted).decode("utf-8")
+        return load.replace("\x00", "")
 
-    def _pad(self, s):
-        return s + (self.bs - len(s) % self.bs) * chr(self.bs - len(s) % self.bs)
 
-    @staticmethod
-    def _unpad(s):
-        return s[:-ord(s[len(s)-1:])]
-    
-class StoredSeeds:
+class MnemonicStorage:
+    """Handler of stored encrypted seeds"""
+
     def __init__(self) -> None:
-        self.encrypted_store = JsonStore(STORE_FILE_PATH)
+        self.stored = JsonStore(STORE_FILE_PATH)
+        self.has_sd_card = False
 
-    def list_fingerprints(self):
-        fingerprints = []
-        for fingerprint in self.encrypted_store:
-            fingerprints.append(fingerprint)
-        return fingerprints
-    
-    def decrypt(self, key, fingerprint):
-        decryptor = AESCipher(key)
+
+    def list_mnemonics(self, sd_card=False):
+        """List all seeds stored on a file"""
+        mnemonic_ids = []
+        source = self.stored_sd if sd_card else self.stored
+        for mnemonic_id in source:
+            mnemonic_ids.append(mnemonic_id)
+        return mnemonic_ids
+
+    def decrypt(self, key, mnemonic_id, sd_card=False):
+        """Decrypt a selected encrypted mnemonic from a file"""
+        decryptor = AESCipher(key, mnemonic_id)
         try:
-            load = self.encrypted_store.get(fingerprint)['load']
+            load = self.stored.get(mnemonic_id)['load']
             words = decryptor.decrypt(load)
         except:
             return None
         return words
-    def sotore_encrypted(self, key, fingerprint, seed):
-        encryptor = AESCipher(key)
-        encrypted = encryptor.encrypt(seed).decode('utf-8')
-        self.encrypted_store = JsonStore(STORE_FILE_PATH)
-        self.encrypted_store.put(fingerprint, load=encrypted)
 
-    def del_seed(self, fingerprint):
-        self.encrypted_store.delete(fingerprint)
+    def store_encrypted(self, key, mnemonic_id, mnemonic, sd_card=False):
+        """Saves the encrypted mnemonic on a file"""
+        encryptor = AESCipher(key, mnemonic_id)
+        encrypted = encryptor.encrypt(mnemonic).decode("utf-8")
+        mnemonics = {}
+        success = True
+        self.encrypted_store = JsonStore(STORE_FILE_PATH)
+        self.encrypted_store.put(mnemonic_id, load=encrypted)
+        return success
+
+
+    def del_mnemonic(self, mnemonic_id, sd_card=False):
+        """Remove an entry from encrypted mnemonics file"""
+        self.stored.delete(mnemonic_id)
 
 
