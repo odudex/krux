@@ -42,8 +42,6 @@ from ..key import Key
 from ..wallet import Wallet
 from ..printers import create_printer
 from ..krux_settings import t
-from .stack_1248 import Stackbit
-from .tiny_seed import TinySeed, TinyScanner
 from ..sd_card import SDHandler
 from . import (
     Page,
@@ -58,12 +56,9 @@ from . import (
     NUM_SPECIAL_1,
     NUM_SPECIAL_2,
 )
-from ..encryption import MnemonicStorage
 import os
 # import uos
 import time
-
-SENTINEL_DIGITS = "11111"
 
 D6_STATES = [str(i + 1) for i in range(6)]
 D20_STATES = [str(i + 1) for i in range(20)]
@@ -161,13 +156,14 @@ class Login(Page):
         return status
 
     def load_encrypted_seed(self, mnemonic_id, sd_card=False, delete=False):
+        from ..encryption import MnemonicStorage
         """Load a selected seed from the encrypted file"""
         key = self.capture_from_keypad(
             t("Encryption Key"),
             [LETTERS, UPPERCASE_LETTERS, NUM_SPECIAL_1, NUM_SPECIAL_2],
         )
         self.ctx.display.clear()
-        self.ctx.display.draw_centered_text( t("Processing ..."))
+        self.ctx.display.draw_centered_text(t("Processing ..."))
         if key in ("", ESC_KEY):
             raise ValueError(t("Failed to decrypt"))
         mnemonic_storage = MnemonicStorage()
@@ -175,12 +171,13 @@ class Login(Page):
             words = mnemonic_storage.decrypt(key, mnemonic_id, sd_card).split()
         except:
             raise ValueError(t("Failed to decrypt"))
-
         if len(words) not in (12, 24):
             raise ValueError(t("Failed to decrypt"))
         if delete:
             self.ctx.display.clear()
-            if self.prompt( t("Delete %s?" % mnemonic_id), self.ctx.display.height() // 2):
+            if self.prompt(
+                t("Delete %s?" % mnemonic_id), self.ctx.display.height() // 2
+            ):
                 mnemonic_storage.del_mnemonic(mnemonic_id, sd_card)
         del mnemonic_storage
         if delete:
@@ -189,24 +186,33 @@ class Login(Page):
 
     def load_mnemonic_from_storage(self, delete=False):
         """Lists all encrypted seeds stored on a file"""
+        from ..encryption import MnemonicStorage
         mnemonic_ids_menu = []
         mnemonic_storage = MnemonicStorage()
-        for mnemonic_id in mnemonic_storage.list_mnemonics():
+        has_sd = mnemonic_storage.has_sd_card
+        mnemonics = mnemonic_storage.list_mnemonics()
+        sd_mnemonics = mnemonic_storage.list_mnemonics(sd_card=True)
+        del mnemonic_storage
+        
+        for mnemonic_id in mnemonics:
             mnemonic_ids_menu.append(
                 (
                     mnemonic_id + "(flash)",
-                    lambda s_id=mnemonic_id: self.load_encrypted_seed(s_id, delete=delete),
+                    lambda m_id=mnemonic_id: self.load_encrypted_seed(
+                        m_id, delete=delete
+                    ),
                 )
             )
-        if mnemonic_storage.has_sd_card:
-            for mnemonic_id in mnemonic_storage.list_mnemonics(sd_card=True):
+        if has_sd:
+            for mnemonic_id in sd_mnemonics:
                 mnemonic_ids_menu.append(
                     (
                         mnemonic_id + "(SD card)",
-                        lambda s_id=mnemonic_id: self.load_encrypted_seed(s_id, sd_card=True, delete=delete),
+                        lambda m_id=mnemonic_id: self.load_encrypted_seed(
+                            m_id, sd_card=True, delete=delete
+                        ),
                     )
-            )
-        del mnemonic_storage
+                )
         mnemonic_ids_menu.append((t("Back"), lambda: MENU_EXIT))
         submenu = Menu(self.ctx, mnemonic_ids_menu)
         index, status = submenu.run_loop()
@@ -219,6 +225,7 @@ class Login(Page):
         submenu = Menu(
             self.ctx,
             [
+                (t("Via Camera"), self.new_key_from_snapshot),
                 (t("Via D6"), self.new_key_from_d6),
                 (t("Via D20"), self.new_key_from_d20),
                 (t("Back"), lambda: MENU_EXIT),
@@ -236,6 +243,39 @@ class Login(Page):
     def new_key_from_d20(self):
         """Handler for the 'via D20' menu item"""
         return self._new_key_from_die(D20_STATES, D20_12W_MIN_ROLLS, D20_24W_MIN_ROLLS)
+
+    def new_key_from_snapshot(self):
+        """Use camera's entropy to create a new mnemonic"""
+        submenu = Menu(
+            self.ctx,
+            [
+                (t("12 words"), lambda: MENU_EXIT),
+                (t("24 words"), lambda: MENU_EXIT),
+                (t("Back"), lambda: MENU_EXIT),
+            ],
+        )
+        index, _ = submenu.run_loop()
+        if index == 2:
+            return MENU_CONTINUE
+
+        self.ctx.display.clear()
+
+        self.ctx.display.draw_hcentered_text(
+            t("Use camera's entropy to create a new mnemonic")
+        )
+        if self.prompt(t("Proceed?"), self.ctx.display.bottom_prompt_line):
+            entropy_bytes = self.capture_camera_entropy()
+            if entropy_bytes is not None:
+                entropy_hash = binascii.hexlify(entropy_bytes).decode()
+                self.ctx.display.clear()
+                self.ctx.display.draw_centered_text(
+                    t("SHA256 of snapshot:\n\n%s") % entropy_hash
+                )
+                self.ctx.input.wait_for_button()
+                num_bytes = 16 if index == 0 else 32
+                words = bip39.mnemonic_from_bytes(entropy_bytes[:num_bytes]).split()
+                return self._load_key_from_words(words)
+        return MENU_CONTINUE
 
     def _new_key_from_die(self, roll_states, min_rolls_12w, min_rolls_24w):
         submenu = Menu(
@@ -469,7 +509,6 @@ class Login(Page):
         title,
         charset,
         to_word,
-        test_phrase_sentinel=None,
         autocomplete_fn=None,
         possible_keys_fn=None,
     ):
@@ -494,37 +533,23 @@ class Login(Page):
                     )
                     if word == ESC_KEY:
                         return MENU_CONTINUE
+
                     # If the last 'word' is blank,
                     # pick a random final word that is a valid checksum
                     if (len(words) in (11, 23)) and word == "":
                         break
-                    # If the first 'word' is the test phrase sentinel,
-                    # we're testing and just want the test words
-                    if (
-                        len(words) == 0
-                        and test_phrase_sentinel is not None
-                        and word == test_phrase_sentinel
-                    ):
-                        break
+
                     if word != "":
                         word_num = word
                         word = to_word(word)
-                    if word != "":
-                        break
+                        if word != "":
+                            break
 
-                if word not in WORDLIST:
-                    if word == test_phrase_sentinel:
-                        words = [
-                            WORDLIST[0] if n + 1 < 12 else WORDLIST[1879]
-                            for n in range(12)
-                        ]
-                        break
-
-                    if word == "":
-                        word = Key.pick_final_word(self.ctx.input.entropy, words)
+                if word not in WORDLIST and word == "":
+                    word = Key.pick_final_word(self.ctx.input.entropy, words)
 
                 self.ctx.display.clear()
-                if word_num == word:
+                if word_num in (word, ""):
                     word_num = ""
                 else:
                     word_num += ": "
@@ -603,7 +628,7 @@ class Login(Page):
             }
 
         return self._load_key_from_keypad(
-            title, LETTERS, to_word, None, autocomplete, possible_letters
+            title, LETTERS, to_word, autocomplete, possible_letters
         )
 
     def pre_load_key_from_digits(self):
@@ -719,13 +744,13 @@ class Login(Page):
             title,
             DIGITS,
             to_word,
-            SENTINEL_DIGITS,
             autocomplete_fn=autocomplete,
             possible_keys_fn=possible_letters,
         )
 
     def load_key_from_1248(self):
         """Menu handler to load key from Stackbit 1248 sheet metal storage method"""
+        from .stack_1248 import Stackbit
         stackbit = Stackbit(self.ctx)
         words = stackbit.enter_1248()
         del stackbit
@@ -735,6 +760,7 @@ class Login(Page):
 
     def load_key_from_tiny_seed(self):
         """Menu handler to manually load key from Tiny Seed sheet metal storage method"""
+        from .tiny_seed import TinySeed
         submenu = Menu(
             self.ctx,
             [
@@ -758,6 +784,7 @@ class Login(Page):
 
     def load_key_from_tiny_seed_image(self):
         """Menu handler to scan key from Tiny Seed sheet metal storage method"""
+        from .tiny_seed import TinyScanner
         submenu = Menu(
             self.ctx,
             [
@@ -834,9 +861,12 @@ class Login(Page):
         submenu = Menu(
             self.ctx,
             [
-                # (t("Check SD Card"), self.sd_check),
-                (t("Delete Mnemonic"), lambda: self.load_mnemonic_from_storage(delete=True)),
-                # (t("Print Test Page"), self.print_test),
+                (t("Check SD Card"), self.sd_check),
+                (
+                    t("Delete Mnemonic"),
+                    lambda: self.load_mnemonic_from_storage(delete=True),
+                ),
+                (t("Print Test QR"), self.print_test),
                 (t("Create QR Code"), self.create_qr),
                 (t("Back"), lambda: MENU_EXIT),
             ],

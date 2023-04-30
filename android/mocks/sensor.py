@@ -70,6 +70,7 @@ class Sensor(Widget):
         self.m.get_frame.return_value = None
         self.m.get_histogram.return_value = Mockhistogram()
         self.m.find_qrcodes.return_value = codes
+        self.m.to_bytes.return_value = self.qrreader.pick_snapshot_bytes()
         return self.m
 
     def get_id(self):

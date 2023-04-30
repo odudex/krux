@@ -45,7 +45,8 @@ class QRReader(Preview, CommonGestures):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.annotations = []        
+        self.annotations = []
+        self.snapshot_bytes = bytes()        
 
     ####################################
     # Analyze a Frame - NOT on UI Thread
@@ -62,18 +63,26 @@ class QRReader(Preview, CommonGestures):
         codes = []
         if barcodes:
             codes.append(Mockqrcode(barcodes[0].data.decode()))
-        self.make_thread_safe(codes) ## A COPY of the list
+        self.make_thread_safe(codes, pixels) ## A COPY of the list
 
     @mainthread
-    def make_thread_safe(self, found):
+    def make_thread_safe(self, found, image_bytes):
         self.annotations = found
+        if len(image_bytes) > 0:
+            self.snapshot_bytes = image_bytes
 
-    # @mainthread
     def pick_annotations(self):
         annotations = self.annotations
         found = []
-        self.make_thread_safe(found)
+        snapshot_bytes = bytes()
+        self.make_thread_safe(found, snapshot_bytes)
         return annotations
+    
+    def pick_snapshot_bytes(self):
+        snapshot_bytes = self.snapshot_bytes
+        print(len(self.snapshot_bytes))
+        return snapshot_bytes
+
         
     #################################
     # User Touch Event - on UI Thread

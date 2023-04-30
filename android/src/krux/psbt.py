@@ -46,6 +46,7 @@ class PSBTSigner:
                     urtypes.crypto.PSBT.from_cbor(psbt_data.cbor).data
                 )
                 self.ur_type = CRYPTO_PSBT
+                # self.base_encoding = 64
             except:
                 raise ValueError("invalid PSBT")
         else:

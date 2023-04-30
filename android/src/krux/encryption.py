@@ -24,33 +24,52 @@ import hashlib
 from Crypto.Cipher import AES
 import base64
 from kivy.storage.jsonstore import JsonStore
+from .krux_settings import Settings, PBKDF2_HMAC_ECB, PBKDF2_HMAC_CBC, AES_BLOCK_SIZE
+
 
 STORE_FILE_PATH = "../seeds.json"
+
+VERSION_MODE = {
+    "AES-ECB": AES.MODE_ECB,
+    "AES-CBC": AES.MODE_CBC,
+    PBKDF2_HMAC_ECB: AES.MODE_ECB,
+    PBKDF2_HMAC_CBC: AES.MODE_CBC,
+}
+
+VERSION_NUMBER = {
+    "AES-ECB": PBKDF2_HMAC_ECB,
+    "AES-CBC": PBKDF2_HMAC_CBC,
+}
+
+
 
 class AESCipher(object):
     """Helper for AES encrypt/decrypt"""
 
-    def __init__(self, key, salt):
+    def __init__(self, key, salt, iterations):
         self.key = hashlib.pbkdf2_hmac(
-            'sha256',
-            key.encode(),
-            salt.encode(),
-            100000
+            "sha256", key.encode(), salt.encode(), iterations
         )
 
-    def encrypt(self, raw):
+    def encrypt(self, raw, mode=AES.MODE_ECB, iv=None):
         """Encrypt using AES MODE_ECB and return the value encoded as base64"""
         data_bytes = raw.encode()
-        encryptor = AES.new(self.key, AES.MODE_ECB)
+        if iv:
+            encryptor = AES.new(self.key, mode, iv)
+            data_bytes = iv + data_bytes
+        else:
+            encryptor = AES.new(self.key, mode)
         encrypted = encryptor.encrypt(
             data_bytes + b"\x00" * ((16 - (len(data_bytes) % 16)) % 16)
         )
         return base64.b64encode(encrypted)
 
-    def decrypt(self, enc):
+    def decrypt(self, encrypted, mode, iv=None):
         """Decrypt a base64 using AES MODE_ECB and return the value decoded as string"""
-        encrypted = base64.b64decode(enc)
-        decryptor = AES.new(self.key, AES.MODE_ECB)
+        if iv:
+            decryptor = AES.new(self.key, mode, iv)
+        else:
+            decryptor = AES.new(self.key, mode)
         load = decryptor.decrypt(encrypted).decode("utf-8")
         return load.replace("\x00", "")
 
@@ -60,6 +79,7 @@ class MnemonicStorage:
 
     def __init__(self) -> None:
         self.stored = JsonStore(STORE_FILE_PATH)
+        self.stored_sd = {}
         self.has_sd_card = False
 
 
@@ -73,24 +93,39 @@ class MnemonicStorage:
 
     def decrypt(self, key, mnemonic_id, sd_card=False):
         """Decrypt a selected encrypted mnemonic from a file"""
-        decryptor = AESCipher(key, mnemonic_id)
         try:
-            load = self.stored.get(mnemonic_id)['load']
-            words = decryptor.decrypt(load)
+            encrypted_data = self.stored.get(mnemonic_id)["data"]
+            iterations = self.stored.get(mnemonic_id)["key_iterations"]
+            version = self.stored.get(mnemonic_id)["version"]
         except:
+            print("erro json")
             return None
+        data = base64.b64decode(encrypted_data)
+        mode = VERSION_MODE[version]
+        if mode == AES.MODE_ECB:
+            encrypted_mnemonic = data
+            iv = None
+        else:
+            encrypted_mnemonic = data[AES_BLOCK_SIZE:]
+            iv = data[:AES_BLOCK_SIZE]
+        decryptor = AESCipher(key, mnemonic_id, iterations)
+        words = decryptor.decrypt(encrypted_mnemonic, mode, iv)
         return words
 
-    def store_encrypted(self, key, mnemonic_id, mnemonic, sd_card=False):
+    def store_encrypted(self, key, mnemonic_id, mnemonic, sd_card=False, iv=None):
         """Saves the encrypted mnemonic on a file"""
-        encryptor = AESCipher(key, mnemonic_id)
-        encrypted = encryptor.encrypt(mnemonic).decode("utf-8")
+        encryptor = AESCipher(key, mnemonic_id, Settings().encryption.pbkdf2_iterations)
+        mode = VERSION_MODE[Settings().encryption.version]
+        encrypted = encryptor.encrypt(mnemonic, mode, iv).decode("utf-8")
         mnemonics = {}
         success = True
         self.encrypted_store = JsonStore(STORE_FILE_PATH)
-        self.encrypted_store.put(mnemonic_id, load=encrypted)
-        return success
+        self.encrypted_store.put(mnemonic_id, data = encrypted)
+        self.encrypted_store[mnemonic_id]["version"] = VERSION_NUMBER[Settings().encryption.version]
+        self.encrypted_store[mnemonic_id]["key_iterations"] = Settings().encryption.pbkdf2_iterations
+        self.encrypted_store[mnemonic_id] = self.encrypted_store[mnemonic_id]
 
+        return success
 
     def del_mnemonic(self, mnemonic_id, sd_card=False):
         """Remove an entry from encrypted mnemonics file"""

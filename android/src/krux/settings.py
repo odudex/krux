@@ -188,18 +188,25 @@ class AndroidStore:
     """Acts as a simple JSON file store for settings for Android apps"""
 
     def __init__(self):
-        self.settings = {}
-        self.kivy_store = JsonStore(SETTINGS_FILENAME)
+        self.settings = JsonStore(SETTINGS_FILENAME)
 
     def get(self, namespace, setting_name, default_value):
         """Loads a setting under the given namespace, returning the default value if not set"""
-        if not namespace in self.kivy_store.keys():
+        if not namespace in self.settings.keys():
             self.set(namespace, setting_name, default_value)
-        return self.kivy_store.get(namespace)[setting_name]
+        if not setting_name in self.settings.get(namespace):
+            self.set_value(namespace, setting_name, default_value)
+        return self.settings.get(namespace)[setting_name]
     
     def set(self, namespace, setting_name, setting_value):
         """Stores a setting value under the given namespace"""
-        self.kivy_store[namespace] = {setting_name : setting_value}
+        self.settings[namespace] = {setting_name : setting_value}
+
+    def set_value(self,namespace, setting_name, setting_value):
+        self.settings[namespace][setting_name] = setting_value
+        # This weird line below will the save to the file
+        self.settings[namespace] = self.settings[namespace]
+
 
 
 # Initialize singleton
