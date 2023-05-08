@@ -80,7 +80,6 @@ class QRReader(Preview, CommonGestures):
     
     def pick_snapshot_bytes(self):
         snapshot_bytes = self.snapshot_bytes
-        print(len(self.snapshot_bytes))
         return snapshot_bytes
 
         

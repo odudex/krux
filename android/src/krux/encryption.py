@@ -98,7 +98,6 @@ class MnemonicStorage:
             iterations = self.stored.get(mnemonic_id)["key_iterations"]
             version = self.stored.get(mnemonic_id)["version"]
         except:
-            print("erro json")
             return None
         data = base64.b64decode(encrypted_data)
         mode = VERSION_MODE[version]

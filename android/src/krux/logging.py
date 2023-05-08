@@ -50,7 +50,6 @@ class Logger:
         self._write("%s:%s" % (LoggingSettings.LEVEL_NAMES[level], msg))
 
     def _write(self, msg):
-        print(msg)
         try:
             if self.file is None:
                 self.file = open(self.filepath, "w")

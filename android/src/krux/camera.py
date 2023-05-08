@@ -192,7 +192,6 @@ class Camera:
             return None
 
         img_bytes = img.to_bytes()
-        print(len(img_bytes))
         del img
         hasher = hashlib.sha256()
         image_len = len(img_bytes)
