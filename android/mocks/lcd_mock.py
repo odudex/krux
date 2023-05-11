@@ -34,6 +34,7 @@ from unittest.mock import MagicMock
 
 COLOR_BLACK = (0, 0, 0, 1)
 COLOR_WHITE = (1, 1, 1, 1)
+COLOR_YELLOW = (1, 1, 0, 1)
 COLOR_RED = (1, 0, 0, 1)
 COLOR_BLUE = (0, 0, 1, 1)
 COLOR_GREEN = (0, 1, 0, 1)
@@ -53,6 +54,7 @@ class LCD(Widget):
         super().__init__(**kwargs)
         self.BLACK = COLOR_BLACK
         self.WHITE = COLOR_WHITE
+        self.YELLOW = COLOR_YELLOW
         self.RED = COLOR_RED
         self.BLUE = COLOR_BLUE
         self.GREEN = COLOR_GREEN
@@ -74,7 +76,7 @@ class LCD(Widget):
 
     @mainthread
     def draw_string(self, x, y, s, color=COLOR_WHITE, bgcolor=COLOR_BLACK):
-        label = CoreLabel(text=s, font_size=self.font_size, color=color, font_name='Ubuntu' )
+        label = CoreLabel(text=s, font_size=self.font_size, color=color, font_name='Inconsolata' )
         label.refresh()
         text = label.texture
         if self.landscape:

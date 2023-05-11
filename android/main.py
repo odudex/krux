@@ -32,6 +32,7 @@ Builder.load_string("""
     Label:
         id: label_1
         font_size: root.height // 25
+        font_name: 'inconsolata.ttf'
         size_hint_y: 1
         text_size: self.width, None
         height: self.texture_size[1]
@@ -41,8 +42,8 @@ Builder.load_string("""
     Button:
         id: but_1
         font_size: root.height // 25
+        font_name: 'inconsolata.ttf'
         background_color: 0, 0, 0, 1
-        font_name: 'ubuntu.ttf'
         color: 0, 1, 0, 1
         halign: 'center'
         text: '| Start Krux |'
@@ -182,7 +183,7 @@ class KruxApp(App):
         # Can't connect camera till after on_start()
 
 # registering our new custom fontstyle
-LabelBase.register(name='Ubuntu',
-                   fn_regular='ubuntu.ttf')
+LabelBase.register(name='Inconsolata',
+                   fn_regular='inconsolata.ttf')
 
 KruxApp().run()

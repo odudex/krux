@@ -159,7 +159,7 @@ class Page:
                     break
                 elif pad.cur_key_index == pad.more_index:
                     pad.next_keyset()
-                else:
+                elif pad.cur_key_index < len(pad.keys):
                     buffer += pad.keys[pad.cur_key_index]
                     changed = True
 
@@ -300,40 +300,6 @@ class Page:
             self.ctx.log.exception("Exception occurred capturing camera's entropy")
         self.ctx.display.to_portrait()
         return entropy_bytes
-
-    def highlight_qr_region(self, code, region=(0, 0, 0, 0), zoom=False):
-        """Draws in white a highlighted region of the QR code"""
-        reg_x, reg_y, reg_width, reg_height = region
-        size, code = self.ctx.display.add_qr_frame(code)
-        max_width = self.ctx.display.width()
-        if zoom:
-            max_width -= DEFAULT_PADDING
-            if size == 23:  # 21 + 2(frame)
-                qr_size = 7
-            else:
-                qr_size = 5
-            offset_x = 0
-            offset_y = 0
-        else:
-            qr_size = size
-            offset_x = reg_x + 1
-            offset_y = reg_y + 1
-
-        scale = max_width // qr_size
-        qr_width = qr_size * scale
-        offset = (self.ctx.display.width() - qr_width) // 2
-        for y in range(reg_height):  # vertical blocks loop
-            for x in range(reg_width):  # horizontal blocks loop
-                xy_index = (reg_y + y + 1) * (size + 1)
-                xy_index += reg_x + x + 1
-                if code[xy_index] == "0":
-                    self.ctx.display.fill_rectangle(
-                        offset + (offset_x + x) * scale,
-                        offset + (offset_y + y) * scale,
-                        scale,
-                        scale,
-                        lcd.WHITE,
-                    )
 
     def display_qr_codes(self, data, qr_format, title="", allow_any_btn=False):
         """Displays a QR code or an animated series of QR codes to the user, encoding them
@@ -893,12 +859,14 @@ class Keypad:
     @property
     def more_index(self):
         """Returns the index of the "More" key"""
-        return len(self.keys)
+        if len(self.keysets) > 1:
+            return self.del_index - 1
+        return None
 
     @property
     def del_index(self):
         """Returns the index of the "Del" key"""
-        return len(self.keys) + (1 if len(self.keysets) > 1 else 0)
+        return len(self.keys) + self.empty_keys + (1 if len(self.keysets) > 1 else 0)
 
     @property
     def esc_index(self):
@@ -919,6 +887,16 @@ class Keypad:
     def height(self):
         """Returns the needed height for the current keyset"""
         return math.ceil((self.total_keys) / self.width)
+
+    @property
+    def max_index(self):
+        """Returns last possible key index"""
+        return self.width * self.height
+
+    @property
+    def empty_keys(self):
+        """Returns dummy keys space needed to always position fixed keys at bottom right"""
+        return self.max_index - self.total_keys
 
     def reset(self):
         """Reset parameters when switching a multi-keypad"""
@@ -962,16 +940,21 @@ class Keypad:
             offset_y = y + (self.key_v_spacing - self.ctx.display.font_height) // 2
             for x in self.x_keypad_map[:-1]:
                 key = None
+                custom_color = None
                 if key_index < len(self.keys):
                     key = self.keys[key_index]
                 elif key_index == self.del_index:
                     key = "<"
+                    custom_color = lcd.YELLOW
                 elif key_index == self.esc_index:
                     key = t("Esc")
+                    custom_color = lcd.RED
                 elif key_index == self.go_index:
                     key = t("Go")
+                    custom_color = lcd.GREEN
                 elif key_index == self.more_index and len(self.keysets) > 1:
                     key = t("ABC")
+                    custom_color = lcd.BLUE
                 if key is not None:
                     offset_x = x
                     key_offset_x = (
@@ -995,9 +978,14 @@ class Keypad:
                                 self.key_v_spacing - 2,
                                 lcd.DARKGREY,
                             )
-                        self.ctx.display.draw_string(
-                            key_offset_x, offset_y, key, lcd.WHITE
-                        )
+                        if custom_color:
+                            self.ctx.display.draw_string(
+                                key_offset_x, offset_y, key, custom_color
+                            )
+                        else:
+                            self.ctx.display.draw_string(
+                                key_offset_x, offset_y, key, lcd.WHITE
+                            )
                     if (
                         key_index == self.cur_key_index
                         and self.ctx.input.buttons_active
@@ -1040,7 +1028,7 @@ class Keypad:
         if self.cur_key_index < len(self.keys):
             if self.keys[self.cur_key_index] in possible_keys:
                 actual_button = BUTTON_ENTER
-        elif self.cur_key_index < self.total_keys:
+        elif self.cur_key_index < self.max_index:
             actual_button = BUTTON_ENTER
         else:
             self.cur_key_index = 0
@@ -1063,12 +1051,17 @@ class Keypad:
     def _next_key(self):
         """Increments cursor when page button is pressed"""
         self.moving_forward = True
-        self.cur_key_index = (self.cur_key_index + 1) % self.total_keys
+        self.cur_key_index = (self.cur_key_index + 1) % self.max_index
+        if self.cur_key_index == len(self.keys):
+            self.cur_key_index += self.empty_keys
 
     def _previous_key(self):
         """Decrements cursor when page_prev button is pressed"""
         self.moving_forward = False
-        self.cur_key_index = (self.cur_key_index - 1) % self.total_keys
+        if self.cur_key_index == len(self.keys) + self.empty_keys:
+            self.cur_key_index = len(self.keys) - 1
+        else:
+            self.cur_key_index = (self.cur_key_index - 1) % self.max_index
 
     def next_keyset(self):
         """Change keys for the next keyset"""

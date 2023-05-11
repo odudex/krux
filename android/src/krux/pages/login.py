@@ -155,9 +155,10 @@ class Login(Page):
             return MENU_CONTINUE
         return status
 
-    def load_encrypted_seed(self, mnemonic_id, sd_card=False, delete=False):
+    def _load_encrypted_seed(self, mnemonic_id, sd_card=False, delete=False):
+        """Uses encryption module to load and decrypt a mnemonic"""
         from ..encryption import MnemonicStorage
-        """Load a selected seed from the encrypted file"""
+
         key = self.capture_from_keypad(
             t("Encryption Key"),
             [LETTERS, UPPERCASE_LETTERS, NUM_SPECIAL_1, NUM_SPECIAL_2],
@@ -171,6 +172,7 @@ class Login(Page):
             words = mnemonic_storage.decrypt(key, mnemonic_id, sd_card).split()
         except:
             raise ValueError(t("Failed to decrypt"))
+
         if len(words) not in (12, 24):
             raise ValueError(t("Failed to decrypt"))
         if delete:
@@ -187,18 +189,19 @@ class Login(Page):
     def load_mnemonic_from_storage(self, delete=False):
         """Lists all encrypted seeds stored on a file"""
         from ..encryption import MnemonicStorage
+
         mnemonic_ids_menu = []
         mnemonic_storage = MnemonicStorage()
         has_sd = mnemonic_storage.has_sd_card
         mnemonics = mnemonic_storage.list_mnemonics()
         sd_mnemonics = mnemonic_storage.list_mnemonics(sd_card=True)
         del mnemonic_storage
-        
+
         for mnemonic_id in mnemonics:
             mnemonic_ids_menu.append(
                 (
                     mnemonic_id + "(flash)",
-                    lambda m_id=mnemonic_id: self.load_encrypted_seed(
+                    lambda m_id=mnemonic_id: self._load_encrypted_seed(
                         m_id, delete=delete
                     ),
                 )
@@ -208,7 +211,7 @@ class Login(Page):
                 mnemonic_ids_menu.append(
                     (
                         mnemonic_id + "(SD card)",
-                        lambda m_id=mnemonic_id: self.load_encrypted_seed(
+                        lambda m_id=mnemonic_id: self._load_encrypted_seed(
                             m_id, sd_card=True, delete=delete
                         ),
                     )
@@ -751,6 +754,7 @@ class Login(Page):
     def load_key_from_1248(self):
         """Menu handler to load key from Stackbit 1248 sheet metal storage method"""
         from .stack_1248 import Stackbit
+
         stackbit = Stackbit(self.ctx)
         words = stackbit.enter_1248()
         del stackbit
@@ -761,6 +765,7 @@ class Login(Page):
     def load_key_from_tiny_seed(self):
         """Menu handler to manually load key from Tiny Seed sheet metal storage method"""
         from .tiny_seed import TinySeed
+
         submenu = Menu(
             self.ctx,
             [
@@ -785,6 +790,7 @@ class Login(Page):
     def load_key_from_tiny_seed_image(self):
         """Menu handler to scan key from Tiny Seed sheet metal storage method"""
         from .tiny_seed import TinyScanner
+
         submenu = Menu(
             self.ctx,
             [
