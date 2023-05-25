@@ -34,16 +34,6 @@ from unittest.mock import MagicMock
 
 COLOR_BLACK = (0, 0, 0, 1)
 COLOR_WHITE = (1, 1, 1, 1)
-COLOR_YELLOW = (1, 1, 0, 1)
-COLOR_RED = (1, 0, 0, 1)
-COLOR_BLUE = (0, 0, 1, 1)
-COLOR_GREEN = (0, 1, 0, 1)
-COLOR_ORANGE = (1, 0.647, 0, 1)
-COLOR_MAGENTA = (1, 0, 1, 1)
-COLOR_DARKGREY = (0.3, 0.3, 0.3, 1)
-COLOR_SLATEGREY = (0.5, 0.5, 0.5, 1)
-COLOR_LIGHTGREY = (0.8, 0.8, 0.8, 1)
-COLOR_LIGHTBLACK = (0.1, 0.1, 0.2, 1)
 
 class LCD(Widget):
 
@@ -52,30 +42,38 @@ class LCD(Widget):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.BLACK = COLOR_BLACK
-        self.WHITE = COLOR_WHITE
-        self.YELLOW = COLOR_YELLOW
-        self.RED = COLOR_RED
-        self.BLUE = COLOR_BLUE
-        self.GREEN = COLOR_GREEN
-        self.ORANGE = COLOR_ORANGE
-        self.MAGENTA = COLOR_MAGENTA
-        self.DARKGREY = COLOR_DARKGREY
-        self.LIGHTGREY = COLOR_LIGHTGREY
-        self.SLATEGREY = COLOR_SLATEGREY
-        self.LIGHTBLACK = COLOR_LIGHTBLACK
+
         self.touch_release = False
         self.landscape = False
         self.frame_counter = 0
         _, window_height = Window.size
         self.font_size = window_height // 25
+
+    def rgb565torgb111(self, color):
+        """convert from gggbbbbbrrrrrggg to tuple"""
+        MASK5 = 0b11111
+        MASK3 = 0b111
+
+        red = ((color >> 3) & MASK5)
+        red /= 31
+        green = color >> 13
+        green += (color & MASK3) << 3
+        green /= 63
+        blue = ((color >> 8) & MASK5)
+        blue /= 31
+        return (red, green, blue, 1)
         
     @mainthread
-    def clear(self):
+    def clear(self, color):
+        color = self.rgb565torgb111(color)
+        Window.clearcolor = color
         self.canvas.clear()
 
     @mainthread
     def draw_string(self, x, y, s, color=COLOR_WHITE, bgcolor=COLOR_BLACK):
+
+        color = self.rgb565torgb111(color)
+        bgcolor = self.rgb565torgb111(bgcolor)
         label = CoreLabel(text=s, font_size=self.font_size, color=color, font_name='Inconsolata' )
         label.refresh()
         text = label.texture
@@ -89,7 +87,8 @@ class LCD(Widget):
             self.canvas.add(Rectangle(size=text.size, pos=(x,y), texture=text))
 
     @mainthread
-    def fill_rectangle(self, x, y, w, h, color=COLOR_LIGHTGREY):
+    def fill_rectangle(self, x, y, w, h, color=COLOR_WHITE):
+        color = self.rgb565torgb111(color)
         y = self._height() - y - h
         self.canvas.add(Color(color[0], color[1], color[2], color[3]))
         self.canvas.add(Rectangle(pos=(x, y), size=(w, h)))
@@ -123,7 +122,9 @@ class LCD(Widget):
         return window_height
     
     @mainthread
-    def draw_qr_code(self, offset_y, code_str, max_width, dark_color=COLOR_BLACK, light_color=COLOR_WHITE):
+    def draw_qr_code(self, offset_y, code_str, max_width, dark_color=COLOR_BLACK, light_color=COLOR_WHITE, bg_color=COLOR_BLACK):
+        dark_color = self.rgb565torgb111(dark_color)
+        light_color = self.rgb565torgb111(light_color)
         starting_size = 2
         while code_str[starting_size] != "\n":
             starting_size += 1
