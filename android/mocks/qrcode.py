@@ -26,8 +26,12 @@ import pyqrcode
 
 def encode_to_string(data):
     #pre-decode if binary (Compact Seed QR)
-    if len(data) in (16, 32):
+    try:
+        code_str = pyqrcode.create(data, error="L", mode="binary").text()
+    except:
+        # Try binary
         data = data.decode('latin-1')
+        code_str = pyqrcode.create(data, error="L", mode="binary").text()
     # if len(data) in (48,96) and isinstance(data, str):  # Seed QR
     code_str = pyqrcode.create(data, error="L").text()
     # else:

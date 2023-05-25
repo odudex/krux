@@ -159,10 +159,12 @@ class Login(Page):
         """Uses encryption module to load and decrypt a mnemonic"""
         from ..encryption import MnemonicStorage
 
-        key = self.capture_from_keypad(
-            t("Encryption Key"),
-            [LETTERS, UPPERCASE_LETTERS, NUM_SPECIAL_1, NUM_SPECIAL_2],
-        )
+        from .encryption_key import EncryptionKey
+        key_capture = EncryptionKey(self.ctx)
+        key = key_capture.encryption_key()
+        if key is None:
+            self.ctx.display.flash_text(t("Mnemonic was not encrypted"))
+            raise ValueError(t("Failed to decrypt"))
         self.ctx.display.clear()
         self.ctx.display.draw_centered_text(t("Processing ..."))
         if key in ("", ESC_KEY):
@@ -373,7 +375,7 @@ class Login(Page):
             return MENU_CONTINUE
         if len(data) > PASSPHRASE_MAX_LEN:
             self.ctx.display.flash_text(
-                t("Maximum passphrase length exceeded (%s)") % PASSPHRASE_MAX_LEN,
+                t("Maximum length exceeded (%s)") % PASSPHRASE_MAX_LEN,
                 lcd.RED,
             )
             return MENU_CONTINUE
@@ -467,6 +469,33 @@ class Login(Page):
             self.ctx.log.exception("Exception occurred connecting to printer")
         return MENU_EXIT
 
+    def _encrypted_qr_code(self, data):
+        from ..encryption import EncryptedQRCode
+
+        encrypted_qr = EncryptedQRCode()
+        data_bytes = data.encode("latin-1") if isinstance(data, str) else data
+        public_data = encrypted_qr.public_data(data_bytes)
+        if public_data:
+            self.ctx.display.clear()
+            if self.prompt(
+                public_data + t("\n\nDecrypt?"), self.ctx.display.height() // 2
+            ):
+                from .encryption_key import EncryptionKey
+                key_capture = EncryptionKey(self.ctx)
+                key = key_capture.encryption_key()
+                if key is None:
+                    self.ctx.display.flash_text(t("Mnemonic was not decrypted"))
+                    return None
+                self.ctx.display.clear()
+                self.ctx.display.draw_centered_text(t("Processing ..."))
+                if key in ("", ESC_KEY):
+                    raise ValueError(t("Failed to decrypt"))
+                word_bytes = encrypted_qr.decrypt(key)
+                if word_bytes is None:
+                    raise ValueError(t("Failed to decrypt"))
+                return bip39.mnemonic_from_bytes(word_bytes).split()
+        return None
+
     def load_key_from_qr_code(self):
         """Handler for the 'via qr code' menu item"""
         data, qr_format = self.capture_qr_code()
@@ -501,7 +530,8 @@ class Login(Page):
                         ]
                 except:
                     pass
-
+            if not words:
+                words = self._encrypted_qr_code(data)
         if not words or (len(words) != 12 and len(words) != 24):
             self.ctx.display.flash_text(t("Invalid mnemonic length"), lcd.RED)
             return MENU_CONTINUE
@@ -888,18 +918,24 @@ class Login(Page):
             t("Create QR code from text?"),
             self.ctx.display.height() // 2,
         ):
-            text = self.load_passphrase()
+            text = self.capture_from_keypad(
+                t("Text"), [LETTERS, UPPERCASE_LETTERS, NUM_SPECIAL_1, NUM_SPECIAL_2]
+            )
             if text in ("", ESC_KEY):
                 return MENU_CONTINUE
 
-            self.display_qr_codes(text, FORMAT_NONE, text, allow_any_btn=True)
 
             try:
                 self.ctx.printer = create_printer()
             except:
                 self.ctx.log.exception("Exception occurred connecting to printer")
 
-            self.print_qr_prompt(text, FORMAT_NONE, text)
+            from .qr_view import SeedQRView
+            import qrcode
+
+            code = qrcode.encode_to_string(text)
+            seed_qr_view = SeedQRView(self.ctx, code=code, title="Custom QR Code")
+            return seed_qr_view.display_seed_qr()
         return MENU_CONTINUE
 
     def print_test(self):

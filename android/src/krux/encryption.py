@@ -23,6 +23,7 @@
 import hashlib
 from Crypto.Cipher import AES
 import base64
+from embit.wordlists.bip39 import WORDLIST
 from kivy.storage.jsonstore import JsonStore
 from .krux_settings import Settings, PBKDF2_HMAC_ECB, PBKDF2_HMAC_CBC, AES_BLOCK_SIZE
 
@@ -53,7 +54,7 @@ class AESCipher(object):
 
     def encrypt(self, raw, mode=AES.MODE_ECB, iv=None):
         """Encrypt using AES MODE_ECB and return the value encoded as base64"""
-        data_bytes = raw.encode()
+        data_bytes = raw.encode("latin-1") if isinstance(raw, str) else raw
         if iv:
             encryptor = AES.new(self.key, mode, iv)
             data_bytes = iv + data_bytes
@@ -72,6 +73,14 @@ class AESCipher(object):
             decryptor = AES.new(self.key, mode)
         load = decryptor.decrypt(encrypted).decode("utf-8")
         return load.replace("\x00", "")
+
+    def decrypt_bytes(self, encrypted, mode, i_vector=None):
+        """Decrypt and return value as bytes"""
+        if i_vector:
+            decryptor = AES.new(self.key, mode, i_vector)
+        else:
+            decryptor = AES.new(self.key, mode)
+        return decryptor.decrypt(encrypted)
 
 
 class MnemonicStorage:
@@ -118,11 +127,10 @@ class MnemonicStorage:
         encrypted = encryptor.encrypt(mnemonic, mode, iv).decode("utf-8")
         mnemonics = {}
         success = True
-        self.encrypted_store = JsonStore(STORE_FILE_PATH)
-        self.encrypted_store.put(mnemonic_id, data = encrypted)
-        self.encrypted_store[mnemonic_id]["version"] = VERSION_NUMBER[Settings().encryption.version]
-        self.encrypted_store[mnemonic_id]["key_iterations"] = Settings().encryption.pbkdf2_iterations
-        self.encrypted_store[mnemonic_id] = self.encrypted_store[mnemonic_id]
+        self.stored.put(mnemonic_id, data = encrypted)
+        self.stored[mnemonic_id]["version"] = VERSION_NUMBER[Settings().encryption.version]
+        self.stored[mnemonic_id]["key_iterations"] = Settings().encryption.pbkdf2_iterations
+        self.stored[mnemonic_id] = self.stored[mnemonic_id]
 
         return success
 
@@ -131,3 +139,82 @@ class MnemonicStorage:
         self.stored.delete(mnemonic_id)
 
 
+class EncryptedQRCode:
+    """Creates and decrypts encrypted mnemonic QR codes"""
+
+    def __init__(self) -> None:
+        self.mnemonic_id = None
+        self.version = VERSION_NUMBER[Settings().encryption.version]
+        self.iterations = Settings().encryption.pbkdf2_iterations
+        self.encrypted_data = None
+
+    def create(self, key, mnemonic_id, mnemonic, i_vector=None):
+        """Joins necessary data and creates encrypted mnemonic QR codes"""
+        name_lenght = len(mnemonic_id.encode())
+        version = VERSION_NUMBER[Settings().encryption.version]
+        key_iterations = Settings().encryption.pbkdf2_iterations
+        qr_code_data = name_lenght.to_bytes(1, "big")
+        qr_code_data += mnemonic_id.encode()
+        qr_code_data += version.to_bytes(1, "big")
+        qr_code_data += (key_iterations // 10000).to_bytes(3, "big")
+        encryptor = AESCipher(key, mnemonic_id, Settings().encryption.pbkdf2_iterations)
+        mode = VERSION_MODE[Settings().encryption.version]
+        words = mnemonic.split(" ")
+        checksum_bits = 8 if len(words) == 24 else 4
+        indexes = [WORDLIST.index(word) for word in words]
+        bitstring = "".join(["{:0>11}".format(bin(index)[2:]) for index in indexes])[
+            :-checksum_bits
+        ]
+        bytes_to_encrypt = int(bitstring, 2).to_bytes((len(bitstring) + 7) // 8, "big")
+        bytes_to_encrypt += hashlib.sha256(bytes_to_encrypt).digest()[:16]
+        base64_encrypted = encryptor.encrypt(bytes_to_encrypt, mode, i_vector)
+        bytes_encrypted = base64.b64decode(base64_encrypted)
+        qr_code_data += bytes_encrypted
+        return qr_code_data
+
+    def public_data(self, data):
+        """Parse and returns encrypted mnemonic QR codes public data"""
+        mnemonic_info = "Encrypted QR Code:\n"
+        try:
+            id_lenght = int.from_bytes(data[:1], "big")
+            self.mnemonic_id = data[1 : id_lenght + 1].decode("utf-8")
+            mnemonic_info += "ID: " + self.mnemonic_id + "\n"
+            self.version = int.from_bytes(data[id_lenght + 1 : id_lenght + 2], "big")
+            version_name = [k for k, v in VERSION_NUMBER.items() if v == self.version][
+                0
+            ]
+            mnemonic_info += "Version: " + version_name + "\n"
+            self.iterations = int.from_bytes(data[id_lenght + 2 : id_lenght + 5], "big")
+            self.iterations *= 10000
+            mnemonic_info += "Key iter.: " + str(self.iterations)
+        except:
+            return None
+        extra_bytes = id_lenght + 5  # 1(id lenght byte) + 1(version) + 3(iterations)
+        if self.version == 1:
+            extra_bytes += 16  # Initial Vector size
+        extra_bytes += 16  # Encrypted QR checksum is always 16 bytes
+        len_mnemonic_bytes = len(data) - extra_bytes
+        if len_mnemonic_bytes not in (16, 32):
+            return None
+        self.encrypted_data = data[id_lenght + 5 :]
+        return mnemonic_info
+
+    def decrypt(self, key):
+        """Decrypts encrypted mnemonic QR codes"""
+        mode = VERSION_MODE[self.version]
+        if mode == AES.MODE_ECB:
+            encrypted_mnemonic_data = self.encrypted_data
+            i_vector = None
+        else:
+            encrypted_mnemonic_data = self.encrypted_data[AES_BLOCK_SIZE:]
+            i_vector = self.encrypted_data[:AES_BLOCK_SIZE]
+        decryptor = AESCipher(key, self.mnemonic_id, self.iterations)
+        decrypted_data = decryptor.decrypt_bytes(
+            encrypted_mnemonic_data, mode, i_vector
+        )
+        mnemonic_data = decrypted_data[:-AES_BLOCK_SIZE]
+        checksum = decrypted_data[-AES_BLOCK_SIZE:]
+        # Data validation:
+        if hashlib.sha256(mnemonic_data).digest()[:16] != checksum:
+            return None
+        return mnemonic_data
