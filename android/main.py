@@ -36,7 +36,7 @@ Builder.load_string("""
         size_hint_y: 1
         text_size: self.width, None
         height: self.texture_size[1]
-        text: 'Krux Android app is intended for learning about and experience Krux, signing Bitcoin transactions and messages.\\nDue to the multiple possible vulnerabilities inherent to phones, like lack of control of OS, libraries and hardware peripherals, Krux app should NOT be used to manage wallets containing savings or other important keys. For that a dedicated device is recommended.'
+        text: 'Krux Android app is intended for learning about Krux and Bitcoin air-gapped transactions.\\nDue to many possible vulnerabilities inherent in phones such as the lack of control of the OS, libraries and hardware peripherals, Krux app should NOT be used to manage wallets containing savings or important keys and mnemonics. For that, a dedicated device is recommended.'
         halign: 'center'
 
     Button:
