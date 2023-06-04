@@ -39,6 +39,8 @@ YELLOW = 0xE0FF
 BLUE = 0xF800
 CYAN = 0xFF07
 MAGENTA = 0x1FF8
+LIGHTBLUE = 0xDF77
+DARKBLUE = 0x7205
 
 # define NAVY        0x0F00
 # define DARKGREEN   0xE003
@@ -86,6 +88,18 @@ THEMES = {
         "toggle": CYAN,
         "error": RED,
         "highlight": ORANGE,
+    },
+    ThemeSettings.BLUE_THEME_NAME: {
+        "background": LIGHTBLACK,
+        "foreground": LIGHTBLUE,
+        "frame": DARKBLUE,
+        "disabled": DARKGREY,
+        "go": GREEN,
+        "esc_no": RED,
+        "del": YELLOW,
+        "toggle": CYAN,
+        "error": RED,
+        "highlight": LIGHTBLUE,
     },
 }
 
