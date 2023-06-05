@@ -90,7 +90,7 @@ THEMES = {
         "highlight": ORANGE,
     },
     ThemeSettings.BLUE_THEME_NAME: {
-        "background": LIGHTBLACK,
+        "background": BLACK,
         "foreground": LIGHTBLUE,
         "frame": DARKBLUE,
         "disabled": DARKGREY,
