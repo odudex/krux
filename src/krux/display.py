@@ -32,6 +32,7 @@ QR_DARK_COLOR, QR_LIGHT_COLOR = board.config["krux"]["display"]["qr_colors"]
 
 
 MAX_BACKLIGHT = 8
+MID_BACKLIGHT = 3
 MIN_BACKLIGHT = 1
 
 FLASH_MSG_TIME = 2000
@@ -134,7 +135,7 @@ class Display:
             scl=board.config["krux"]["pins"]["I2C_SCL"],
             sda=board.config["krux"]["pins"]["I2C_SDA"],
         )
-        self.set_backlight(MIN_BACKLIGHT)
+        self.set_backlight(MID_BACKLIGHT)
 
     def qr_offset(self):
         """Retuns y offset to subtitle QR codes"""

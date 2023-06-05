@@ -298,16 +298,16 @@ class ThemeSettings(SettingsNamespace):
     DARK_THEME = 0
     LIGHT_THEME = 1
     ORANGE_THEME = 3
-    BLUE_THEME = 4
+    LIGHTBLUE_THEME = 4
     DARK_THEME_NAME = "Dark"
     LIGHT_THEME_NAME = "Light"
     ORANGE_THEME_NAME = "Orange"
-    BLUE_THEME_NAME = "Blue"
+    LIGHTBLUE_THEME_NAME = "Light Blue"
     THEME_NAMES = {
         DARK_THEME: DARK_THEME_NAME,
         LIGHT_THEME: LIGHT_THEME_NAME,
         ORANGE_THEME: ORANGE_THEME_NAME,
-        BLUE_THEME: BLUE_THEME_NAME,
+        LIGHTBLUE_THEME: LIGHTBLUE_THEME_NAME,
     }
     namespace = "settings.appearance"
     theme = CategorySetting("theme", DARK_THEME_NAME, list(THEME_NAMES.values()))
