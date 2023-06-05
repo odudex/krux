@@ -26,7 +26,7 @@ from . import Page
 from ..themes import theme, WHITE, BLACK
 from ..krux_settings import t, Settings
 from ..qr import get_size
-from ..display import DEFAULT_PADDING
+from ..display import DEFAULT_PADDING, MIN_BACKLIGHT, Display
 from . import MENU_CONTINUE
 from ..printers.cnc import FilePrinter
 from ..input import (
@@ -68,6 +68,10 @@ class SeedQRView(Page):
         self.region_size = 7 if self.qr_size == 21 else 5
         self.columns = (self.qr_size + self.region_size - 1) // self.region_size
         self.lr_index = 0
+        # Lower backlight to make QR easier to read by cameras
+        #display = Display()
+        #display.set_backlight(MIN_BACKLIGHT)
+        #self.ctx.display.set_backlight(MIN_BACKLIGHT)
 
     def _seed_qr(self):
         words = self.ctx.wallet.key.mnemonic.split(" ")
