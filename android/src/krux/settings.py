@@ -37,6 +37,7 @@ SETTINGS_FILENAME = "settings.json"
 SD_PATH = "sd"
 FLASH_PATH = "flash"
 
+
 class SettingsNamespace:
     """Represents a settings namespace containing settings and child namespaces"""
 

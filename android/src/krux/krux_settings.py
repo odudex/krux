@@ -291,6 +291,7 @@ class EncryptionSettings(SettingsNamespace):
             "pbkdf2_iterations": t("PBKDF2 iterations"),
         }[attr]
 
+
 class ThemeSettings(SettingsNamespace):
     """Theme settings"""
 
@@ -300,7 +301,6 @@ class ThemeSettings(SettingsNamespace):
     DARK_THEME_NAME = "Dark"
     LIGHT_THEME_NAME = "Light"
     ORANGE_THEME_NAME = "Orange"
-
     THEME_NAMES = {
         DARK_THEME: DARK_THEME_NAME,
         LIGHT_THEME: LIGHT_THEME_NAME,
@@ -314,8 +314,6 @@ class ThemeSettings(SettingsNamespace):
         return {
             "theme": t("Theme"),
         }[attr]
-    
-
 
 
 class Settings(SettingsNamespace):
@@ -328,7 +326,7 @@ class Settings(SettingsNamespace):
         self.i18n = I18nSettings()
         self.logging = LoggingSettings()
         self.encryption = EncryptionSettings()
-        self.printer = PrinterSettings()
+        # self.printer = PrinterSettings()
         self.persist = PersistSettings()
         self.appearance = ThemeSettings()
         if board.config["type"].startswith("amigo"):
@@ -342,8 +340,8 @@ class Settings(SettingsNamespace):
             "logging": t("Logging"),
             "encryption": t("Encryption"),
             "persist": t("Persist"),
-            "printer": t("Printer"),
-            "appearance": t("Theme")
+            # "printer": t("Printer"),
+            "appearance": t("Theme"),
         }
         if board.config["type"].startswith("amigo"):
             main_menu["touchscreen"] = t("Touchscreen")
