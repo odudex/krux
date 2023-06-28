@@ -52,7 +52,7 @@ class Sensor(Widget):
         self.m.find_qrcodes.return_value = []
         # self.running = ObjectProperty()
 
-    def reset(self, dual_buff=False):
+    def reset(self, freq=None, dual_buff=False):
         pass
 
 

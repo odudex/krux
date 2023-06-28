@@ -66,8 +66,6 @@ UPPERCASE_LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 NUM_SPECIAL_1 = "0123456789 !#$%&'()*"
 NUM_SPECIAL_2 = '+,-./:;<=>?@[\\]^_"{|}~'
 
-UOS_DIRECTORY_TYPE = 0x4000
-
 
 class Page:
     """Represents a page in the app, with helper methods for common display and
@@ -528,7 +526,7 @@ class Page:
         self, select_file_handler=lambda *args: MENU_EXIT, file_extension=""
     ):
         """Starts a file explorer on the SD folder and returns the file selected"""
-        import uos
+        import os
 
         custom_start_digits = LIST_FILE_DIGITS
         custom_end_digts = LIST_FILE_DIGITS + 4  # 3 more because of file type
@@ -547,9 +545,8 @@ class Page:
                     items.append("..")
                     menu_items.append(("..", lambda: MENU_EXIT))
 
-                dir_files = uos.ilistdir(path)
-                for file in dir_files:
-                    filename = file[0]
+                dir_files = os.listdir(path)
+                for filename in dir_files:
                     # only include files that match extension and directories
                     if (
                         # No extension filter
@@ -557,7 +554,7 @@ class Page:
                         # Matches filter
                         or filename.endswith(file_extension)
                         # Is a directory
-                        or file[1] == UOS_DIRECTORY_TYPE
+                        or SDHandler.dir_exists(path + "/" + filename)
                     ):
                         items.append(filename)
                         display_filename = filename
@@ -767,36 +764,47 @@ class Menu:
             return
 
         charge = self.ctx.power_manager.battery_charge_remaining()
-        battery_color = theme.error_color if charge < 0.3 else theme.fg_color
+        if self.ctx.power_manager.charging():
+            battery_color = theme.go_color
+        else:
+            if charge < 0.3:
+                battery_color = theme.error_color
+            else:
+                battery_color = theme.frame_color
 
         # Draw (filled) outline of battery in top-right corner of display
-        padding = 5
-        cylinder_length = 20
-        cylinder_height = 5
-        self.ctx.display.fill_rectangle(
+        padding = 4
+        cylinder_length = 22
+        cylinder_height = 7
+        self.ctx.display.outline(
             self.ctx.display.width() - padding - cylinder_length,
             padding,
             cylinder_length,
             cylinder_height,
             battery_color,
         )
+        self.ctx.display.fill_rectangle(
+            self.ctx.display.width() - padding + 1,
+            padding + 2,
+            2,
+            cylinder_height - 3,
+            battery_color,
+        )
 
-        # If not fully charged, overlay rect to indicate how much battery is depleted
-        if charge < 1:
-            depleted_height = cylinder_height - 2
-            depleted_length = int((cylinder_length - 2) * (1 - charge))
-            self.ctx.display.fill_rectangle(
-                self.ctx.display.width() - padding - depleted_length - 1,
-                padding + 1,
-                depleted_length,
-                depleted_height,
-                theme.bg_color,
-            )
+        # Indicate how much battery is depleted
+        charge_length = int((cylinder_length - 3) * charge)
+        self.ctx.display.fill_rectangle(
+            self.ctx.display.width() - padding - cylinder_length + 2,
+            padding + 2,
+            charge_length,
+            cylinder_height - 3,
+            theme.go_color,
+        )
 
     def draw_network_indicator(self):
         """Draws test at top if testnet is enabled"""
         if Settings().bitcoin.network == BitcoinSettings.TEST_TXT:
-            self.ctx.display.draw_string(12, 0, "test", theme.go_color)
+            self.ctx.display.draw_string(12, 0, "test", GREEN)
 
     def _draw_touch_menu(self, selected_item_index):
         # map regions with dynamic height to fill screen
@@ -846,17 +854,23 @@ class Menu:
                     )
 
     def _draw_menu(self, selected_item_index):
-        offset_y = len(self.menu_view) * self.ctx.display.font_height * 2
+        offset_y = len(self.menu_view) * 2
+        extra_lines = 0
+        for menu_item in self.menu_view:
+            extra_lines += len(self.ctx.display.to_lines(menu_item[0])) - 1
+        offset_y += extra_lines
+        offset_y *= self.ctx.display.font_height
         offset_y = self.ctx.display.height() - offset_y
         offset_y //= 2
+        offset_y += self.ctx.display.font_height // 2
         for i, menu_item in enumerate(self.menu_view):
             menu_item_lines = self.ctx.display.to_lines(menu_item[0])
             delta_y = (len(menu_item_lines) + 1) * self.ctx.display.font_height
             if selected_item_index == i:
                 self.ctx.display.fill_rectangle(
-                    DEFAULT_PADDING // 2 - 1,
+                    0,
                     offset_y + 1 - self.ctx.display.font_height // 2,
-                    self.ctx.display.usable_width() + DEFAULT_PADDING,
+                    self.ctx.display.width(),
                     delta_y - 2,
                     theme.fg_color,
                 )

@@ -88,7 +88,7 @@ class SettingsPage(Page):
         else:
             try:
                 # Check for flash
-                os.listdir("/" + FLASH_PATH + "/.")
+                # os.listdir("/" + FLASH_PATH + "/.")
                 self.display_centered_text(
                     t("Your changes will be kept on device flash storage."),
                     duration=SD_MSG_TIME,
@@ -272,11 +272,17 @@ class SettingsPage(Page):
         if setting.attr == "theme":
             self.ctx.display.clear()
             if self.prompt(
-                t("Shutdown to change the theme?"), self.ctx.display.height() // 2
+                t("Change theme and reboot?"), self.ctx.display.height() // 2
             ):
+                self.ctx.display.clear()
+                # Android and Simulator will shutdown
+                #self.ctx.power_manager.reboot()
                 return MENU_SHUTDOWN
-            setting.__set__(settings_namespace, starting_category)
-            theme.update()
+            else:
+                # Restore previous theme
+                setting.__set__(settings_namespace, starting_category)
+                theme.update()
+                Store.save_settings()
 
         return MENU_CONTINUE
 
