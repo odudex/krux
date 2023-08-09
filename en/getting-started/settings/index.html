@@ -526,8 +526,8 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#pbkdf2-iterations" class="md-nav__link">
-    PBKDF2 Iterations
+  <a href="#pbkdf2-iter-iterations" class="md-nav__link">
+    PBKDF2 Iter. (Iterations)
   </a>
   
 </li>
@@ -739,18 +739,24 @@
 <p>This option allows you to switch between <code>mainnet</code> (the default) and <code>testnet</code>. This is mostly useful for development. </p>
 <p><br><br><br><br><br></p>
 <h3 id="encryption">Encryption<a class="headerlink" href="#encryption" title="Permanent link">&para;</a></h3>
+<p><img src="../../img/maixpy_m5stickv/encryption-options-125.png" align="right">
+<img src="../../img/maixpy_amigo_tft/encryption-options-150.png" align="right"></p>
 <p>Modify the encryption method and parameters to fit your needs. The encryption settings will be used both to store mnemonics and create encrypted QR codes.</p>
-<h4 id="pbkdf2-iterations">PBKDF2 Iterations<a class="headerlink" href="#pbkdf2-iterations" title="Permanent link">&para;</a></h4>
+<p><br><br><br><br><br></p>
+<h4 id="pbkdf2-iter-iterations">PBKDF2 Iter. (Iterations)<a class="headerlink" href="#pbkdf2-iter-iterations" title="Permanent link">&para;</a></h4>
+<p><img src="../../img/maixpy_m5stickv/encryption-options-pbkdf2-125.png" align="right">
+<img src="../../img/maixpy_amigo_tft/encryption-options-pbkdf2-150.png" align="right"></p>
 <p>When you enter a encryption key it is not directly used to encrypt your data. As a feature to increase safety, specially against brute force attacks, the key is derived multiple times using hashing functions. PBKDF2(Password-Based Key Derivation Function) iterations stands for the amount of derivations that will be performed over your key prior to encrypt/decrypt your mnemonic.</p>
 <p>If you increase this value it will make the encryption harder, at the cost of taking longer to encrypt and decrypt your mnemonics</p>
 <h4 id="encryption-mode">Encryption Mode<a class="headerlink" href="#encryption-mode" title="Permanent link">&para;</a></h4>
+<p><img src="../../img/maixpy_m5stickv/encryption-options-mode-125.png" align="right">
+<img src="../../img/maixpy_amigo_tft/encryption-options-mode-150.png" align="right"></p>
 <p>Choose between well known and widely used AES(Advanced Encryption Standard) modes:</p>
 <h5 id="aes-ecb">AES-ECB<a class="headerlink" href="#aes-ecb" title="Permanent link">&para;</a></h5>
 <p>ECB(Electronic Codebook), its a simpler method where encryption data blocks are encrypted individually. It will be faster and simpler to encrypt, QR codes will have a lower density and will be easier to transcribe.</p>
 <h5 id="aes-cbc">AES-CBC<a class="headerlink" href="#aes-cbc" title="Permanent link">&para;</a></h5>
 <p>CBC(Cipher-block Chaining) is considered safer, because at the first data block an initial vector(IV) is used to add random data to the encryption. Subsequent blocks encryption depend on data from the previous blocks, giving its chaining feature.
 It will take longer to encrypt, because a snapshot will be required to generate a random initial vector. This initial vector will be stored together with encrypted data, making encrypted QR codes denser and harder to transcript.</p>
-<p><br><br><br><br><br></p>
 <h3 id="language-locale">Language - Locale<a class="headerlink" href="#language-locale" title="Permanent link">&para;</a></h3>
 <p><img src="../../img/maixpy_m5stickv/locale-options-125.png" align="right">
 <img src="../../img/maixpy_amigo_tft/locale-options-150.png" align="right"></p>
@@ -763,8 +769,9 @@ It will take longer to encrypt, because a snapshot will be required to generate 
 <p>Unless you are running into a bug and trying to get more information to diagnose the problem, it is <strong>strongly recommended</strong> to leave the <em>Log Level</em> here as <em>NONE</em>.</p>
 <p>If you experience an error and want to see more information about it, including a stack trace, you can change the <em>Log Level</em> to <em>ERROR</em>. If you're developing and want to see <em>everything</em>, you can change <em>Log Level</em> to either <em>INFO</em> or <em>DEBUG</em>.</p>
 <p>Note that <em>DEBUG</em> could inadvertently write your private keys to the log file if you have it enabled when entering your mnemonic, so set it with care. To help prevent an accident like this from happening, Krux will display a colored rectangle on the upper left corner of the screen, of which the color is relative to the logging level, being green the DEBUG color.</p>
-<p><br><br><br><br><br></p>
 <h3 id="persist">Persist<a class="headerlink" href="#persist" title="Permanent link">&para;</a></h3>
+<p><img src="../../img/maixpy_m5stickv/persist-options-125.png" align="right">
+<img src="../../img/maixpy_amigo_tft/persist-options-150.png" align="right"></p>
 <p>Choose between flash(device's internal memory) or SD card for the place where your settings will be stored.</p>
 <p><br><br><br><br><br></p>
 <h3 id="printer">Printer<a class="headerlink" href="#printer" title="Permanent link">&para;</a></h3>
@@ -778,10 +785,14 @@ It will take longer to encrypt, because a snapshot will be required to generate 
 Also setup the IOs you'll use and tweak parameters according to your printer recommendations.</p>
 <h4 id="driver">Driver<a class="headerlink" href="#driver" title="Permanent link">&para;</a></h4>
 <p>Here you choose between Thermal, CNC or none(default). Leave this setting to "none" if you won't use a printer and don't want to be bothered by print prompts.</p>
-<p><br><br><br><br><br></p>
 <h3 id="theme">Theme<a class="headerlink" href="#theme" title="Permanent link">&para;</a></h3>
+<p><img src="../../img/maixpy_amigo_tft/theme-1-150.png">
+<img src="../../img/maixpy_amigo_tft/theme-2-150.png">
+<img src="../../img/maixpy_amigo_tft/theme-3-150.png">
+<img src="../../img/maixpy_m5stickv/theme-1-125.png">
+<img src="../../img/maixpy_m5stickv/theme-2-125.png">
+<img src="../../img/maixpy_m5stickv/theme-3-125.png"></p>
 <p>Choose your color theme according to your preference. Some themes may be more suitable for some devices, coordinator cameras and environments. As an example, it may be easier to scan QR codes from Krux devices using light theme in brighter environments.</p>
-<p><br><br><br><br><br></p>
 <h3 id="touchscreen">Touchscreen<a class="headerlink" href="#touchscreen" title="Permanent link">&para;</a></h3>
 <p>If your device has touchscreen you can change the touch detection threshold. If it is being too sensitive or detecting false (ghost) touches, you should increase the threshold value, making it less sensitive. The other way is also valid, reduce the threshold to make the screen more sensitive to touches.</p>
 <p><br><br><br><br><br></p>
