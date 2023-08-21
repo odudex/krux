@@ -30,12 +30,12 @@ class TinySeed(Page):
         super().__init__(ctx, None)
         self.ctx = ctx
         self.x_offset = DEFAULT_PADDING // 2 + 2 * self.ctx.display.font_width
+        self.printer = None
         # case for non m5stickv
         if self.ctx.display.width() > 135:
             self.y_offset = DEFAULT_PADDING + 3 * self.ctx.display.font_height
-            self.x_pad = self.ctx.display.width() * 2 // 27 # = width/13,5  #self.ctx.display.font_height
-            self.y_pad = self.ctx.display.height() //16  #self.ctx.display.font_height
-            #self.y_pad += self.ctx.display.height() // 120
+            self.x_pad = self.ctx.display.width() * 2 // 27
+            self.y_pad = self.ctx.display.height() // 17
         else:
             # case for m5stickv
             self.y_offset = 2 * self.ctx.display.font_height
@@ -128,6 +128,10 @@ class TinySeed(Page):
     def print_tiny_seed(self):
         """Creates a bitmap image of a punched Tiny Seed and sends it to a thermal printer"""
         # Scale from original: 1.5X
+
+        from ..printers import create_printer
+
+        self.printer = create_printer()
         words = self.ctx.wallet.key.mnemonic.split(" ")
         image_size = 156
         border_y = 8
@@ -140,7 +144,7 @@ class TinySeed(Page):
         self.ctx.display.draw_hcentered_text(
             t("Printing ..."), self.ctx.display.height() // 2
         )
-        self.ctx.printer.print_string("Tiny Seed\n\n")
+        self.printer.print_string("Tiny Seed\n\n")
         for page in range(len(words) // 12):
             # creates an image
             ts_image = image.Image(size=(image_size, image_size), copy_to_fb=True)
@@ -201,10 +205,7 @@ class TinySeed(Page):
             # draw punched
             y_offset = grid_y_offset
             for y in range(12):
-                if isinstance(words[0], str):
-                    word_list_index = WORDLIST.index(words[page * 12 + y]) + 1
-                else:
-                    word_list_index = words[page * 12 + y]
+                word_list_index = WORDLIST.index(words[page * 12 + y]) + 1
                 for x in range(12):
                     if (word_list_index >> (11 - x)) & 1:
                         x_offset = grid_x_offset
@@ -222,7 +223,7 @@ class TinySeed(Page):
             # self.ctx.input.wait_for_button()
 
             # Print
-            self.ctx.printer.set_bitmap_mode(image_size // 8, image_size, 3)
+            self.printer.set_bitmap_mode(image_size // 8, image_size, 3)
             for y in range(image_size):
                 line_bytes = bytes([])
                 x = 0
@@ -235,11 +236,11 @@ class TinySeed(Page):
                         x += 1
                     line_bytes += bytes([im_byte])
                 # send line by line to be printed
-                self.ctx.printer.print_bitmap_line(line_bytes)
+                self.printer.print_bitmap_line(line_bytes)
                 wdt.feed()
             grid_x_offset = border_x + 16  # 4,1mm*8px
             grid_y_offset = border_y + 25  # 6,2mm*8px
-        self.ctx.printer.feed(3)
+        self.printer.feed(3)
         self.ctx.display.clear()
 
     def _draw_index(self, index):
@@ -257,13 +258,11 @@ class TinySeed(Page):
             # case for m5stickv
             if self.ctx.display.width() == 135:
                 height = self.y_pad
-        elif index <= TS_LAST_BIT_NO_CS:
+        else:
             x_position = index % 12
             x_position *= self.x_pad
             x_position += self.x_offset + 1
             width = self.x_pad - 2
-        else:
-            return
         y_position = index // 12
         y_position *= self.y_pad
         y_position += self.y_offset + 1
@@ -277,7 +276,12 @@ class TinySeed(Page):
 
     def _draw_menu(self):
         """Draws options to leave and proceed"""
-        y_offset = self.y_offset + 13 * self.y_pad
+        if self.ctx.input.touch is not None:
+            y_offset = self.ctx.input.touch.y_regions[13]
+            y_pad = self.ctx.input.touch.y_regions[14] - y_offset
+        else:
+            y_offset = self.y_offset + 13 * self.y_pad
+            y_pad = self.y_pad
         x_offset = self.x_offset
         esc_x_offset = round(x_offset + 1.9 * self.x_pad)
 
@@ -285,11 +289,12 @@ class TinySeed(Page):
         if self.ctx.display.width() > 135:
             esc_x_offset = round(x_offset + 2.3 * self.x_pad)
 
+        text_offset = y_offset + y_pad // 2 - self.ctx.display.font_height // 2
         self.ctx.display.draw_string(
-            esc_x_offset, y_offset + 1, t("Esc"), theme.no_esc_color
+            esc_x_offset, text_offset, t("Esc"), theme.no_esc_color
         )
         self.ctx.display.draw_string(
-            round(x_offset + 8.4 * self.x_pad), y_offset + 1, t("Go"), theme.go_color
+            round(x_offset + 8.4 * self.x_pad), text_offset, t("Go"), theme.go_color
         )
         # print border around buttons only on touch devices
         if self.ctx.input.touch is not None:
@@ -302,7 +307,7 @@ class TinySeed(Page):
             )
             self.ctx.display.fill_rectangle(
                 x_offset,
-                y_offset + self.y_pad,
+                y_offset + y_pad,
                 12 * self.x_pad,
                 1,
                 theme.frame_color,
@@ -312,7 +317,7 @@ class TinySeed(Page):
                     x_offset,
                     y_offset,
                     1,
-                    self.y_pad,
+                    y_pad,
                     theme.frame_color,
                 )
                 x_offset += 6 * self.x_pad
@@ -325,9 +330,14 @@ class TinySeed(Page):
                 self.ctx.input.touch.x_regions.append(x_region)
                 x_region += self.x_pad
             y_region = self.y_offset
-            for _ in range(15):
+            for count in range(15):
                 self.ctx.input.touch.y_regions.append(y_region)
-                y_region += self.y_pad
+                if count == 12:
+                    y_region += self.y_pad // 4
+                elif count == 13:
+                    y_region += self.y_pad * 7 // 4
+                else:
+                    y_region += self.y_pad
 
     def _draw_disabled(self, w24=False):
         """Draws disabled section where checksum is automatically filled"""
@@ -466,7 +476,7 @@ class TinySeed(Page):
                 index = TS_ESC_END_POSITION
         return index
 
-    def enter_tiny_seed(self, w24=False, seed_numbers=None, scanning=False):
+    def enter_tiny_seed(self, w24=False, seed_numbers=None, scanning_24=False):
         """UI to manually enter a Tiny Seed"""
 
         def _editable_bit():
@@ -508,8 +518,8 @@ class TinySeed(Page):
                 index = self.ctx.input.touch.current_index()
             if btn == BUTTON_ENTER:
                 if index > TS_ESC_END_POSITION:  # go
-                    if not w24 or (w24 and (page or scanning)):
-                        if scanning:
+                    if not w24 or (w24 and (page or scanning_24)):
+                        if scanning_24:
                             return tiny_seed_numbers
                         return self.to_words(tiny_seed_numbers)
                     page += 1
@@ -545,15 +555,6 @@ class TinyScanner(Page):
         # X, Y array map for punched area
         self.x_regions = []
         self.y_regions = []
-        # Gratdient corners:
-        # Upper left
-        self.gradient_bg_ul = 50
-        # Upper right
-        self.gradient_bg_ur = 50
-        # Lower left
-        self.gradient_bg_ll = 50
-        # Lower right
-        self.gradient_bg_lr = 50
         self.time_frame = time.ticks_ms()
         self.previous_seed_numbers = [1] * 12
         self.tiny_seed = TinySeed(self.ctx)
@@ -596,6 +597,9 @@ class TinyScanner(Page):
     def _gradient_corners(self, rect, img):
         """Calcule histogram for four corners of tinyseed to be later
         used as a gradient reference threshold"""
+
+        # Regions: Upper left, upper right, lower left and lower right
+        # are corner fractions of main TinySeed rectangle
         if not board.config["type"].startswith("amigo"):
             region_ul = (
                 rect[0] + rect[2] // 8,
@@ -654,27 +658,40 @@ class TinyScanner(Page):
         # img.draw_rectangle(region_ll, color=lcd.RED, thickness=2)
         # img.draw_rectangle(region_lr, color=lcd.MAGENTA, thickness=2)
 
-        self.gradient_bg_ul = img.get_statistics(roi=region_ul).median()
-        self.gradient_bg_ur = img.get_statistics(roi=region_ur).median()
-        self.gradient_bg_ll = img.get_statistics(roi=region_ll).median()
-        self.gradient_bg_lr = img.get_statistics(roi=region_lr).median()
-
         # # Debug corners luminosity
-        # img.draw_string(10,40,str(self.gradient_bg_ul))
-        # img.draw_string(70,40,str(self.gradient_bg_ur))
-        # img.draw_string(10,55,str(self.gradient_bg_ll))
-        # img.draw_string(70,55,str(self.gradient_bg_lr))
+        # gradient_bg_ul = img.get_statistics(roi=region_ul).median()
+        # gradient_bg_ur = img.get_statistics(roi=region_ur).median()
+        # gradient_bg_ll = img.get_statistics(roi=region_ll).median()
+        # gradient_bg_lr = img.get_statistics(roi=region_lr).median()
+        # img.draw_string(10,40,str(gradient_bg_ul))
+        # img.draw_string(70,40,str(gradient_bg_ur))
+        # img.draw_string(10,55,str(gradient_bg_ll))
+        # img.draw_string(70,55,str(gradient_bg_lr))
 
-    def _gradient_value(self, index):
-        """Calculates a reference threshold according to an interpolation
-        gradient of luminosity from 4 corners of Tiny Seed"""
+        return (
+            img.get_statistics(roi=region_ul).median(),
+            img.get_statistics(roi=region_ur).median(),
+            img.get_statistics(roi=region_ll).median(),
+            img.get_statistics(roi=region_lr).median(),
+        )
+
+    def _gradient_value(self, index, gradient_corners):
+        """Calculates a reference threshold according to a linear
+        interpolation gradient of luminosity from 4 corners of Tiny Seed"""
+        (
+            gradient_bg_ul,
+            gradient_bg_ur,
+            gradient_bg_ll,
+            gradient_bg_lr,
+        ) = gradient_corners
+
         y_position = index % 12
         x_position = index // 12
         gradient_upper_x = (
-            self.gradient_bg_ul * (11 - x_position) + self.gradient_bg_ur * x_position
+            gradient_bg_ul * (11 - x_position) + gradient_bg_ur * x_position
         ) // 11
         gradient_lower_x = (
-            self.gradient_bg_ll * (11 - x_position) + self.gradient_bg_lr * x_position
+            gradient_bg_ll * (11 - x_position) + gradient_bg_lr * x_position
         ) // 11
         gradient = (
             gradient_upper_x * (11 - y_position) + gradient_lower_x * y_position
@@ -683,10 +700,7 @@ class TinyScanner(Page):
         # Average filter
         # Here you can change the relevance of the gradient vs medium luminance as a reference
         filtered = (
-            self.gradient_bg_ul
-            + self.gradient_bg_ur
-            + self.gradient_bg_ll
-            + self.gradient_bg_lr
+            gradient_bg_ul + gradient_bg_ur + gradient_bg_ll + gradient_bg_lr
         )  # weight 4/6 - 67% average
         filtered += 2 * gradient  # weight 2/6 = 33% raw gradient
         filtered //= 6
@@ -726,15 +740,18 @@ class TinyScanner(Page):
             blob_threshold = [
                 (luminosity, 255),
             ]
-            rects = img.find_blobs(
+            blobs = img.find_blobs(
                 blob_threshold,
                 x_stride=50,
                 y_stride=50,
                 area_threshold=10000,
             )
             # Debug blobs
-            # for rect in rects:
-            #     img.draw_rectangle(rect.rect(), color=(255,125*attempts,0), thickness=3)
+            # for blob in blobs:
+            #     img.draw_rectangle(blob.rect(), color=(255,125*attempts,0), thickness=3)
+            rects = []
+            for blob in blobs:
+                rects.append(blob.rect())
             rect = _choose_rect(rects)
             if rect:
                 break
@@ -747,10 +764,10 @@ class TinyScanner(Page):
         if rect:
             # Outline Tiny Seed
             outline = (
-                rect.rect()[0] - 1,
-                rect.rect()[1] - 1,
-                rect.rect()[2] + 1,
-                rect.rect()[3] + 1,
+                rect[0] - 1,
+                rect[1] - 1,
+                rect[2] + 1,
+                rect[3] + 1,
             )
             if self.capturing:
                 img.draw_rectangle(outline, lcd.WHITE, thickness=4)
@@ -776,7 +793,7 @@ class TinyScanner(Page):
                     lcd.WHITE,
                 )
 
-    def _detect_and_draw_punches(self, img):
+    def _detect_and_draw_punches(self, img, gradient_corners):
         """Applies gradient threshold to detect punched(black painted) bits"""
         page_seed_numbers = [0] * 12
         index = 0
@@ -791,9 +808,12 @@ class TinyScanner(Page):
         else:
             y_map.reverse()
         # Think in portrait mode, with Tiny Seed tilted 90 degrees
+        # Loop ahead will sweep TinySeed bits/dots and evaluate its luminosity
         for x in x_map:
             for y in y_map:
+                # Define the dot rectangle area to be evaluated
                 eval_rect = (x + 2, y + 2, pad_x - 3, pad_y - 3)
+                # Evaluate dot's median luminosity
                 dot_l = img.get_statistics(roi=eval_rect).median()
 
                 # # Debug gradient
@@ -806,9 +826,13 @@ class TinyScanner(Page):
                 # if index == 143:
                 #     img.draw_string(70,25,"143:"+str(gradient_ref))
 
-                punch_threshold = (self._gradient_value(index) * 4) // 5  # ~-20%
+                # Defines a threshold to evaluate if the dot is considered punched
+                punch_threshold = (
+                    self._gradient_value(index, gradient_corners) * 4
+                ) // 5  # ~-20%
                 # Sensor image will be downscaled on small displays
                 punch_thickness = 1 if self.ctx.display.height() > 240 else 2
+                # If the dot is punched, draws a rectangle and toggle respective bit
                 if dot_l < punch_threshold:
                     _ = img.draw_rectangle(
                         eval_rect, thickness=punch_thickness, color=lcd.WHITE
@@ -819,6 +843,7 @@ class TinyScanner(Page):
                         page_seed_numbers[word_index], bit
                     )
                 index += 1
+        print(page_seed_numbers)
         return page_seed_numbers
 
     def _set_camera_sensitivity(self):
@@ -937,13 +962,11 @@ class TinyScanner(Page):
         if w24 and page == 0:
             message = t("TOUCH or ENTER to capture")
         self.ctx.display.draw_centered_text(message)
-
         precamera_ticks = time.ticks_ms()
         self.ctx.camera.initialize_sensor(grayscale=True)
         self._set_camera_sensitivity()
         full_screen = self._run_camera()
         postcamera_ticks = time.ticks_ms()
-
         # check how much ms camera took to retain message on the screen
         if precamera_ticks + FLASH_MSG_TIME > postcamera_ticks:
             time.sleep_ms(precamera_ticks + FLASH_MSG_TIME - postcamera_ticks)
@@ -959,11 +982,11 @@ class TinyScanner(Page):
             img = self.ctx.camera.snapshot()
             rect = self._detect_tiny_seed(img)
             if rect:
-                self._gradient_corners(rect, img)
-
+                gradient_corners = self._gradient_corners(rect, img)
+                print(gradient_corners)
                 # map_regions
-                self._map_punches_region(rect.rect(), page)
-                page_seed_numbers = self._detect_and_draw_punches(img)
+                self._map_punches_region(rect, page)
+                page_seed_numbers = self._detect_and_draw_punches(img, gradient_corners)
                 self._draw_grid(img)
             if board.config["type"] == "m5stickv":
                 img.lens_corr(strength=1.0, zoom=0.56)

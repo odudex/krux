@@ -22,10 +22,6 @@
 # pylint: disable=W0102
 import time
 
-try:
-    import urandom as random
-except:
-    import random
 from binascii import hexlify
 from embit import bip32, bip39
 from embit.wordlists.bip39 import WORDLIST
@@ -90,6 +86,11 @@ class Key:
         """Returns a random final word with a valid checksum for the given list of
         either 11 or 23 words
         """
+        try:
+            import urandom as random
+        except:
+            import random
+
         if len(words) != 11 and len(words) != 23:
             raise ValueError("must provide 11 or 23 words")
 
@@ -102,5 +103,5 @@ class Key:
 
     @staticmethod
     def get_default_derivation(multisig, network):
-        """Return the Krux default derivation path for single-key or multisig"""
+        """Return the Krux default derivation path for single-sig or multisig"""
         return (DER_MULTI if multisig else DER_SINGLE) % network["bip32"]

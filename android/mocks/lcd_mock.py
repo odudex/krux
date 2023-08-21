@@ -43,7 +43,6 @@ class LCD(Widget):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-        self.touch_release = False
         self.landscape = False
         self.frame_counter = 0
         _, window_height = Window.size

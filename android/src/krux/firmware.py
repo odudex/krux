@@ -19,16 +19,10 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
-import io
-import os
-import binascii
-import hashlib
+
+
 import time
 import flash
-from embit import ec
-from .input import Input, BUTTON_PAGE, BUTTON_PAGE_PREV
-from .metadata import SIGNER_PUBKEY
-from .display import Display
 from .krux_settings import t
 from .wdt import wdt
 
@@ -153,6 +147,8 @@ def fsize(firmware_filename):
 
 def sha256(firmware_filename, firmware_size=None):
     """Returns the sha256 hash of the firmware"""
+    import hashlib
+
     hasher = hashlib.sha256()
     # If firmware size is supplied, then we want a sha256 of the firmware with its header
     if firmware_size is not None:
@@ -168,6 +164,7 @@ def sha256(firmware_filename, firmware_size=None):
 
 def upgrade():
     """Installs new firmware from SD card"""
+    from os import listdir
 
     firmware_path = ""
     try:
@@ -175,7 +172,7 @@ def upgrade():
             filter(
                 lambda filename: filename.startswith("firmware")
                 and filename.endswith(".bin"),
-                os.listdir("/sd"),
+                listdir("/sd"),
             )
         )
         firmware_filenames.sort(reverse=True)
@@ -185,7 +182,19 @@ def upgrade():
     except:
         return False
 
+    from .display import Display
+
     display = Display()
+
+    display.clear()
+    display.draw_centered_text(t("Checking for new firmware on SD card ..."))
+
+    import io
+    from .input import Input, BUTTON_PAGE, BUTTON_PAGE_PREV
+    import binascii
+    from embit import ec
+    from .metadata import SIGNER_PUBKEY
+
     inp = Input()
 
     new_size = fsize(firmware_path)

@@ -50,6 +50,8 @@ PBKDF2_HMAC_ECB = 0
 PBKDF2_HMAC_CBC = 1
 AES_BLOCK_SIZE = 16
 
+THERMAL_ADAFRUIT_TXT = "thermal/adafruit"
+
 
 def translations(locale):
     """Returns the translations map for the given locale"""
@@ -226,22 +228,23 @@ class PrinterSettings(SettingsNamespace):
 
     PRINTERS = {
         "none": ("none", None),
-        "thermal/adafruit": ("thermal", "AdafruitPrinter"),
-        "cnc/file": ("cnc", "FilePrinter"),
+        # THERMAL_ADAFRUIT_TXT: ("thermal", "AdafruitPrinter"),
+        # "cnc/file": ("cnc", "FilePrinter"),
     }
     namespace = "settings.printer"
     driver = CategorySetting("driver", "none", list(PRINTERS.keys()))
 
     def __init__(self):
-        self.thermal = ThermalSettings()
-        self.cnc = CNCSettings()
+        pass
+        # self.thermal = ThermalSettings()
+        # self.cnc = CNCSettings()
 
     def label(self, attr):
         """Returns a label for UI when given a setting name or namespace"""
         return {
-            "thermal": t("Thermal"),
+            # "thermal": t("Thermal"),
             "driver": t("Driver"),
-            "cnc": t("CNC"),
+            # "cnc": t("CNC"),
         }[attr]
 
 
@@ -282,13 +285,13 @@ class EncryptionSettings(SettingsNamespace):
     }
     namespace = "settings.encryption"
     version = CategorySetting("version", AES_ECB_NAME, list(VERSION_NAMES.values()))
-    pbkdf2_iterations = NumberSetting(int, "pbkdf2_iterations", 100000, [1, 1000000])
+    pbkdf2_iterations = NumberSetting(int, "pbkdf2_iterations", 100000, [1, 500000])
 
     def label(self, attr):
         """Returns a label for UI when given a setting name or namespace"""
         return {
-            "version": t("Encryption mode"),
-            "pbkdf2_iterations": t("PBKDF2 iterations"),
+            "version": t("Encryption Mode"),
+            "pbkdf2_iterations": t("PBKDF2 Iter."),
         }[attr]
 
 
@@ -326,7 +329,7 @@ class Settings(SettingsNamespace):
         self.i18n = I18nSettings()
         self.logging = LoggingSettings()
         self.encryption = EncryptionSettings()
-        # self.printer = PrinterSettings()
+        self.printer = PrinterSettings()
         self.persist = PersistSettings()
         self.appearance = ThemeSettings()
         if board.config["type"].startswith("amigo"):
@@ -337,12 +340,12 @@ class Settings(SettingsNamespace):
         main_menu = {
             "bitcoin": t("Bitcoin"),
             "i18n": t("Language"),
-            "logging": t("Logging"),
+            # "logging": t("Logging"),
             "encryption": t("Encryption"),
-            "persist": t("Persist"),
+            # "persist": t("Persist"),
             # "printer": t("Printer"),
             "appearance": t("Theme"),
         }
         if board.config["type"].startswith("amigo"):
             main_menu["touchscreen"] = t("Touchscreen")
-        return main_menu[attr]
+        return main_menu.get(attr)

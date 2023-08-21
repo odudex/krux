@@ -24,11 +24,10 @@ import qrcode
 from embit.wordlists.bip39 import WORDLIST
 from . import Page
 from ..themes import theme, WHITE, BLACK
-from ..krux_settings import t, Settings
+from ..krux_settings import t
 from ..qr import get_size, add_qr_frame
 from ..display import DEFAULT_PADDING
 from . import MENU_CONTINUE
-from ..printers.cnc import FilePrinter
 from ..input import (
     BUTTON_ENTER,
     BUTTON_PAGE,
@@ -50,12 +49,12 @@ TRANSCRIBE_MODE = 4
 class SeedQRView(Page):
     """Tools to visualize and transcript Seed QRs"""
 
-    def __init__(self, ctx, binary=False, code=None, title=None):
+    def __init__(self, ctx, binary=False, data=None, title=None):
         super().__init__(ctx, None)
         self.ctx = ctx
         self.binary = binary
-        if code:
-            self.code = code
+        if data:
+            self.code = qrcode.encode_to_string(data)
             self.title = title
         else:
             if self.binary:
@@ -74,13 +73,11 @@ class SeedQRView(Page):
         numbers = ""
         for word in words:
             numbers += str("%04d" % WORDLIST.index(word))
-        # qr_size = 25 if len(words) == 12 else 29
-        return qrcode.encode_to_string(numbers)  # , qr_size
+        return qrcode.encode_to_string(numbers)
 
     def _binary_seed_qr(self):
         binary_seed = self._to_compact_seed_qr(self.ctx.wallet.key.mnemonic)
-        # qr_size = 21 if len(binary_seed) == 16 else 25
-        return qrcode.encode_to_string(binary_seed)  # , qr_size
+        return qrcode.encode_to_string(binary_seed)
 
     def _to_compact_seed_qr(self, mnemonic):
         mnemonic = mnemonic.split(" ")
@@ -324,24 +321,12 @@ class SeedQRView(Page):
             self.ctx.display.clear()
             if self.prompt(t("Are you sure?"), self.ctx.display.height() // 2):
                 break
-        if self.ctx.printer is None:
+        if not self.print_qr_prompt():
             return MENU_CONTINUE
-        self.ctx.display.clear()
-        if self.prompt(
-            t("Print to QR?\n\n%s\n\n") % Settings().printer.driver,
-            self.ctx.display.height() // 2,
-        ):
-            self.ctx.display.clear()
-            self.ctx.display.draw_hcentered_text(
-                t("Printing ..."), self.ctx.display.height() // 2
-            )
-            if self.title:
-                self.ctx.printer.print_string(self.title + "\n\n")
 
-            # Warn of SD read here because Printer don't have access to display
-            if isinstance(self.ctx.printer, FilePrinter):
-                self.ctx.display.clear()
-                self.ctx.display.draw_centered_text(t("Checking for SD card.."))
+        from .print_page import PrintPage
 
-            self.ctx.printer.print_qr_code(self.code)
+        print_page = PrintPage(self.ctx)
+        print_page.print_qr(self.code, title=self.title, is_qr=True)
+
         return MENU_CONTINUE

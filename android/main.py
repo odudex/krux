@@ -16,7 +16,7 @@ from kivy.clock import mainthread
 from android_permissions import AndroidPermissions
 
 import mocks.load_mocks
-from  mocks.ft6x36 import ft6x36_singleton
+from  mocks.ft6x36 import FT6X36
 from src.krux.power import power_manager
 from src.krux.context import Context
 from src.krux.pages.login import Login
@@ -48,7 +48,7 @@ Builder.load_string("""
         halign: 'center'
         text: '| Start Krux |'
         size_hint: 1, 0.3
-        on_press: root.start_thread()  
+        on_release: root.start_thread()  
 """)
 
 if platform == 'android':
@@ -87,21 +87,23 @@ class RootWidget(BoxLayout):
         super().__init__(**kwargs)
         self.orientation = 'vertical'
         self.stop = False
+        self.touch = FT6X36()
 
     @mainthread
     def btn_pressed(self, instance, pos):
-        ft6x36_singleton.feed_position(position=pos)
+        self.touch.feed_position(pos)
 
     @mainthread
     def btn_released(self, instance, pos):
-        ft6x36_singleton.feed_position(position=pos)
-        ft6x36_singleton.release()
+        self.touch.feed_position(pos)
+        self.touch.release()
 
     def camera_release(self, event):
-        ft6x36_singleton.release()
+        self.touch.release()
+        self.touch.feed_position(None)
 
     def camera_pressed(self, instance, pos):
-        ft6x36_singleton.feed_position(position=(1,1))
+        self.touch.feed_position((1,1))
         mocks.load_mocks.main_sensor.qrreader.pressed = False
         Clock.schedule_once(self.camera_release, 0.1)
 
@@ -135,8 +137,6 @@ class RootWidget(BoxLayout):
         self.remove_widget(self.label_1)
         self.remove_widget(self.but_1)
         self.add_widget(mocks.load_mocks.lcd)
-        # Add dummy position to avoid fake initial click
-        ft6x36_singleton.feed_position(position=(0,0))
         self.ctx = Context()
         self.ctx.power_manager = power_manager
         self.ctx.input.touch.index -= 1

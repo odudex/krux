@@ -24,7 +24,6 @@ import board
 from Maix import GPIO
 from fpioa_manager import fm
 from .wdt import wdt
-from .touch import Touch
 
 BUTTON_ENTER = 0
 BUTTON_PAGE = 1
@@ -83,6 +82,8 @@ class Input:
             "touch" in board.config["krux"]["display"]
             and board.config["krux"]["display"]["touch"]
         ):
+            from .touch import Touch
+
             self.touch = Touch(
                 board.config["lcd"]["width"], board.config["lcd"]["height"]
             )
@@ -170,7 +171,7 @@ class Input:
         """Waits for any button to release, optionally blocking if block=True.
         Returns the button that was released, or None if nonblocking.
         """
-        self.wait_for_release()
+        # self.wait_for_release() #Event based input can't use need this!
         btn = self.wait_for_press(block)
 
         if btn == BUTTON_ENTER:

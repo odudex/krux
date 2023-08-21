@@ -30,11 +30,11 @@ class FT6X36:
     def __init__(self):
         pass
 
-    def feed_position(position):
+    def feed_position(self, position):
         global touch_position
         touch_position = position
 
-    def release():
+    def release(self):
         global release
         release = True
 
@@ -52,9 +52,7 @@ class FT6X36:
     def threshold(self):
         pass
 
-ft6x36_singleton = FT6X36
-
 if "krux.touchscreens.ft6x36" not in sys.modules:
     sys.modules["krux.touchscreens.ft6x36"] = mock.MagicMock(
-        FT6X36=ft6x36_singleton,
+        FT6X36=FT6X36,
     )

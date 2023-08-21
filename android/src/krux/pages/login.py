@@ -20,6 +20,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+import sys
 from embit.networks import NETWORKS
 from embit.wordlists.bip39 import WORDLIST
 from embit import bip39
@@ -27,8 +28,6 @@ from ..themes import theme
 from ..krux_settings import Settings
 from ..qr import FORMAT_UR
 from ..key import Key
-from ..wallet import Wallet
-from ..printers import create_printer
 from ..krux_settings import t
 from . import (
     Page,
@@ -350,7 +349,7 @@ class Login(Page):
             self.ctx,
             [
                 (
-                    t("Single-key")
+                    t("Single-sig")
                     + "\n"
                     + Key.get_default_derivation(
                         False, NETWORKS[Settings().bitcoin.network]
@@ -375,6 +374,8 @@ class Login(Page):
         del temp_key
 
         # Permanent wallet loaded
+        from ..wallet import Wallet
+
         self.ctx.wallet = Wallet(
             Key(
                 mnemonic,
@@ -383,10 +384,6 @@ class Login(Page):
                 passphrase,
             )
         )
-        try:
-            self.ctx.printer = create_printer()
-        except:
-            self.ctx.log.exception("Exception occurred connecting to printer")
         return MENU_EXIT
 
     def _encrypted_qr_code(self, data):
@@ -592,21 +589,16 @@ class Login(Page):
         submenu = Menu(
             self.ctx,
             [
-                (t("Decimal"), lambda: MENU_EXIT),
-                (t("Hexadecimal"), lambda: MENU_EXIT),
-                (t("Octal"), lambda: MENU_EXIT),
+                (t("Decimal"), self.load_key_from_digits),
+                (t("Hexadecimal"), self.load_key_from_hexadecimal),
+                (t("Octal"), self.load_key_from_octal),
                 (t("Back"), lambda: MENU_EXIT),
             ],
         )
-        index, _ = submenu.run_loop()
-        self.ctx.display.clear()
-        if index == 0:
-            return self.load_key_from_digits()
-        if index == 1:
-            return self.load_key_from_hexadecimal()
-        if index == 2:
-            return self.load_key_from_octal()
-        return MENU_CONTINUE
+        index, status = submenu.run_loop()
+        if index == len(submenu.menu) - 1:
+            return MENU_CONTINUE
+        return status
 
     def load_key_from_octal(self):
         """Handler for the 'via numbers'>'Octal' submenu item"""

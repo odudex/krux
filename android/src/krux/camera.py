@@ -43,7 +43,7 @@ class Camera:
 
     def initialize_sensor(self, grayscale=False):
         """Initializes the camera"""
-        sensor.reset(freq=20000000)
+        sensor.reset(freq=16000000)
         self.cam_id = sensor.get_id()
         if grayscale:
             sensor.set_pixformat(sensor.GRAYSCALE)
@@ -167,6 +167,8 @@ class Camera:
 
     def capture_entropy(self, callback):
         """Captures camera's entropy as the hash of image buffer"""
+        import hashlib
+
         self.initialize_sensor()
         sensor.run(1)
 
