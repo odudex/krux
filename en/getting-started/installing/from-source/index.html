@@ -876,7 +876,7 @@ vagrant<span class="w"> </span>ssh<span class="w"> </span>-c<span class="w"> </s
 <p>This will take around an hour or so to complete the first time. Subsequent builds should take only a few minutes.</p>
 <p>If all goes well, you should see a new <code>build</code> folder containing <code>firmware.bin</code> and <code>kboot.kfpkg</code> files when the build completes.</p>
 <h3 id="flash-the-firmware-onto-the-device">Flash the firmware onto the device<a class="headerlink" href="#flash-the-firmware-onto-the-device" title="Permanent link">&para;</a></h3>
-<p>Connect the device to your computer via USB, power it on, and run the following, replacing <code>DEVICE</code> with either <code>m5stickv</code>, <code>amigo_tft</code>, <code>amigo_ips</code>, <code>dock</code>, or <code>bit</code>:
+<p>Connect the device to your computer via USB (for Amigo, make sure you’re using bottom port), power it on, and run the following, replacing <code>DEVICE</code> with either <code>m5stickv</code>, <code>amigo_tft</code>, <code>amigo_ips</code>, <code>dock</code>, or <code>bit</code>:
 <div class="highlight"><pre><span></span><code>vagrant<span class="w"> </span>ssh<span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;cd /vagrant; ./krux flash maixpy_DEVICE&#39;</span>
 </code></pre></div>
 If the flashing fails try one of the following common solutions:</p>
