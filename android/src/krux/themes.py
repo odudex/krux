@@ -1,6 +1,6 @@
 # The MIT License (MIT)
 
-# Copyright (c) 2021-2022 Krux contributors
+# Copyright (c) 2021-2023 Krux contributors
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -35,6 +35,8 @@ LIGHTGREY = 0x18C6
 GREEN = 0xE007
 DARKGREEN = 0x8005
 RED = 0x00F8
+PINK = 0x1FF8
+PURPLE = 0x0F78
 ORANGE = 0x20FD
 DARKORANGE = 0x40C3
 YELLOW = 0xE0FF
@@ -89,6 +91,18 @@ THEMES = {
         "toggle": CYAN,
         "error": RED,
         "highlight": ORANGE,
+    },
+        ThemeSettings.PINK_THEME_NAME: {
+        "background": BLACK,
+        "foreground": PINK,
+        "frame": PURPLE,
+        "disabled": DARKGREY,
+        "go": GREEN,
+        "esc_no": RED,
+        "del": YELLOW,
+        "toggle": CYAN,
+        "error": RED,
+        "highlight": PINK,
     },
 }
 

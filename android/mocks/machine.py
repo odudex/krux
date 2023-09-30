@@ -49,7 +49,7 @@ class WDT:
 
     def feed(self):
         # Use feed to sleep on mainloop thread and allow kivy to run its own threads
-        time.sleep_ms(100)
+        time.sleep_ms(40)
 
 if "machine" not in sys.modules:
     sys.modules["machine"] = mock.MagicMock(

@@ -20,22 +20,21 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-import time
-import uos
 import board
 import gc
 from . import Page, Menu, MENU_EXIT, MENU_CONTINUE
 from ..sd_card import SDHandler
-from ..krux_settings import t
+from ..krux_settings import t, Settings
 
 LIST_FILE_DIGITS = 9  # len on large devices per menu item
 LIST_FILE_DIGITS_SMALL = 5  # len on small devices per menu item
 
 SD_ROOT_PATH = "/sd"
+THOUSANDS_SEPARATOR = " "
 
 
 class FileManager(Page):
-    """Class to mange settings interface"""
+    """Helper class to handle files interface"""
 
     def __init__(self, ctx):
         super().__init__(ctx, None)
@@ -121,20 +120,37 @@ class FileManager(Page):
         if SDHandler.dir_exists(file):
             return MENU_EXIT
 
+        self.display_file(file)
+        self.ctx.input.wait_for_button()
+        # if self.prompt(t("Delete File?"), self.ctx.display.bottom_prompt_line):
+        #     with SDHandler() as sd:
+        #         sd.delete(file)
+        #     return MENU_EXIT
+        return MENU_CONTINUE
+
+    def display_file(self, file):
+        """Display the file details on the device's screen"""
+        import uos
+        import time
+
         stats = uos.stat(file)
-        size = stats[6] / 1024
-        size_deximal_places = str(int(size * 100))[-2:]
+        size_KB = stats[6] / 1024
+        size_KB_fraction = str(int(size_KB * 100))[-2:]
         created = time.localtime(stats[9])
         modified = time.localtime(stats[8])
         file = file[4:]  # remove "/sd/" prefix
+        decimal_separator = ","
+        if Settings().i18n.locale == "en-US":
+            decimal_separator = "."
+
         self.ctx.display.clear()
         self.ctx.display.draw_hcentered_text(
             file
             + "\n\n"
             + t("Size: ")
-            + "{:,}".format(int(size))
-            + "."
-            + size_deximal_places
+            + "{:,}".format(int(size_KB)).replace(",", THOUSANDS_SEPARATOR)
+            + decimal_separator
+            + size_KB_fraction
             + " KB"
             + "\n\n"
             + t("Created: ")
@@ -145,9 +161,5 @@ class FileManager(Page):
             + "%s-%s-%s %s:%s"
             % (modified[0], modified[1], modified[2], modified[3], modified[4])
         )
-        self.ctx.input.wait_for_button()
-        # if self.prompt(t("Delete File?"), self.ctx.display.bottom_prompt_line):
-        #     with SDHandler() as sd:
-        #         sd.delete(file)
-        #     return MENU_EXIT
-        return MENU_CONTINUE
+
+        return file

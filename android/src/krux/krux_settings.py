@@ -1,6 +1,6 @@
 # The MIT License (MIT)
 
-# Copyright (c) 2021-2022 Krux contributors
+# Copyright (c) 2021-2023 Krux contributors
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -120,7 +120,10 @@ class I18nSettings(SettingsNamespace):
     """I18n-specific settings"""
 
     namespace = "settings.i18n"
-    locale = CategorySetting("locale", "en-US", list(translation_table.keys()))
+    DEFAULT_LOCALE = "en-US"
+    locale = CategorySetting(
+        "locale", DEFAULT_LOCALE, list(translation_table.keys()) + [DEFAULT_LOCALE]
+    )
 
     def label(self, attr):
         """Returns a label for UI when given a setting name or namespace"""
@@ -152,8 +155,6 @@ class AdafruitPrinterSettings(SettingsNamespace):
     paper_width = NumberSetting(int, "paper_width", 384, [100, 1000])
     tx_pin = NumberSetting(int, "tx_pin", DEFAULT_TX_PIN, [0, 10000])
     rx_pin = NumberSetting(int, "rx_pin", DEFAULT_RX_PIN, [0, 10000])
-    heat_time = NumberSetting(int, "heat_time", 120, [3, 255])
-    heat_interval = NumberSetting(int, "heat_interval", 40, [0, 255])
     line_delay = NumberSetting(int, "line_delay", 20, [0, 255])
     scale = NumberSetting(int, "scale", 75, [25, 100])
 
@@ -164,8 +165,6 @@ class AdafruitPrinterSettings(SettingsNamespace):
             "paper_width": t("Paper Width"),
             "tx_pin": t("TX Pin"),
             "rx_pin": t("RX Pin"),
-            "heat_time": t("Heat Time"),
-            "heat_interval": t("Heat Interval"),
             "line_delay": t("Line Delay"),
             "scale": t("Scale"),
         }[attr]
@@ -244,7 +243,20 @@ class PrinterSettings(SettingsNamespace):
         return {
             # "thermal": t("Thermal"),
             "driver": t("Driver"),
-            # "cnc": t("CNC"),
+            #"cnc": t("CNC"),
+        }[attr]
+
+
+class EncoderSettings(SettingsNamespace):
+    """Encoder debounce settings"""
+
+    namespace = "settings.encoder"
+    debounce = NumberSetting(int, "debounce", 100, [100, 250])
+
+    def label(self, attr):
+        """Returns a label for UI when given a setting name or namespace"""
+        return {
+            "debounce": t("Encoder Debounce"),
         }[attr]
 
 
@@ -301,13 +313,16 @@ class ThemeSettings(SettingsNamespace):
     DARK_THEME = 0
     LIGHT_THEME = 1
     ORANGE_THEME = 3
+    PINK_THEME = 4
     DARK_THEME_NAME = "Dark"
     LIGHT_THEME_NAME = "Light"
     ORANGE_THEME_NAME = "Orange"
+    PINK_THEME_NAME = "CypherPink"
     THEME_NAMES = {
         DARK_THEME: DARK_THEME_NAME,
         LIGHT_THEME: LIGHT_THEME_NAME,
         ORANGE_THEME: ORANGE_THEME_NAME,
+        PINK_THEME: PINK_THEME_NAME,
     }
     namespace = "settings.appearance"
     theme = CategorySetting("theme", DARK_THEME_NAME, list(THEME_NAMES.values()))
@@ -332,8 +347,13 @@ class Settings(SettingsNamespace):
         self.printer = PrinterSettings()
         self.persist = PersistSettings()
         self.appearance = ThemeSettings()
-        if board.config["type"].startswith("amigo"):
+        if (
+            board.config["type"].startswith("amigo")
+            or board.config["type"] == "yahboom"
+        ):
             self.touch = TouchSettings()
+        if board.config["type"] == "dock":
+            self.encoder = EncoderSettings()
 
     def label(self, attr):
         """Returns a label for UI when given a setting name or namespace"""
@@ -346,6 +366,11 @@ class Settings(SettingsNamespace):
             # "printer": t("Printer"),
             "appearance": t("Theme"),
         }
-        if board.config["type"].startswith("amigo"):
+        if (
+            board.config["type"].startswith("amigo")
+            or board.config["type"] == "yahboom"
+        ):
             main_menu["touchscreen"] = t("Touchscreen")
+        if board.config["type"] == "dock":
+            main_menu["encoder"] = t("Encoder")
         return main_menu.get(attr)

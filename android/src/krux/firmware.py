@@ -1,6 +1,6 @@
 # The MIT License (MIT)
 
-# Copyright (c) 2021-2022 Krux contributors
+# Copyright (c) 2021-2023 Krux contributors
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -19,12 +19,20 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
-
-
+import io
+import os
+import binascii
+import hashlib
 import time
 import flash
+from embit import ec
+from .input import Input, BUTTON_PAGE, BUTTON_PAGE_PREV
+from .metadata import SIGNER_PUBKEY
+from .display import Display
 from .krux_settings import t
 from .wdt import wdt
+
+FLASH_MSG_TIME = 2000
 
 MAX_FIRMWARE_SIZE = 0x300000
 
@@ -33,6 +41,8 @@ FIRMWARE_SLOT_2 = 0x00280000
 
 MAIN_BOOT_CONFIG_SECTOR_ADDRESS = 0x00004000
 BACKUP_BOOT_CONFIG_SECTOR_ADDRESS = 0x00005000
+
+FLASH_IO_WAIT_TIME = 100
 
 
 def find_active_firmware(sector):
@@ -122,12 +132,12 @@ def write_data(
 
         cur_address = i * chunk_size + address
         flash.erase(cur_address, chunk_size)
-        time.sleep_ms(100)
+        time.sleep_ms(FLASH_IO_WAIT_TIME)
         if header and i == 0:
             flash.write(cur_address, b"\x00" + data_size.to_bytes(4, "little"))
-            time.sleep_ms(100)
+            time.sleep_ms(FLASH_IO_WAIT_TIME)
         flash.write(cur_address + header_offset, buffer[:chunk_size_after_header])
-        time.sleep_ms(100)
+        time.sleep_ms(FLASH_IO_WAIT_TIME)
         i += 1
         num_read = 0
         chunk_read = 0
@@ -147,8 +157,6 @@ def fsize(firmware_filename):
 
 def sha256(firmware_filename, firmware_size=None):
     """Returns the sha256 hash of the firmware"""
-    import hashlib
-
     hasher = hashlib.sha256()
     # If firmware size is supplied, then we want a sha256 of the firmware with its header
     if firmware_size is not None:
@@ -164,7 +172,13 @@ def sha256(firmware_filename, firmware_size=None):
 
 def upgrade():
     """Installs new firmware from SD card"""
-    from os import listdir
+
+    def flash_text(text):
+        """Flashes text centered on the display for duration ms"""
+        display.clear()
+        display.draw_centered_text(text)
+        time.sleep_ms(FLASH_MSG_TIME)
+        display.clear()
 
     firmware_path = ""
     try:
@@ -172,7 +186,7 @@ def upgrade():
             filter(
                 lambda filename: filename.startswith("firmware")
                 and filename.endswith(".bin"),
-                listdir("/sd"),
+                os.listdir("/sd"),
             )
         )
         firmware_filenames.sort(reverse=True)
@@ -182,19 +196,7 @@ def upgrade():
     except:
         return False
 
-    from .display import Display
-
     display = Display()
-
-    display.clear()
-    display.draw_centered_text(t("Checking for new firmware on SD card ..."))
-
-    import io
-    from .input import Input, BUTTON_PAGE, BUTTON_PAGE_PREV
-    import binascii
-    from embit import ec
-    from .metadata import SIGNER_PUBKEY
-
     inp = Input()
 
     new_size = fsize(firmware_path)
@@ -211,31 +213,31 @@ def upgrade():
         return False
 
     if new_size > MAX_FIRMWARE_SIZE:
-        display.flash_text(t("Firmware exceeds max size: %d") % MAX_FIRMWARE_SIZE)
+        flash_text(t("Firmware exceeds max size: %d") % MAX_FIRMWARE_SIZE)
         return False
 
     pubkey = None
     try:
         pubkey = ec.PublicKey.from_string(SIGNER_PUBKEY)
     except:
-        display.flash_text(t("Invalid public key"))
+        flash_text(t("Invalid public key"))
         return False
 
     sig = None
     try:
         sig = open(firmware_path + ".sig", "rb").read()
     except:
-        display.flash_text(t("Missing signature file"))
+        flash_text(t("Missing signature file"))
         return False
 
     try:
         # Parse, serialize, and reparse to ensure signature is compact prior to verification
         sig = ec.Signature.parse(ec.Signature.parse(sig).serialize())
         if not pubkey.verify(sig, firmware_hash):
-            display.flash_text(t("Bad signature"))
+            flash_text(t("Bad signature"))
             return False
     except:
-        display.flash_text(t("Bad signature"))
+        flash_text(t("Bad signature"))
         return False
 
     boot_config_sector = flash.read(MAIN_BOOT_CONFIG_SECTOR_ADDRESS, 4096)
@@ -244,7 +246,7 @@ def upgrade():
         boot_config_sector = flash.read(BACKUP_BOOT_CONFIG_SECTOR_ADDRESS, 4096)
         address, _, entry_index = find_active_firmware(boot_config_sector)
         if address is None:
-            display.flash_text(t("Invalid bootloader"))
+            flash_text(t("Invalid bootloader"))
             return False
 
     # Write new firmware to the opposite slot
@@ -283,5 +285,5 @@ def upgrade():
         4096,
     )
 
-    display.flash_text(t("Upgrade complete.\n\nShutting down.."))
+    flash_text(t("Upgrade complete.\n\nShutting down.."))
     return True

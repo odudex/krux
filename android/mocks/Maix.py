@@ -80,33 +80,17 @@ class GPIO:
     GPIO5 = 37
     GPIO6 = 38
     GPIO7 = 39
+    IRQ_FALLING = 0
 
     def __init__(self, gpio_num, dir, val):
         self.key = None
 
 
     def value(self):
-        if not self.key:
-            return 1
-        if (
-            sequence_executor
-            and sequence_executor.key is not None
-            and sequence_executor.key == self.key
-        ):
-            sequence_executor.key_checks += 1
-            # wait for release
-            if sequence_executor.key_checks == 1:
-                return RELEASED
-            # wait for press
-            # if pressed
-            elif sequence_executor.key_checks == 2 or sequence_executor.key_checks == 3:
-                return PRESSED
-            # released
-            elif sequence_executor.key_checks == 4:
-                sequence_executor.key = None
-                sequence_executor.key_checks = 0
-                return RELEASED
         return RELEASED
+    
+    def irq(self, pin, mode):
+        pass
 
 
 if "Maix" not in sys.modules:

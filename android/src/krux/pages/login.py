@@ -1,6 +1,6 @@
 # The MIT License (MIT)
 
-# Copyright (c) 2021-2022 Krux contributors
+# Copyright (c) 2021-2023 Krux contributors
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -59,6 +59,9 @@ PASSPHRASE_MAX_LEN = 200
 
 class Login(Page):
     """Represents the login page of the app"""
+
+    # Used on boot.py when changing the locale on Settings
+    SETTINGS_MENU_INDEX = 2
 
     def __init__(self, ctx):
         super().__init__(
@@ -179,6 +182,8 @@ class Login(Page):
 
         self.ctx.display.draw_hcentered_text(
             t("Use camera's entropy to create a new mnemonic")
+            + ". "
+            + t("(Experimental)")
         )
         if self.prompt(t("Proceed?"), self.ctx.display.bottom_prompt_line):
             entropy_bytes = self.capture_camera_entropy()
@@ -255,7 +260,7 @@ class Login(Page):
                         if len(rolls) > 0:
                             rolls.pop()
                     elif len(rolls) < min_rolls:  # Not enough to Go
-                        self.ctx.display.flash_text(t("Not enough rolls!"))
+                        self.flash_text(t("Not enough rolls!"))
                     else:  # Go
                         break
 
@@ -288,12 +293,10 @@ class Login(Page):
     def _load_qr_passphrase(self):
         data, _ = self.capture_qr_code()
         if data is None:
-            self.ctx.display.flash_text(
-                t("Failed to load passphrase"), theme.error_color
-            )
+            self.flash_text(t("Failed to load passphrase"), theme.error_color)
             return MENU_CONTINUE
         if len(data) > PASSPHRASE_MAX_LEN:
-            self.ctx.display.flash_text(
+            self.flash_text(
                 t("Maximum length exceeded (%s)") % PASSPHRASE_MAX_LEN,
                 theme.error_color,
             )
@@ -306,6 +309,13 @@ class Login(Page):
         if not self.prompt(t("Continue?"), self.ctx.display.bottom_prompt_line):
             return MENU_CONTINUE
         self.ctx.display.clear()
+
+        # Test mnemonic Checksum verification before asking for passphrase
+        temp_key = Key(
+            mnemonic,
+            False,
+            NETWORKS[Settings().bitcoin.network],
+        )
 
         while True:
             submenu = Menu(
@@ -351,7 +361,7 @@ class Login(Page):
                 (
                     t("Single-sig")
                     + "\n"
-                    + Key.get_default_derivation(
+                    + Key.get_default_derivation_str(
                         False, NETWORKS[Settings().bitcoin.network]
                     ),
                     lambda: MENU_EXIT,
@@ -359,7 +369,7 @@ class Login(Page):
                 (
                     t("Multisig")
                     + "\n"
-                    + Key.get_default_derivation(
+                    + Key.get_default_derivation_str(
                         True, NETWORKS[Settings().bitcoin.network]
                     ),
                     lambda: MENU_EXIT,
@@ -402,15 +412,17 @@ class Login(Page):
                 key_capture = EncryptionKey(self.ctx)
                 key = key_capture.encryption_key()
                 if key is None:
-                    self.ctx.display.flash_text(t("Mnemonic was not decrypted"))
+                    self.flash_text(t("Mnemonic was not decrypted"))
                     return None
                 self.ctx.display.clear()
                 self.ctx.display.draw_centered_text(t("Processing ..."))
                 if key in ("", ESC_KEY):
-                    raise ValueError(t("Failed to decrypt"))
+                    self.flash_text(t("Failed to decrypt"), theme.error_color)
+                    return None
                 word_bytes = encrypted_qr.decrypt(key)
                 if word_bytes is None:
-                    raise ValueError(t("Failed to decrypt"))
+                    self.flash_text(t("Failed to decrypt"), theme.error_color)
+                    return None
                 return bip39.mnemonic_from_bytes(word_bytes).split()
         return None
 
@@ -418,7 +430,7 @@ class Login(Page):
         """Handler for the 'via qr code' menu item"""
         data, qr_format = self.capture_qr_code()
         if data is None:
-            self.ctx.display.flash_text(t("Failed to load mnemonic"), theme.error_color)
+            self.flash_text(t("Failed to load mnemonic"), theme.error_color)
             return MENU_CONTINUE
 
         words = []
@@ -453,7 +465,7 @@ class Login(Page):
             if not words:
                 words = self._encrypted_qr_code(data)
         if not words or (len(words) != 12 and len(words) != 24):
-            self.ctx.display.flash_text(t("Invalid mnemonic length"), theme.error_color)
+            self.flash_text(t("Invalid mnemonic length"), theme.error_color)
             return MENU_CONTINUE
         return self._load_key_from_words(words)
 
@@ -761,7 +773,7 @@ class Login(Page):
         words = tiny_scanner.scanner(w24)
         del tiny_scanner
         if words is None:
-            self.ctx.display.flash_text(t("Failed to load mnemonic"), theme.error_color)
+            self.flash_text(t("Failed to load mnemonic"), theme.error_color)
             return MENU_CONTINUE
         return self._load_key_from_words(words)
 
@@ -778,6 +790,11 @@ class Login(Page):
         while True:
             if Tools(self.ctx).run() == MENU_EXIT:
                 break
+        
+        # # Unimport tools # Result in error on Android
+        # sys.modules.pop("krux.pages.tools")
+        # del sys.modules["krux.pages"].tools
+
         return MENU_CONTINUE
 
     def settings(self):

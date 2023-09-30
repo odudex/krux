@@ -16,7 +16,7 @@ from kivy.clock import mainthread
 from android_permissions import AndroidPermissions
 
 import mocks.load_mocks
-from  mocks.ft6x36 import FT6X36
+from  mocks.ft6x36 import touch_control
 from src.krux.power import power_manager
 from src.krux.context import Context
 from src.krux.pages.login import Login
@@ -87,7 +87,7 @@ class RootWidget(BoxLayout):
         super().__init__(**kwargs)
         self.orientation = 'vertical'
         self.stop = False
-        self.touch = FT6X36()
+        self.touch = touch_control
 
     @mainthread
     def btn_pressed(self, instance, pos):
@@ -95,7 +95,7 @@ class RootWidget(BoxLayout):
 
     @mainthread
     def btn_released(self, instance, pos):
-        self.touch.feed_position(pos)
+        self.touch.feed_position(pos, release=True)
         self.touch.release()
 
     def camera_release(self, event):

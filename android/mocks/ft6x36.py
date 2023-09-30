@@ -23,36 +23,50 @@ import sys
 from unittest import mock
 
 
-touch_position = None
-release = False
-
 class FT6X36:
     def __init__(self):
+        self.irq_point = None
+        self.touch_position = None
+        self.release_flag = False
+        self.event_flag = False
+
+
+    def activate_irq(self, irq_pin):
         pass
 
-    def feed_position(self, position):
-        global touch_position
-        touch_position = position
+    def feed_position(self, position, release = False):
+        self.touch_position = position
+        if not release:
+            self.trigger_event()
 
     def release(self):
-        global release
-        release = True
+        self.release_flag = True
 
     def current_point(self):
-        global release
-        global touch_position
-        if not touch_position:
+        if not self.touch_position:
             return None
-        position = tuple(touch_position)
-        if release:
-            release = False
-            touch_position = None
+        position = tuple(self.touch_position)
+        if self.release_flag:
+            self.release_flag = False
+            self.touch_position = None
         return position
     
+    def trigger_event(self):
+        """Called by IRQ handler to set event flag and capture touch point"""
+        self.event_flag = True
+        self.irq_point = self.current_point()
+    
+    def event(self):
+        flag = self.event_flag
+        self.event_flag = False  # Always clean event flag
+        return flag
+
     def threshold(self):
         pass
 
+touch_control = FT6X36()
+
 if "krux.touchscreens.ft6x36" not in sys.modules:
     sys.modules["krux.touchscreens.ft6x36"] = mock.MagicMock(
-        FT6X36=FT6X36,
+        touch_control=touch_control,
     )

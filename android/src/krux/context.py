@@ -1,6 +1,6 @@
 # The MIT License (MIT)
 
-# Copyright (c) 2021-2022 Krux contributors
+# Copyright (c) 2021-2023 Krux contributors
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -25,6 +25,7 @@ from .logging import logger
 from .display import Display
 from .input import Input
 from .camera import Camera
+from .light import Light
 
 
 class Context:
@@ -36,12 +37,7 @@ class Context:
         self.display = Display()
         self.input = Input()
         self.camera = Camera()
-        if "LED_W" in board.config["krux"]["pins"]:
-            from .light import Light
-
-            self.light = Light()
-        else:
-            self.light = None
+        self.light = Light() if "LED_W" in board.config["krux"]["pins"] else None
         self.power_manager = None
         self.printer = None
         self.wallet = None

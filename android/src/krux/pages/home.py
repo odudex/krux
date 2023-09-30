@@ -1,6 +1,6 @@
 # The MIT License (MIT)
 
-# Copyright (c) 2021-2022 Krux contributors
+# Copyright (c) 2021-2023 Krux contributors
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -37,13 +37,6 @@ from . import (
 )
 from ..sd_card import SDHandler
 
-
-STANDARD_MODE = 0
-LINE_MODE = 1
-ZOOMED_R_MODE = 2
-REGION_MODE = 3
-TRANSCRIBE_MODE = 4
-
 # to start xpub value without the xpub/zpub/ypub prefix
 WALLET_XPUB_START = 4
 # len of the xpub to show
@@ -53,8 +46,9 @@ FILE_SPECIAL = "0123456789()-.[]_~"
 
 PSBT_FILE_SUFFIX = "-signed"
 PSBT_FILE_EXTENSION = ".psbt"
-MESSAGE_SIG_FILE_EXTENSION = ".sig"
-MESSAGE_SIG_FILE_SUFFIX = PSBT_FILE_SUFFIX
+PUBKEY_FILE_EXTENSION = ".pub"
+SIGNATURE_FILE_EXTENSION = ".sig"
+SIGNATURE_FILE_SUFFIX = PSBT_FILE_SUFFIX
 
 
 class Home(Page):
@@ -116,7 +110,7 @@ class Home(Page):
         """Displays regular words QR code"""
         title = t("Plaintext QR")
         data = self.ctx.wallet.key.mnemonic
-        self.display_qr_codes(data, FORMAT_NONE, title, allow_any_btn=True)
+        self.display_qr_codes(data, FORMAT_NONE, title)
         self.print_standard_qr(data, FORMAT_NONE, title)
         return MENU_CONTINUE
 
@@ -191,10 +185,26 @@ class Home(Page):
             self.ctx.input.wait_for_button()
 
             # title receives first 4 chars (ex: XPUB)
-            title = self.ctx.wallet.key.account_pubkey_str(version)[:4].upper()
+            title = self.ctx.wallet.key.account_pubkey_str(version)[
+                :WALLET_XPUB_START
+            ].upper()
             xpub = self.ctx.wallet.key.key_expression(version)
-            self.display_qr_codes(xpub, FORMAT_NONE, title, allow_any_btn=True)
+            self.display_qr_codes(xpub, FORMAT_NONE, title)
             self.print_standard_qr(xpub, FORMAT_NONE, title)
+
+            # Try to save the XPUB file on the SD card
+            try:
+                self._save_file(
+                    xpub,
+                    title,
+                    title,
+                    title + ":",
+                    PUBKEY_FILE_EXTENSION,
+                    save_as_binary=False,
+                )
+            except OSError:
+                pass
+
         return MENU_CONTINUE
 
     def wallet(self):
@@ -217,9 +227,7 @@ class Home(Page):
     def _load_wallet(self):
         wallet_data, qr_format = self.capture_qr_code()
         if wallet_data is None:
-            self.ctx.display.flash_text(
-                t("Failed to load output descriptor"), theme.error_color
-            )
+            self.flash_text(t("Failed to load output descriptor"), theme.error_color)
             return MENU_CONTINUE
 
         try:
@@ -235,7 +243,20 @@ class Home(Page):
                     "Wallet output descriptor: %s"
                     % self.ctx.wallet.descriptor.to_string()
                 )
-                self.ctx.display.flash_text(t("Wallet output descriptor loaded!"))
+                self.flash_text(t("Wallet output descriptor loaded!"))
+
+                # BlueWallet single sig descriptor without fingerprint
+                if (
+                    self.ctx.wallet.descriptor.key
+                    and not self.ctx.wallet.descriptor.key.origin
+                ):
+                    self.ctx.display.clear()
+                    self.ctx.display.draw_centered_text(
+                        t("Warning:") + "\n" + t("Incomplete output descriptor"),
+                        theme.error_color,
+                    )
+                    self.ctx.input.wait_for_button()
+
         except Exception as e:
             self.ctx.log.exception("Exception occurred loading wallet")
             self.ctx.display.clear()
@@ -243,14 +264,7 @@ class Home(Page):
                 t("Invalid wallet:\n%s") % repr(e), theme.error_color
             )
             self.ctx.input.wait_for_button()
-        if self.ctx.wallet.descriptor.key:  # If single sig
-            if not self.ctx.wallet.descriptor.key.origin:
-                # Blue exports descriptors without a fingerprint
-                self.ctx.display.clear()
-                self.ctx.display.draw_centered_text(
-                    t("Warning:\nIncomplete output descriptor"), theme.error_color
-                )
-                self.ctx.input.wait_for_button()
+
         return MENU_CONTINUE
 
     def addresses_menu(self):
@@ -258,7 +272,8 @@ class Home(Page):
         from .addresses import Addresses
 
         adresses = Addresses(self.ctx)
-        return adresses.addresses_menu()
+        adresses.addresses_menu()
+        return MENU_CONTINUE
 
     def sign(self):
         """Handler for the 'sign' menu item"""
@@ -281,10 +296,11 @@ class Home(Page):
         # Warns in case multisig wallet descriptor is not loaded
         if not self.ctx.wallet.is_loaded() and self.ctx.wallet.is_multisig():
             self.ctx.display.draw_centered_text(
-                t(
-                    """Warning:\nWallet output descriptor not found.\n\n
-                    Some checks cannot be performed."""
-                )
+                t("Warning:")
+                + "\n"
+                + t("Wallet output descriptor not found.")
+                + "\n\n"
+                + t("Some checks cannot be performed.")
             )
             if not self.prompt(t("Proceed?"), self.ctx.display.bottom_prompt_line):
                 return MENU_CONTINUE
@@ -296,72 +312,14 @@ class Home(Page):
         if data is None:
             # Try to read a PSBT from a file on the SD card
             qr_format = FORMAT_NONE
-            self.ctx.display.clear()
-            self.ctx.display.draw_centered_text(t("Checking for SD card.."))
             try:
-                with SDHandler() as sd:
-                    self.ctx.display.clear()
-                    if self.prompt(
-                        t("Load PSBT from SD card?"), self.ctx.display.height() // 2
-                    ):
-                        import uos
-                        import time
-                        from .files_manager import FileManager
-
-                        file_manager = FileManager(self.ctx)
-                        psbt_filename = file_manager.select_file(
-                            file_extension=PSBT_FILE_EXTENSION
-                        )
-
-                        if psbt_filename:
-                            stats = uos.stat(psbt_filename)
-                            size = stats[6] / 1024
-                            size_deximal_places = str(int(size * 100))[-2:]
-                            created = time.localtime(stats[9])
-                            modified = time.localtime(stats[8])
-
-                            psbt_filename = psbt_filename[4:]  # remove "/sd/" prefix
-                            self.ctx.display.clear()
-                            self.ctx.display.draw_hcentered_text(
-                                psbt_filename
-                                + "\n\n"
-                                + t("Size: ")
-                                + "{:,}".format(int(size))
-                                + "."
-                                + size_deximal_places
-                                + " KB"
-                                + "\n\n"
-                                + t("Created: ")
-                                + "%s-%s-%s %s:%s"
-                                % (
-                                    created[0],
-                                    created[1],
-                                    created[2],
-                                    created[3],
-                                    created[4],
-                                )
-                                + "\n\n"
-                                + t("Modified: ")
-                                + "%s-%s-%s %s:%s"
-                                % (
-                                    modified[0],
-                                    modified[1],
-                                    modified[2],
-                                    modified[3],
-                                    modified[4],
-                                )
-                            )
-
-                            if self.prompt(
-                                t("Load?"), self.ctx.display.bottom_prompt_line
-                            ):
-                                data = sd.read_binary(psbt_filename)
+                psbt_filename, data = self._load_file(PSBT_FILE_EXTENSION)
             except OSError:
                 pass
 
         if data is None:
             # Both the camera and the file on SD card failed!
-            self.ctx.display.flash_text(t("Failed to load PSBT"), theme.error_color)
+            self.flash_text(t("Failed to load PSBT"), theme.error_color)
             return MENU_CONTINUE
 
         # PSBT read OK! Will try to sign
@@ -395,11 +353,20 @@ class Home(Page):
             del signer
             gc.collect()
 
-            # Show the signed PSBT as a QRCode
-            self.display_qr_codes(qr_signed_psbt, qr_format)
-            self.print_standard_qr(
-                qr_signed_psbt, qr_format, t("Signed PSBT"), width=45
-            )
+            # Try to show the signed PSBT as a QRCode
+            title = t("Signed PSBT")
+            try:
+                self.display_qr_codes(qr_signed_psbt, qr_format)
+                self.print_standard_qr(qr_signed_psbt, qr_format, title, width=45)
+            except Exception as e:
+                self.ctx.log.exception(
+                    "Exception occurred in sign_psbt when trying to show the qr_signed_psbt"
+                )
+                self.ctx.display.clear()
+                self.ctx.display.draw_centered_text(
+                    t("Error:\n%s") % repr(e), theme.error_color
+                )
+                self.ctx.input.wait_for_button()
 
             # memory management
             del qr_signed_psbt
@@ -409,35 +376,38 @@ class Home(Page):
             self.ctx.display.clear()
             self.ctx.display.draw_centered_text(t("Checking for SD card.."))
             try:
-                with SDHandler() as sd:
-                    # Wait until user defines a filename or select NO on the prompt
-                    filename_undefined = True
-                    while filename_undefined:
-                        self.ctx.display.clear()
-                        if self.prompt(
-                            t("Save PSBT to SD card?"), self.ctx.display.height() // 2
-                        ):
-                            psbt_filename, filename_undefined = self._set_filename(
-                                psbt_filename,
-                                "QRCode",
-                                PSBT_FILE_SUFFIX,
-                                PSBT_FILE_EXTENSION,
-                            )
-
-                            # if user defined a filename and it is ok, save!
-                            if not filename_undefined:
-                                sd.write_binary(psbt_filename, serialized_signed_psbt)
-                                self.ctx.display.clear()
-                                self.ctx.display.draw_centered_text(
-                                    t("Saved PSBT to SD card:\n%s") % psbt_filename
-                                )
-                                self.ctx.input.wait_for_button()
-                        else:
-                            filename_undefined = False
+                self._save_file(
+                    serialized_signed_psbt,
+                    "QRCode",
+                    psbt_filename,
+                    title + ":",
+                    PSBT_FILE_EXTENSION,
+                    PSBT_FILE_SUFFIX,
+                )
             except OSError:
                 pass
 
         return MENU_CONTINUE
+
+    def _load_file(self, file_ext=""):
+        self.ctx.display.clear()
+        self.ctx.display.draw_centered_text(t("Checking for SD card.."))
+        with SDHandler() as sd:
+            self.ctx.display.clear()
+            if self.prompt(
+                t("Load from SD card?") + "\n\n", self.ctx.display.height() // 2
+            ):
+                from .files_manager import FileManager
+
+                file_manager = FileManager(self.ctx)
+                filename = file_manager.select_file(file_extension=file_ext)
+
+                if filename:
+                    filename = file_manager.display_file(filename)
+
+                    if self.prompt(t("Load?"), self.ctx.display.bottom_prompt_line):
+                        return filename, sd.read_binary(filename)
+        return "", None
 
     def sign_message(self):
         """Handler for the 'sign message' menu item"""
@@ -453,36 +423,13 @@ class Home(Page):
         if data is None:
             # Try to read a message from a file on the SD card
             qr_format = FORMAT_NONE
-            self.ctx.display.clear()
-            self.ctx.display.draw_centered_text(t("Checking for SD card.."))
             try:
-                with SDHandler() as sd:
-                    self.ctx.display.clear()
-                    if self.prompt(
-                        t("Load message from SD card?"), self.ctx.display.height() // 2
-                    ):
-                        from .files_manager import FileManager
-
-                        file_manager = FileManager(self.ctx)
-                        message_filename = file_manager.select_file()
-
-                        if message_filename:
-                            self.ctx.display.clear()
-                            self.ctx.display.draw_hcentered_text(
-                                t("File selected:\n\n%s") % message_filename
-                            )
-                            message_filename = message_filename[
-                                4:
-                            ]  # remove "/sd/" prefix
-                            if self.prompt(
-                                t("Load?"), self.ctx.display.bottom_prompt_line
-                            ):
-                                data = sd.read_binary(message_filename)
+                message_filename, data = self._load_file()
             except OSError:
                 pass
 
         if data is None:
-            self.ctx.display.flash_text(t("Failed to load message"), theme.error_color)
+            self.flash_text(t("Failed to load message"), theme.error_color)
             return MENU_CONTINUE
 
         # message read OK!
@@ -520,7 +467,7 @@ class Home(Page):
         # Encode sig as base64 string
         encoded_sig = base_encode(sig, 64).decode()
         self.ctx.display.clear()
-        self.ctx.display.draw_centered_text(t("Signature:\n\n%s") % encoded_sig)
+        self.ctx.display.draw_centered_text(t("Signature") + ":\n\n%s" % encoded_sig)
         self.ctx.input.wait_for_button()
 
         # Show the base64 signed message as a QRCode
@@ -545,41 +492,69 @@ class Home(Page):
         self.print_standard_qr(pubkey, qr_format, title)
 
         # memory management
-        del pubkey
         gc.collect()
 
         # Try to save the signature file on the SD card
-        self.ctx.display.clear()
-        self.ctx.display.draw_centered_text(t("Checking for SD card.."))
         try:
-            with SDHandler() as sd:
-                # Wait until user defines a filename or select NO on the prompt
-                filename_undefined = True
-                while filename_undefined:
-                    self.ctx.display.clear()
-                    if self.prompt(
-                        t("Save signature to SD card?"), self.ctx.display.height() // 2
-                    ):
-                        message_filename, filename_undefined = self._set_filename(
-                            message_filename,
-                            "message",
-                            MESSAGE_SIG_FILE_SUFFIX,
-                            MESSAGE_SIG_FILE_EXTENSION,
-                        )
+            self._save_file(
+                sig,
+                "message",
+                message_filename,
+                t("Signature") + ":",
+                SIGNATURE_FILE_EXTENSION,
+                SIGNATURE_FILE_SUFFIX,
+            )
+        except OSError:
+            pass
 
-                        # if user defined a filename and it is ok, save!
-                        if not filename_undefined:
-                            sd.write_binary(message_filename, sig)
-                            self.ctx.display.clear()
-                            self.ctx.display.flash_text(
-                                t("Saved signature to SD card:\n%s") % message_filename
-                            )
-                    else:
-                        filename_undefined = False
+        # Try to save the public key on the SD card
+        try:
+            self._save_file(
+                pubkey, "pubkey", "", title + ":", PUBKEY_FILE_EXTENSION, "", False
+            )
         except OSError:
             pass
 
         return MENU_CONTINUE
+
+    def _save_file(
+        self,
+        data,
+        empty_name,
+        filename="",
+        file_description="",
+        file_extension="",
+        file_suffix="",
+        save_as_binary=True,
+    ):
+        self.ctx.display.clear()
+        self.ctx.display.draw_centered_text(t("Checking for SD card.."))
+        with SDHandler() as sd:
+            # Wait until user defines a filename or select NO on the prompt
+            filename_undefined = True
+            while filename_undefined:
+                self.ctx.display.clear()
+                if self.prompt(
+                    file_description + "\n" + t("Save to SD card?") + "\n\n",
+                    self.ctx.display.height() // 2,
+                ):
+                    filename, filename_undefined = self._set_filename(
+                        filename,
+                        empty_name,
+                        file_suffix,
+                        file_extension,
+                    )
+
+                    # if user defined a filename and it is ok, save!
+                    if not filename_undefined:
+                        if save_as_binary:
+                            sd.write_binary(filename, data)
+                        else:
+                            sd.write(filename, data)
+                        self.ctx.display.clear()
+                        self.flash_text(t("Saved to SD card:\n%s") % filename)
+                else:
+                    filename_undefined = False
 
     def _set_filename(
         self, curr_filename="", empty_filename="some_file", suffix="", file_extension=""
@@ -627,7 +602,8 @@ class Home(Page):
             if SDHandler.file_exists("/sd/" + curr_filename):
                 self.ctx.display.clear()
                 if self.prompt(
-                    t("Filename %s exists on SD card, overwrite?") % curr_filename,
+                    t("Filename %s exists on SD card, overwrite?") % curr_filename
+                    + "\n\n",
                     self.ctx.display.height() // 2,
                 ):
                     filename_undefined = False

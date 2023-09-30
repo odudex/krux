@@ -36,7 +36,7 @@ from . import (
     NUM_SPECIAL_1,
     NUM_SPECIAL_2,
 )
-from .files_manager import SD_ROOT_PATH
+from .files_manager import SD_ROOT_PATH, THOUSANDS_SEPARATOR
 
 
 class Tools(Page):
@@ -66,23 +66,25 @@ class Tools(Page):
             # Check for SD hot-plug
             with SDHandler():
                 sd_status = uos.statvfs(SD_ROOT_PATH)
-                sd_total = int(sd_status[2] * sd_status[1] / 1024 / 1024)
-                sd_free = int(sd_status[4] * sd_status[1] / 1024 / 1024)
+                sd_total_MB = int(sd_status[2] * sd_status[1] / 1024 / 1024)
+                sd_free_MB = int(sd_status[4] * sd_status[1] / 1024 / 1024)
 
                 self.ctx.display.clear()
                 self.ctx.display.draw_hcentered_text(
                     t("SD card")
                     + "\n\n"
                     + t("Size: ")
-                    + "{:,}".format(sd_total)
+                    + "{:,}".format(sd_total_MB).replace(",", THOUSANDS_SEPARATOR)
                     + " MB"
                     + "\n\n"
                     + t("Used: ")
-                    + "{:,}".format(sd_total - sd_free)
+                    + "{:,}".format(sd_total_MB - sd_free_MB).replace(
+                        ",", THOUSANDS_SEPARATOR
+                    )
                     + " MB"
                     + "\n\n"
                     + t("Free: ")
-                    + "{:,}".format(sd_free)
+                    + "{:,}".format(sd_free_MB).replace(",", THOUSANDS_SEPARATOR)
                     + " MB"
                 )
                 if self.prompt(
@@ -95,59 +97,25 @@ class Tools(Page):
                         select_file_handler=file_manager.show_file_details
                     )
         except OSError:
-            self.ctx.display.flash_text(t("SD card not detected"), theme.error_color)
+            self.flash_text(t("SD card not detected"), theme.error_color)
 
         return MENU_CONTINUE
 
     def del_stored_mnemonic(self):
         """Lists and allow deletion of stored mnemonics"""
-        from ..encryption import MnemonicStorage
+        from .encryption_ui import LoadEncryptedMnemonic
 
+        encrypted_mnemonics = LoadEncryptedMnemonic(self.ctx)
         while True:
-            mnemonic_storage = MnemonicStorage()
-            mnemonic_ids_menu = []
-            has_sd = mnemonic_storage.has_sd_card
-            mnemonics = mnemonic_storage.list_mnemonics()
-            sd_mnemonics = mnemonic_storage.list_mnemonics(sd_card=True)
-            del mnemonic_storage
-
-            for mnemonic_id in mnemonics:
-                mnemonic_ids_menu.append(
-                    (
-                        mnemonic_id + "(flash)",
-                        lambda m_id=mnemonic_id: self._delete_encrypted_mnemonic(m_id),
-                    )
-                )
-            if has_sd:
-                for mnemonic_id in sd_mnemonics:
-                    mnemonic_ids_menu.append(
-                        (
-                            mnemonic_id + "(SD card)",
-                            lambda m_id=mnemonic_id: self._delete_encrypted_mnemonic(
-                                m_id, sd_card=True
-                            ),
-                        )
-                    )
-            mnemonic_ids_menu.append((t("Back"), lambda: MENU_EXIT))
-            submenu = Menu(self.ctx, mnemonic_ids_menu)
-            index, _ = submenu.run_loop()
-            if index == len(submenu.menu) - 1:
-                return MENU_CONTINUE
-
-    def _delete_encrypted_mnemonic(self, mnemonic_id, sd_card=False):
-        """Deletes a mnemonic"""
-        from ..encryption import MnemonicStorage
-
-        mnemonic_storage = MnemonicStorage()
-        self.ctx.display.clear()
-        if self.prompt(t("Delete %s?" % mnemonic_id), self.ctx.display.height() // 2):
-            mnemonic_storage.del_mnemonic(mnemonic_id, sd_card)
-        del mnemonic_storage
+            ret = encrypted_mnemonics.load_from_storage(delete_opt=True)
+            if ret == MENU_CONTINUE:
+                del encrypted_mnemonics
+                return ret
 
     def print_test(self):
         """Handler for the 'Print Test QR' menu item"""
         title = t("Krux Printer Test QR")
-        self.display_qr_codes(title, FORMAT_NONE, title, allow_any_btn=True)
+        self.display_qr_codes(title, FORMAT_NONE, title)
         from .print_page import PrintPage
 
         print_page = PrintPage(self.ctx)
@@ -168,6 +136,7 @@ class Tools(Page):
 
             from .qr_view import SeedQRView
 
-            seed_qr_view = SeedQRView(self.ctx, data=text, title="Custom QR Code")
+            title = t("Custom QR Code")
+            seed_qr_view = SeedQRView(self.ctx, data=text, title=title)
             return seed_qr_view.display_seed_qr()
         return MENU_CONTINUE
