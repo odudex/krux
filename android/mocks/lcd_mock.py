@@ -46,7 +46,7 @@ class LCD(Widget):
         self.landscape = False
         self.frame_counter = 0
         _, window_height = Window.size
-        self.font_size = window_height // 25
+        self.font_size = window_height // 30
 
     def rgb565torgb111(self, color):
         """convert from gggbbbbbrrrrrggg to tuple"""
@@ -73,7 +73,7 @@ class LCD(Widget):
 
         color = self.rgb565torgb111(color)
         bgcolor = self.rgb565torgb111(bgcolor)
-        label = CoreLabel(text=s, font_size=self.font_size, color=color, font_name='Inconsolata' )
+        label = CoreLabel(text=s, font_size=self.font_size, color=color, font_name='JetBrainsMono-Medium' )
         label.refresh()
         text = label.texture
         if self.landscape:

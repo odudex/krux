@@ -37,6 +37,7 @@ class FT6X36:
     def feed_position(self, position, release = False):
         self.touch_position = position
         if not release:
+            self.release_flag = False
             self.trigger_event()
 
     def release(self):

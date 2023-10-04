@@ -31,8 +31,8 @@ Builder.load_string("""
 
     Label:
         id: label_1
-        font_size: root.height // 25
-        font_name: 'inconsolata.ttf'
+        font_size: root.height // 30
+        font_name: 'JetBrainsMono-Medium.ttf'
         size_hint_y: 1
         text_size: self.width, None
         height: self.texture_size[1]
@@ -41,8 +41,8 @@ Builder.load_string("""
 
     Button:
         id: but_1
-        font_size: root.height // 25
-        font_name: 'inconsolata.ttf'
+        font_size: root.height // 30
+        font_name: 'JetBrainsMono-Medium.ttf'
         background_color: 0, 0, 0, 1
         color: 0, 1, 0, 1
         halign: 'center'
@@ -87,23 +87,23 @@ class RootWidget(BoxLayout):
         super().__init__(**kwargs)
         self.orientation = 'vertical'
         self.stop = False
-        self.touch = touch_control
+        self.touch_control = touch_control
 
     @mainthread
     def btn_pressed(self, instance, pos):
-        self.touch.feed_position(pos)
+        self.touch_control.feed_position(pos)
 
     @mainthread
     def btn_released(self, instance, pos):
-        self.touch.feed_position(pos, release=True)
-        self.touch.release()
+        self.touch_control.feed_position(pos, release=True)
+        self.touch_control.release()
 
     def camera_release(self, event):
-        self.touch.release()
-        self.touch.feed_position(None)
+        self.touch_control.release()
+        self.touch_control.feed_position(None)
 
     def camera_pressed(self, instance, pos):
-        self.touch.feed_position((1,1))
+        self.touch_control.feed_position((1,1))
         mocks.load_mocks.main_sensor.qrreader.pressed = False
         Clock.schedule_once(self.camera_release, 0.1)
 
@@ -183,7 +183,7 @@ class KruxApp(App):
         # Can't connect camera till after on_start()
 
 # registering our new custom fontstyle
-LabelBase.register(name='Inconsolata',
-                   fn_regular='inconsolata.ttf')
+LabelBase.register(name='JetBrainsMono-Medium',
+                   fn_regular='JetBrainsMono-Medium.ttf')
 
 KruxApp().run()

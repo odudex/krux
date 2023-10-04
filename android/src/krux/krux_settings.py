@@ -313,15 +313,18 @@ class ThemeSettings(SettingsNamespace):
     DARK_THEME = 0
     LIGHT_THEME = 1
     ORANGE_THEME = 3
-    PINK_THEME = 4
+    GREEN_THEME = 4
+    PINK_THEME = 5
     DARK_THEME_NAME = "Dark"
     LIGHT_THEME_NAME = "Light"
     ORANGE_THEME_NAME = "Orange"
+    GREEN_THEME_NAME = "CypherPunk"
     PINK_THEME_NAME = "CypherPink"
     THEME_NAMES = {
         DARK_THEME: DARK_THEME_NAME,
         LIGHT_THEME: LIGHT_THEME_NAME,
         ORANGE_THEME: ORANGE_THEME_NAME,
+        GREEN_THEME: GREEN_THEME_NAME,
         PINK_THEME: PINK_THEME_NAME,
     }
     namespace = "settings.appearance"
