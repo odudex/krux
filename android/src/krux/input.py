@@ -174,7 +174,8 @@ class Input:
         start_time = time.ticks_ms()
         while time.ticks_ms() < self.debounce_time + DEBOUNCE:
             pass
-        self.flush_events()
+        if block:
+            self.flush_events()
         while True:
             if self.enter_event():
                 return BUTTON_ENTER
