@@ -433,6 +433,53 @@ class Home(Page):
             return MENU_CONTINUE
 
         # message read OK!
+        # On device data is bytes: if isinstance(data, bytes) and data.startswith(b"signmessage"):
+        if isinstance(data, str) and data.startswith("signmessage"):  # Android only
+            # Sparrow message - Yet to be optimised
+            from embit import bip32, compact
+
+            data = data.encode()  # Android only
+            data_blocks = data.split(b" ")
+            if len(data_blocks) >= 3:
+                derivation = data_blocks[1].decode()
+                message = b" ".join(data_blocks[2:])
+                message = message.split(b":")
+                if len(message) >= 2 and message[0] == b"ascii":
+                    message = b" ".join(message[1:])
+                    derivation = bip32.parse_path(derivation)
+                    self.ctx.display.clear()
+                    self.ctx.display.draw_centered_text(
+                        t("Message:")
+                        + "\n"
+                        + message.decode()
+                        + "\n\n"
+                        + "Derivation:"
+                        + "\n"
+                        + bip32.path_to_str(derivation)
+                    )
+                    if not self.prompt(t("Sign?"), self.ctx.display.bottom_prompt_line):
+                        return MENU_CONTINUE
+                    message_hash = hashlib.sha256(
+                        hashlib.sha256(
+                            b"\x18Bitcoin Signed Message:\n"
+                            + compact.to_bytes(len(message))
+                            + message
+                        ).digest()
+                    ).digest()
+                    sig = self.ctx.wallet.key.sign_at(derivation, message_hash)
+
+                    # Encode sig as base64 string
+                    encoded_sig = base_encode(sig, 64).strip().decode()
+                    self.ctx.display.clear()
+                    self.ctx.display.draw_centered_text(
+                        t("Signature") + ":\n\n%s" % encoded_sig
+                    )
+                    self.ctx.input.wait_for_button()
+                    title = t("Signed Message")
+                    self.display_qr_codes(encoded_sig, qr_format, title)
+                    self.print_standard_qr(encoded_sig, qr_format, title)
+                    return MENU_CONTINUE
+
         data = data.encode() if isinstance(data, str) else data
 
         message_hash = None
