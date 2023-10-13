@@ -62,11 +62,7 @@ class QRReader(Preview, CommonGestures):
         barcodes = pyzbar.decode(pil_image, symbols=[ZBarSymbol.QRCODE])
         codes = []
         if barcodes:
-            try:
-                test_encoding = barcodes[0].data.decode().encode('shift-jis').decode()
-                codes.append(Mockqrcode(barcodes[0].data.decode()))
-            except:
-                codes.append(Mockqrcode(barcodes[0].data.decode().encode('shift-jis')))
+            codes.append(Mockqrcode(barcodes[0].data.decode()))
         self.make_thread_safe(codes, pixels) ## A COPY of the list
 
     @mainthread
