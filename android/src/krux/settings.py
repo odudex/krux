@@ -203,6 +203,9 @@ class AndroidStore:
         # This weird line below will the save to the file
         self.settings[namespace] = self.settings[namespace]
 
+    def restore_defaults(self):
+        self.settings.clear()
+
 
 
 # Initialize singleton

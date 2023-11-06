@@ -21,6 +21,7 @@
 # THE SOFTWARE.
 
 import gc
+from .utils import Utils
 from ..themes import theme
 from ..display import DEFAULT_PADDING
 from ..psbt import PSBTSigner
@@ -31,24 +32,17 @@ from . import (
     Menu,
     MENU_CONTINUE,
     MENU_EXIT,
-    ESC_KEY,
-    LETTERS,
-    UPPERCASE_LETTERS,
 )
-from ..sd_card import SDHandler
+from ..sd_card import (
+    PUBKEY_FILE_EXTENSION,
+    PSBT_FILE_EXTENSION,
+    SIGNED_FILE_SUFFIX,
+    DESCRIPTOR_FILE_EXTENSION,
+    JSON_FILE_EXTENSION,
+)
 
 # to start xpub value without the xpub/zpub/ypub prefix
 WALLET_XPUB_START = 4
-# len of the xpub to show
-WALLET_XPUB_DIGITS = 4
-
-FILE_SPECIAL = "0123456789()-.[]_~"
-
-PSBT_FILE_SUFFIX = "-signed"
-PSBT_FILE_EXTENSION = ".psbt"
-PUBKEY_FILE_EXTENSION = ".pub"
-SIGNATURE_FILE_EXTENSION = ".sig"
-SIGNATURE_FILE_SUFFIX = PSBT_FILE_SUFFIX
 
 
 class Home(Page):
@@ -70,6 +64,7 @@ class Home(Page):
                 ],
             ),
         )
+        self.utils = Utils(self.ctx)
 
     def mnemonic(self):
         """Handler for the 'mnemonic' menu item"""
@@ -94,10 +89,10 @@ class Home(Page):
         self.ctx.input.wait_for_button()
 
         # Avoid printing text on a cnc
-        if Settings().printer.driver == THERMAL_ADAFRUIT_TXT:
+        if Settings().hardware.printer.driver == THERMAL_ADAFRUIT_TXT:
             self.ctx.display.clear()
             if self.prompt(
-                t("Print?\n\n%s\n\n") % Settings().printer.driver,
+                t("Print?\n\n%s\n\n") % Settings().hardware.printer.driver,
                 self.ctx.display.height() // 2,
             ):
                 from .print_page import PrintPage
@@ -111,7 +106,7 @@ class Home(Page):
         title = t("Plaintext QR")
         data = self.ctx.wallet.key.mnemonic
         self.display_qr_codes(data, FORMAT_NONE, title)
-        self.print_standard_qr(data, FORMAT_NONE, title)
+        self.utils.print_standard_qr(data, FORMAT_NONE, title)
         return MENU_CONTINUE
 
     def display_seed_qr(self, binary=False):
@@ -120,7 +115,7 @@ class Home(Page):
         from .qr_view import SeedQRView
 
         seed_qr_view = SeedQRView(self.ctx, binary)
-        return seed_qr_view.display_seed_qr()
+        return seed_qr_view.display_qr()
 
     def stackbit(self):
         """Displays which numbers 1248 user should punch on 1248 steel card"""
@@ -158,7 +153,7 @@ class Home(Page):
         tiny_seed.export()
 
         # Allow to print on thermal printer only
-        if Settings().printer.driver == THERMAL_ADAFRUIT_TXT:
+        if Settings().hardware.printer.driver == THERMAL_ADAFRUIT_TXT:
             if self.print_qr_prompt():
                 tiny_seed.print_tiny_seed()
         return MENU_CONTINUE
@@ -172,38 +167,74 @@ class Home(Page):
 
     def public_key(self):
         """Handler for the 'xpub' menu item"""
-        zpub = "Zpub" if self.ctx.wallet.key.multisig else "zpub"
-        for version in [None, self.ctx.wallet.key.network[zpub]]:
-            self.ctx.display.clear()
-            self.ctx.display.draw_centered_text(
-                self.ctx.wallet.key.fingerprint_hex_str(True)
-                + "\n\n"
-                + self.ctx.wallet.key.derivation_str(True)
-                + "\n\n"
-                + self.ctx.wallet.key.account_pubkey_str(version)
-            )
-            self.ctx.input.wait_for_button()
 
-            # title receives first 4 chars (ex: XPUB)
+        def _save_xpub_to_sd(version):
+            from .files_operations import SaveFile
+
+            save_page = SaveFile(self.ctx)
+            xpub = self.ctx.wallet.key.key_expression(version)
+            title = self.ctx.wallet.key.account_pubkey_str(version)[
+                :WALLET_XPUB_START
+            ].upper()
+            save_page.save_file(
+                xpub,
+                title,
+                title,
+                title + ":",
+                PUBKEY_FILE_EXTENSION,
+                save_as_binary=False,
+            )
+
+        def _pub_key_text(version):
+            pub_text_menu_items = []
+            if self.has_sd_card():
+                pub_text_menu_items.append(
+                    (t("Save to SD card?"), lambda ver=version: _save_xpub_to_sd(ver))
+                )
+            pub_text_menu_items.append((t("Back"), lambda: MENU_EXIT))
+            full_pub_key = self.ctx.wallet.key.account_pubkey_str(version)
+            menu_offset = 5 + len(self.ctx.display.to_lines(full_pub_key))
+            menu_offset *= self.ctx.display.font_height
+            pub_key_menu = Menu(self.ctx, pub_text_menu_items, offset=menu_offset)
+            self.ctx.display.clear()
+            self.ctx.display.draw_hcentered_text(
+                self.ctx.wallet.key.fingerprint_hex_str()
+                + "\n\n"
+                + self.ctx.wallet.key.derivation_str()
+                + "\n\n"
+                + full_pub_key,
+                offset_y=self.ctx.display.font_height,
+                info_box=True,
+            )
+            pub_key_menu.run_loop()
+
+        def _pub_key_qr(version):
+            # TODO: Add menu to offer print and export as image
             title = self.ctx.wallet.key.account_pubkey_str(version)[
                 :WALLET_XPUB_START
             ].upper()
             xpub = self.ctx.wallet.key.key_expression(version)
             self.display_qr_codes(xpub, FORMAT_NONE, title)
-            self.print_standard_qr(xpub, FORMAT_NONE, title)
+            self.utils.print_standard_qr(xpub, FORMAT_NONE, title)
 
-            # Try to save the XPUB file on the SD card
-            try:
-                self._save_file(
-                    xpub,
-                    title,
-                    title,
-                    title + ":",
-                    PUBKEY_FILE_EXTENSION,
-                    save_as_binary=False,
-                )
-            except OSError:
-                pass
+        zpub = "Zpub" if self.ctx.wallet.key.multisig else "zpub"
+        pub_key_menu_items = []
+        for version in [None, self.ctx.wallet.key.network[zpub]]:
+            title = self.ctx.wallet.key.account_pubkey_str(version)[
+                :WALLET_XPUB_START
+            ].upper()
+            pub_key_menu_items.append(
+                (title + " - " + t("Text"), lambda ver=version: _pub_key_text(ver))
+            )
+            pub_key_menu_items.append(
+                (title + " - " + t("QR Code"), lambda ver=version: _pub_key_qr(ver))
+            )
+        pub_key_menu_items.append((t("Back"), lambda: MENU_EXIT))
+        pub_key_menu = Menu(self.ctx, pub_key_menu_items)
+        while True:
+            _, status = pub_key_menu.run_loop()
+            if status == MENU_EXIT:
+                break
 
         return MENU_CONTINUE
 
@@ -219,14 +250,38 @@ class Home(Page):
         else:
             self.display_wallet(self.ctx.wallet)
             wallet_data, qr_format = self.ctx.wallet.wallet_qr()
-            self.print_standard_qr(
-                wallet_data, qr_format, t("Wallet output descriptor")
-            )
+            title = t("Wallet output descriptor")
+            self.utils.print_standard_qr(wallet_data, qr_format, title)
+
+            # Try to save the Wallet output descriptor on the SD card
+            if self.has_sd_card():
+                from .files_operations import SaveFile
+
+                save_page = SaveFile(self.ctx)
+                save_page.save_file(
+                    self.ctx.wallet.descriptor.to_string(),
+                    self.ctx.wallet.label,
+                    self.ctx.wallet.label,
+                    title + ":",
+                    DESCRIPTOR_FILE_EXTENSION,
+                    save_as_binary=False,
+                )
         return MENU_CONTINUE
 
     def _load_wallet(self):
         wallet_data, qr_format = self.capture_qr_code()
         if wallet_data is None:
+            # Try to read the wallet output descriptor from a file on the SD card
+            qr_format = FORMAT_NONE
+            try:
+                _, wallet_data = self.utils.load_file(
+                    (DESCRIPTOR_FILE_EXTENSION, JSON_FILE_EXTENSION)
+                )
+            except OSError:
+                pass
+
+        if wallet_data is None:
+            # Both the camera and the file on SD card failed!
             self.flash_text(t("Failed to load output descriptor"), theme.error_color)
             return MENU_CONTINUE
 
@@ -272,8 +327,7 @@ class Home(Page):
         from .addresses import Addresses
 
         adresses = Addresses(self.ctx)
-        adresses.addresses_menu()
-        return MENU_CONTINUE
+        return adresses.addresses_menu()
 
     def sign(self):
         """Handler for the 'sign' menu item"""
@@ -313,7 +367,7 @@ class Home(Page):
             # Try to read a PSBT from a file on the SD card
             qr_format = FORMAT_NONE
             try:
-                psbt_filename, data = self._load_file(PSBT_FILE_EXTENSION)
+                psbt_filename, data = self.utils.load_file(PSBT_FILE_EXTENSION)
             except OSError:
                 pass
 
@@ -357,7 +411,7 @@ class Home(Page):
             title = t("Signed PSBT")
             try:
                 self.display_qr_codes(qr_signed_psbt, qr_format)
-                self.print_standard_qr(qr_signed_psbt, qr_format, title, width=45)
+                self.utils.print_standard_qr(qr_signed_psbt, qr_format, title, width=45)
             except Exception as e:
                 self.ctx.log.exception(
                     "Exception occurred in sign_psbt when trying to show the qr_signed_psbt"
@@ -373,314 +427,26 @@ class Home(Page):
             gc.collect()
 
             # Try to save the signed PSBT file on the SD card
-            self.ctx.display.clear()
-            self.ctx.display.draw_centered_text(t("Checking for SD card.."))
-            try:
-                self._save_file(
+            if self.has_sd_card():
+                from .files_operations import SaveFile
+
+                save_page = SaveFile(self.ctx)
+                save_page.save_file(
                     serialized_signed_psbt,
                     "QRCode",
                     psbt_filename,
                     title + ":",
                     PSBT_FILE_EXTENSION,
-                    PSBT_FILE_SUFFIX,
+                    SIGNED_FILE_SUFFIX,
                 )
-            except OSError:
-                pass
-
         return MENU_CONTINUE
-
-    def _load_file(self, file_ext=""):
-        self.ctx.display.clear()
-        self.ctx.display.draw_centered_text(t("Checking for SD card.."))
-        with SDHandler() as sd:
-            self.ctx.display.clear()
-            if self.prompt(
-                t("Load from SD card?") + "\n\n", self.ctx.display.height() // 2
-            ):
-                from .files_manager import FileManager
-
-                file_manager = FileManager(self.ctx)
-                filename = file_manager.select_file(file_extension=file_ext)
-
-                if filename:
-                    filename = file_manager.display_file(filename)
-
-                    if self.prompt(t("Load?"), self.ctx.display.bottom_prompt_line):
-                        return filename, sd.read_binary(filename)
-        return "", None
-
-    def sign_at_address(self, data, qr_format):
-        """Message signed at a derived Bitcoin address - Sparrow/Specter"""
-        if data.startswith(b"signmessage"):
-            from embit import bip32, compact
-            import hashlib
-            from ..baseconv import base_encode
-
-            data_blocks = data.split(b" ")
-            if len(data_blocks) >= 3:
-                derivation = data_blocks[1].decode()
-                message = b" ".join(data_blocks[2:])
-                message = message.split(b":")
-                if len(message) >= 2 and message[0] == b"ascii":
-                    message = b" ".join(message[1:])
-                    derivation = bip32.parse_path(derivation)
-                    self.ctx.display.clear()
-                    address = self.ctx.wallet.descriptor.derive(
-                        derivation[4], branch_index=0
-                    ).address(network=self.ctx.wallet.key.network)
-                    add_chars_amount = (
-                        self.ctx.display.width() // self.ctx.display.font_width
-                    )
-                    add_chars_amount -= 10
-                    add_chars_amount //= 2
-                    short_address = (
-                        str(derivation[4])
-                        + ". "
-                        + address[: add_chars_amount + 3]
-                        + ".."
-                        + address[-add_chars_amount:]
-                    )
-                    self.ctx.display.draw_centered_text(
-                        t("Message:")
-                        + "\n"
-                        + message.decode()
-                        + "\n\n"
-                        + "Address:"
-                        + "\n"
-                        + short_address
-                    )
-                    if not self.prompt(t("Sign?"), self.ctx.display.bottom_prompt_line):
-                        return MENU_CONTINUE
-                    message_hash = hashlib.sha256(
-                        hashlib.sha256(
-                            b"\x18Bitcoin Signed Message:\n"
-                            + compact.to_bytes(len(message))
-                            + message
-                        ).digest()
-                    ).digest()
-                    sig = self.ctx.wallet.key.sign_at(derivation, message_hash)
-
-                    # Encode sig as base64 string
-                    encoded_sig = base_encode(sig, 64).strip().decode()
-                    self.ctx.display.clear()
-                    self.ctx.display.draw_centered_text(
-                        t("Signature") + ":\n\n%s" % encoded_sig
-                    )
-                    self.ctx.input.wait_for_button()
-                    title = t("Signed Message")
-                    self.display_qr_codes(encoded_sig, qr_format, title)
-                    self.print_standard_qr(encoded_sig, qr_format, title)
-                    return True
-        return False
 
     def sign_message(self):
         """Handler for the 'sign message' menu item"""
+        from .sign_message_ui import SignMessage
 
-        import binascii
-        import hashlib
-        from ..baseconv import base_encode
-
-        # Try to read a message from camera
-        message_filename = ""
-        data, qr_format = self.capture_qr_code()
-
-        if data is None:
-            # Try to read a message from a file on the SD card
-            qr_format = FORMAT_NONE
-            try:
-                message_filename, data = self._load_file()
-            except OSError:
-                pass
-
-        if data is None:
-            self.flash_text(t("Failed to load message"), theme.error_color)
-            return MENU_CONTINUE
-
-        # message read OK!
-        data = data.encode() if isinstance(data, str) else data
-
-        if self.sign_at_address(data, qr_format):
-            return MENU_CONTINUE
-
-        message_hash = None
-        if len(data) == 32:
-            # It's a sha256 hash already
-            message_hash = data
-        else:
-            if len(data) == 64:
-                # It may be a hex-encoded sha256 hash
-                try:
-                    message_hash = binascii.unhexlify(data)
-                except:
-                    pass
-            if message_hash is None:
-                # It's a message, so compute its sha256 hash
-                message_hash = hashlib.sha256(data).digest()
-
-        # memory management
-        del data
-        gc.collect()
-
-        self.ctx.display.clear()
-        self.ctx.display.draw_centered_text(
-            t("SHA256:\n%s") % binascii.hexlify(message_hash).decode()
-        )
-        if not self.prompt(t("Sign?"), self.ctx.display.bottom_prompt_line):
-            return MENU_CONTINUE
-
-        # User confirmed to sign!
-        sig = self.ctx.wallet.key.sign(message_hash).serialize()
-
-        # Encode sig as base64 string
-        encoded_sig = base_encode(sig, 64).decode()
-        self.ctx.display.clear()
-        self.ctx.display.draw_centered_text(t("Signature") + ":\n\n%s" % encoded_sig)
-        self.ctx.input.wait_for_button()
-
-        # Show the base64 signed message as a QRCode
-        title = t("Signed Message")
-        self.display_qr_codes(encoded_sig, qr_format, title)
-        self.print_standard_qr(encoded_sig, qr_format, title)
-
-        # memory management
-        del encoded_sig
-        gc.collect()
-
-        # Show the public key as a QRCode
-        pubkey = binascii.hexlify(self.ctx.wallet.key.account.sec()).decode()
-        self.ctx.display.clear()
-
-        title = t("Hex Public Key")
-        self.ctx.display.draw_centered_text(title + ":\n\n%s" % pubkey)
-        self.ctx.input.wait_for_button()
-
-        # Show the public key in hexadecimal format as a QRCode
-        self.display_qr_codes(pubkey, qr_format, title)
-        self.print_standard_qr(pubkey, qr_format, title)
-
-        # memory management
-        gc.collect()
-
-        # Try to save the signature file on the SD card
-        try:
-            self._save_file(
-                sig,
-                "message",
-                message_filename,
-                t("Signature") + ":",
-                SIGNATURE_FILE_EXTENSION,
-                SIGNATURE_FILE_SUFFIX,
-            )
-        except OSError:
-            pass
-
-        # Try to save the public key on the SD card
-        try:
-            self._save_file(
-                pubkey, "pubkey", "", title + ":", PUBKEY_FILE_EXTENSION, "", False
-            )
-        except OSError:
-            pass
-
-        return MENU_CONTINUE
-
-    def _save_file(
-        self,
-        data,
-        empty_name,
-        filename="",
-        file_description="",
-        file_extension="",
-        file_suffix="",
-        save_as_binary=True,
-    ):
-        self.ctx.display.clear()
-        self.ctx.display.draw_centered_text(t("Checking for SD card.."))
-        with SDHandler() as sd:
-            # Wait until user defines a filename or select NO on the prompt
-            filename_undefined = True
-            while filename_undefined:
-                self.ctx.display.clear()
-                if self.prompt(
-                    file_description + "\n" + t("Save to SD card?") + "\n\n",
-                    self.ctx.display.height() // 2,
-                ):
-                    filename, filename_undefined = self._set_filename(
-                        filename,
-                        empty_name,
-                        file_suffix,
-                        file_extension,
-                    )
-
-                    # if user defined a filename and it is ok, save!
-                    if not filename_undefined:
-                        if save_as_binary:
-                            sd.write_binary(filename, data)
-                        else:
-                            sd.write(filename, data)
-                        self.ctx.display.clear()
-                        self.flash_text(t("Saved to SD card:\n%s") % filename)
-                else:
-                    filename_undefined = False
-
-    def _set_filename(
-        self, curr_filename="", empty_filename="some_file", suffix="", file_extension=""
-    ):
-        """Helper to set the filename based on a suggestion and the user input"""
-        started_filename = curr_filename
-        filename_undefined = True
-
-        # remove the file_extension if exists
-        curr_filename = (
-            curr_filename[: len(curr_filename) - len(file_extension)]
-            if curr_filename.endswith(file_extension)
-            else curr_filename
-        )
-
-        # remove the suffix if exists (because we will add it later)
-        curr_filename = (
-            curr_filename[: len(curr_filename) - len(suffix)]
-            if curr_filename.endswith(suffix)
-            else curr_filename
-        )
-
-        curr_filename = self.capture_from_keypad(
-            t("Filename"),
-            [LETTERS, UPPERCASE_LETTERS, FILE_SPECIAL],
-            starting_buffer=("%s" + suffix) % curr_filename
-            if curr_filename
-            else empty_filename + suffix,
-        )
-
-        # Verify if user defined a filename and it is not just dots
-        if (
-            curr_filename
-            and curr_filename != ESC_KEY
-            and not all(c in "." for c in curr_filename)
-        ):
-            # add the extension ".psbt"
-            curr_filename = (
-                curr_filename
-                if curr_filename.endswith(file_extension)
-                else curr_filename + file_extension
-            )
-            # check and warn for overwrite filename
-            # add the "/sd/" prefix
-            if SDHandler.file_exists("/sd/" + curr_filename):
-                self.ctx.display.clear()
-                if self.prompt(
-                    t("Filename %s exists on SD card, overwrite?") % curr_filename
-                    + "\n\n",
-                    self.ctx.display.height() // 2,
-                ):
-                    filename_undefined = False
-            else:
-                filename_undefined = False
-
-        if curr_filename == ESC_KEY:
-            curr_filename = started_filename
-
-        return (curr_filename, filename_undefined)
+        message_signer = SignMessage(self.ctx)
+        return message_signer.sign_message()
 
     def display_wallet(self, wallet, include_qr=True):
         """Displays a wallet, including its label and abbreviated xpubs.
@@ -688,35 +454,51 @@ class Home(Page):
         which will contain the same data as was originally loaded, in
         the same QR format
         """
-        about = wallet.label + "\n"
+        about = [wallet.label]
         if wallet.is_multisig():
-            xpubs = []
-            for i, xpub in enumerate(wallet.policy["cosigners"]):
-                xpubs.append(
-                    str(i + 1)
-                    + ". "
-                    + xpub[WALLET_XPUB_START : WALLET_XPUB_START + WALLET_XPUB_DIGITS]
-                    + ".."
-                    + xpub[len(xpub) - WALLET_XPUB_DIGITS :]
+            import binascii
+
+            fingerprints = []
+            for i, key in enumerate(wallet.descriptor.keys):
+                fingerprints.append(
+                    str(i + 1) + ". " + binascii.hexlify(key.fingerprint).decode()
                 )
-            about += "\n".join(xpubs)
+            about.extend(fingerprints)
         else:
+            about.append(wallet.key.fingerprint_hex_str())
             xpub = wallet.key.xpub()
-            about += (
-                xpub[WALLET_XPUB_START : WALLET_XPUB_START + WALLET_XPUB_DIGITS]
-                + ".."
-                + xpub[len(xpub) - WALLET_XPUB_DIGITS :]
-            )
-        if include_qr:
+            about.append(self.fit_to_line(xpub))
+
+        if not wallet.is_multisig() and include_qr:
             wallet_data, qr_format = wallet.wallet_qr()
             self.display_qr_codes(wallet_data, qr_format, title=about)
         else:
             self.ctx.display.draw_hcentered_text(about, offset_y=DEFAULT_PADDING)
 
-    def print_standard_qr(self, data, qr_format, title="", width=33):
-        """Loads printer driver and UI"""
-        if self.print_qr_prompt():
-            from .print_page import PrintPage
+        # If multisig, show loaded wallet again with all XPUB
+        if wallet.is_multisig():
+            about = [wallet.label]
+            xpubs = []
+            for i, xpub in enumerate(wallet.policy["cosigners"]):
+                xpubs.append(self.fit_to_line(xpub, str(i + 1) + ". "))
+            about.extend(xpubs)
 
-            print_page = PrintPage(self.ctx)
-            print_page.print_qr(data, qr_format, title, width)
+            if include_qr:
+                self.ctx.input.wait_for_button()
+                self.ctx.display.clear()
+                self.ctx.display.draw_hcentered_text(about, offset_y=DEFAULT_PADDING)
+                self.ctx.input.wait_for_button()
+
+                # Try to show the wallet output descriptor as a QRCode
+                try:
+                    wallet_data, qr_format = wallet.wallet_qr()
+                    self.display_qr_codes(wallet_data, qr_format, title=wallet.label)
+                except Exception as e:
+                    self.ctx.display.clear()
+                    self.ctx.display.draw_centered_text(
+                        t("Error:\n%s") % repr(e), theme.error_color
+                    )
+                    self.ctx.input.wait_for_button()
+            else:
+                self.ctx.input.wait_for_button()
+                self.ctx.display.draw_hcentered_text(about, offset_y=DEFAULT_PADDING)

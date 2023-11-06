@@ -1,6 +1,6 @@
 # The MIT License (MIT)
 
-# Copyright (c) 2021-2022 Krux contributors
+# Copyright (c) 2021-2023 Krux contributors
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -38,6 +38,7 @@ from ..input import (
 from ..display import DEFAULT_PADDING
 from ..qr import to_qr_codes
 from ..krux_settings import t, Settings, LoggingSettings, BitcoinSettings
+from ..sd_card import SDHandler
 
 MENU_CONTINUE = 0
 MENU_EXIT = 1
@@ -367,12 +368,12 @@ class Page:
         """Prompts the user to print a QR code in the specified format
         if a printer is connected
         """
-        if Settings().printer.driver == "none":
+        if not self.has_printer():
             return False
 
         self.ctx.display.clear()
         if self.prompt(
-            t("Print to QR?\n\n%s\n\n") % Settings().printer.driver,
+            t("Print to QR?\n\n%s\n\n") % Settings().hardware.printer.driver,
             self.ctx.display.height() // 2,
         ):
             return True
@@ -466,6 +467,37 @@ class Page:
         # BUTTON_ENTER
         return answer
 
+    def fit_to_line(self, text, prefix="", fixed_chars=0):
+        """Fits text with prefix plus fixed_chars at the beginning into one line,
+        removing the central content and leaving the ends"""
+
+        add_chars_amount = (
+            self.ctx.display.usable_width() // self.ctx.display.font_width
+        )
+        add_chars_amount -= len(prefix) + fixed_chars + 2
+        add_chars_amount //= 2
+        return (
+            prefix
+            + text[: add_chars_amount + fixed_chars]
+            + ".."
+            + text[-add_chars_amount:]
+        )
+
+    def has_printer(self):
+        """Checks if the device has a printer setup"""
+        return Settings().hardware.printer.driver != "none"
+
+    def has_sd_card(self):
+        """Checks if the device has a SD card inserted"""
+        self.ctx.display.clear()
+        self.ctx.display.draw_centered_text(t("Checking for SD card.."))
+        try:
+            # Check for SD hot-plug
+            with SDHandler():
+                return True
+        except:
+            return False
+
     def shutdown(self):
         """Handler for the 'shutdown' menu item"""
         if self.prompt(t("Are you sure?"), self.ctx.display.height() // 2):
@@ -530,12 +562,12 @@ class Menu:
     and invoke menu item callbacks that return a status
     """
 
-    def __init__(self, ctx, menu):
+    def __init__(self, ctx, menu, offset=0):
         self.ctx = ctx
         self.menu = menu
+        self.menu_offset = offset
         max_viewable = min(
-            (self.ctx.display.height() - 2 * DEFAULT_PADDING)
-            // (2 * self.ctx.display.font_height),
+            self.ctx.display.max_lines(self.menu_offset),
             len(self.menu),
         )
         self.menu_view = ListView(self.menu, max_viewable)
@@ -551,7 +583,16 @@ class Menu:
             selected_item_index = start_from_index
         while True:
             gc.collect()
-            self.ctx.display.clear()
+            if self.menu_offset:
+                self.ctx.display.fill_rectangle(
+                    0,
+                    self.menu_offset,
+                    self.ctx.display.width(),
+                    self.ctx.display.height() - self.menu_offset,
+                    theme.bg_color,
+                )
+            else:
+                self.ctx.display.clear()
             if self.ctx.input.touch is not None:
                 self._draw_touch_menu(selected_item_index)
             else:
@@ -566,7 +607,7 @@ class Menu:
                     return (self.menu_view.index(selected_item_index), status)
                 start_from_submenu = False
             else:
-                btn = self.ctx.input.wait_for_button()
+                btn = self.ctx.input.wait_for_button(enable_screensaver=True)
                 if self.ctx.input.touch is not None:
                     if btn == BUTTON_TOUCH:
                         selected_item_index = self.ctx.input.touch.current_index()
@@ -701,10 +742,13 @@ class Menu:
         for menu_item in self.menu_view:
             offset_y += len(self.ctx.display.to_lines(menu_item[0])) + 1
             Page.y_keypad_map.append(offset_y)
-        height_multiplier = self.ctx.display.height() - 2 * DEFAULT_PADDING
+        height_multiplier = (
+            self.ctx.display.height() - 2 * DEFAULT_PADDING - self.menu_offset
+        )
         height_multiplier //= offset_y
         Page.y_keypad_map = [
-            n * height_multiplier + DEFAULT_PADDING for n in Page.y_keypad_map
+            n * height_multiplier + DEFAULT_PADDING + self.menu_offset
+            for n in Page.y_keypad_map
         ]
         self.ctx.input.touch.y_regions = Page.y_keypad_map
 
@@ -713,11 +757,6 @@ class Menu:
             if i and not self.ctx.input.buttons_active:
                 self.ctx.display.fill_rectangle(
                     0, y, self.ctx.display.width(), 1, theme.frame_color
-                )
-            height = Page.y_keypad_map[i + 1] - y
-            if selected_item_index == i and self.ctx.input.buttons_active:
-                self.ctx.display.fill_rectangle(
-                    0, y + 1, self.ctx.display.width(), height - 2, theme.fg_color
                 )
 
         # draw centralized strings in regions
@@ -729,6 +768,13 @@ class Menu:
             offset_y += Page.y_keypad_map[i]
             for j, text in enumerate(menu_item_lines):
                 if selected_item_index == i and self.ctx.input.buttons_active:
+                    self.ctx.display.fill_rectangle(
+                        0,
+                        offset_y + 1 - self.ctx.display.font_height // 2,
+                        self.ctx.display.width(),
+                        (len(menu_item_lines) + 1) * self.ctx.display.font_height,
+                        theme.fg_color,
+                    )
                     self.ctx.display.draw_hcentered_text(
                         text,
                         offset_y + self.ctx.display.font_height * j,
@@ -741,15 +787,18 @@ class Menu:
                     )
 
     def _draw_menu(self, selected_item_index):
-        offset_y = len(self.menu_view) * 2
-        extra_lines = 0
-        for menu_item in self.menu_view:
-            extra_lines += len(self.ctx.display.to_lines(menu_item[0])) - 1
-        offset_y += extra_lines
-        offset_y *= self.ctx.display.font_height
-        offset_y = self.ctx.display.height() - offset_y
-        offset_y //= 2
-        offset_y += self.ctx.display.font_height // 2
+        if self.menu_offset:
+            offset_y = self.menu_offset + self.ctx.display.font_height // 2
+        else:
+            offset_y = len(self.menu_view) * 2
+            extra_lines = 0
+            for menu_item in self.menu_view:
+                extra_lines += len(self.ctx.display.to_lines(menu_item[0])) - 1
+            offset_y += extra_lines
+            offset_y *= self.ctx.display.font_height
+            offset_y = self.ctx.display.height() - offset_y
+            offset_y //= 2
+            offset_y += self.ctx.display.font_height // 2
         for i, menu_item in enumerate(self.menu_view):
             menu_item_lines = self.ctx.display.to_lines(menu_item[0])
             delta_y = (len(menu_item_lines) + 1) * self.ctx.display.font_height

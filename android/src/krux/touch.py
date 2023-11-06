@@ -57,7 +57,7 @@ class Touch:
         self.width, self.height = width, height
         self.touch_driver = touch_control
         self.touch_driver.activate_irq(irq_pin)
-        #self.touch_driver.threshold(Settings().touch.threshold)
+        #self.touch_driver.threshold(Settings().hardware.touch.threshold)
 
     def clear_regions(self):
         """Remove previously stored buttons map"""
@@ -77,6 +77,7 @@ class Touch:
         self.x_regions.append(region)
 
     def valid_position(self, data):
+        """Checks if touch position is within buttons area"""
         if self.x_regions and data[0] < self.x_regions[0]:
             return False
         if self.x_regions and data[0] > self.x_regions[-1]:

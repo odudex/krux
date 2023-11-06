@@ -843,6 +843,7 @@ class TinyScanner(Page):
                         page_seed_numbers[word_index], bit
                     )
                 index += 1
+        # print(page_seed_numbers)
         return page_seed_numbers
 
     def _set_camera_sensitivity(self):
@@ -905,7 +906,6 @@ class TinyScanner(Page):
                 if words:  # If words confirmed
                     return words
                 # Else esc command was given, turn camera on again and reset words
-                self.ctx.display.clear()
                 self.flash_text(
                     t("Scanning words 1-12 again") + "\n\n" + t("Wait for the capture")
                 )
@@ -926,14 +926,12 @@ class TinyScanner(Page):
             words = self.tiny_seed.enter_tiny_seed(True, page_seed_numbers, True)
             self.capturing = False
             if words is not None:  # Fisrt 12 words confirmed, moving to 13-24
-                self.ctx.display.clear()
                 self.flash_text(
                     t("Scanning words 13-24") + "\n\n" + t("Wait for the capture")
                 )
                 self._run_camera()
                 return words
             # Esc command was given
-            self.ctx.display.clear()
             self.flash_text(
                 t("Scanning words 1-12 again") + "\n\n" + t("TOUCH or ENTER to capture")
             )
@@ -976,6 +974,7 @@ class TinyScanner(Page):
             rect = self._detect_tiny_seed(img)
             if rect:
                 gradient_corners = self._gradient_corners(rect, img)
+                # print(gradient_corners)
                 # map_regions
                 self._map_punches_region(rect, page)
                 page_seed_numbers = self._detect_and_draw_punches(img, gradient_corners)

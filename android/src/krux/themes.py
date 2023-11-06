@@ -32,11 +32,11 @@ WHITE = 0xFFFF
 LIGHTBLACK = 0x0842
 DARKGREY = 0xEF7B
 LIGHTGREY = 0x18C6
-LIGHT_GREEN = 0xec67
+LIGHT_GREEN = 0xEC67
 GREEN = 0xE007
 DARKGREEN = 0x8005
 RED = 0x00F8
-LIGHT_PINK = 0x3ffc
+LIGHT_PINK = 0x3FFC
 PINK = 0x1FF8
 PURPLE = 0x0F78
 ORANGE = 0x20FD
@@ -48,14 +48,11 @@ CYAN = 0xFF07
 MAGENTA = 0x1FF8
 
 # define NAVY        0x0F00
-# define DARKGREEN   0xE003
 # define DARKCYAN    0xEF03
 # define MAROON      0x0078
 # define PURPLE      0x0F78
 # define OLIVE       0xE07B
-# define RED         0x00F8
 # define GREENYELLOW 0xE5AF
-# define PINK        0x1FF8
 
 THEMES = {
     ThemeSettings.DARK_THEME_NAME: {
@@ -118,7 +115,6 @@ THEMES = {
         "error": RED,
         "highlight": GREEN,
     },
-    
 }
 
 

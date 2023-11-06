@@ -44,9 +44,9 @@ class Display:
         self.i2c = None
         self.font_width = FONT_WIDTH
         self.font_height = FONT_HEIGHT
-        self.bottom_line = self.height() // FONT_HEIGHT  # total lines
-        self.bottom_line -= 1
-        self.bottom_line *= FONT_HEIGHT
+        # Custom for Android
+        self.total_lines = self.height() // FONT_HEIGHT
+        self.bottom_line = (self.total_lines - 1) * FONT_HEIGHT
         if board.config["type"] == "m5stickv":
             self.bottom_prompt_line = self.bottom_line - DEFAULT_PADDING
         else:
@@ -195,10 +195,20 @@ class Display:
                     words.append(subword)
 
                 if len(subwords) > 1 and i < len(subwords) - 1:
-                    # Only add newline to the end of the word if the word
-                    # is less than the amount of columns. If it's exactly equal,
-                    # a newline will be implicit.
-                    if len(words[-1]) < columns:
+                    # Only add newline to the end of the last word of the slug if its length
+                    # is less than the amount of columns.
+                    # If it's exactly equal, a newline will be implicit.
+                    slug_len = len(words[-1])
+                    for x_index in range(1, len(words)):
+                        # Length of maximum words that fit the line
+                        if (
+                            slug_len + len(words[-x_index - 1]) + 1 <= columns
+                            and "\n" not in words[-x_index - 1]
+                        ):
+                            slug_len += len(words[-x_index - 1]) + 1
+                        else:
+                            break
+                    if slug_len < columns:
                         words[-1] += "\n"
 
         num_words = len(words)
@@ -295,15 +305,47 @@ class Display:
         offset_y=DEFAULT_PADDING,
         color=theme.fg_color,
         bg_color=theme.bg_color,
+        info_box=False,
     ):
         """Draws text horizontally-centered on the display, at the given offset_y"""
         lines = text if isinstance(text, list) else self.to_lines(text)
-        for i, line in enumerate(lines):
-            offset_x = (self.width() - self.font_width * len(line)) // 2
-            offset_x = max(0, offset_x)
-            self.draw_string(
-                offset_x, offset_y + (i * self.font_height), line, color, bg_color
+        if info_box:
+            bg_color = theme.disabled_color
+            self.fill_rectangle(
+                DEFAULT_PADDING - 1,
+                offset_y - 1,
+                self.usable_width() + 2,
+                (len(lines) + 1) * self.font_height + 2,
+                bg_color,
             )
+
+        for i, line in enumerate(lines):
+            if len(line) > 0:
+                offset_x = self._obtain_hcentered_offset(line)
+                self.draw_string(
+                    offset_x, offset_y + (i * self.font_height), line, color, bg_color
+                )
+
+    def _obtain_hcentered_offset(self, line_str):
+        """Return the offset_x to the horizontally-centered line_str"""
+        return max(0, (self.width() - self.font_width * len(line_str)) // 2)
+
+    def draw_line_hcentered_with_fullw_bg(
+        self,
+        line_str,
+        qtd_offset_y,
+        color=theme.fg_color,
+        bg_color=theme.bg_color,
+    ):
+        """Draw a line_str horizontally-centered on the display, at qtd_offset_y times font_height,
+        useful for screensaver"""
+        lcd.fill_rectangle(
+            0, qtd_offset_y * self.font_height, self.width(), self.font_height, bg_color
+        )
+        offset_x = self._obtain_hcentered_offset(line_str)
+        self.draw_string(
+            offset_x, (qtd_offset_y * self.font_height), line_str, color, bg_color
+        )
 
     def draw_centered_text(self, text, color=theme.fg_color, bg_color=theme.bg_color):
         """Draws text horizontally and vertically centered on the display"""
@@ -329,3 +371,9 @@ class Display:
         level = max(0, min(level, 8))
         val = (level + 7) << 4
         self.i2c.writeto_mem(0x34, 0x91, int(val))
+
+    def max_lines(self, line_offset=0):
+        """The max lines of text supported by the display"""
+        return (self.height() - 2 * DEFAULT_PADDING - line_offset) // (
+            2 * self.font_height
+        )

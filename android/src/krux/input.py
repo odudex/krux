@@ -23,6 +23,7 @@ import time
 import board
 from .wdt import wdt
 from .buttons import PRESSED, RELEASED
+from .krux_settings import Settings
 
 BUTTON_ENTER = 0
 BUTTON_PAGE = 1
@@ -43,9 +44,13 @@ DEBOUNCE = 100
 class Input:
     """Input is a singleton interface for interacting with the device's buttons"""
 
-    def __init__(self):
+    def __init__(self, screensaver_fallback=None):
+        self.screensaver_fallback = screensaver_fallback
+        self.screensaver_time = 0
+        self.screensaver_active = False
         self.entropy = 0
         self.debounce_time = 0
+        self.flushed_flag = False
 
         self.enter = None
         if "BUTTON_A" in board.config["krux"]["pins"]:
@@ -168,14 +173,23 @@ class Input:
             return self.touch.swipe_down_value()
         return RELEASED
 
-    def wait_for_press(self, block=True, wait_duration=QR_ANIM_PERIOD):
+    def wait_for_press(
+        self, block=True, wait_duration=QR_ANIM_PERIOD, enable_screensaver=False
+    ):
         """Wait for first button press or for wait_duration ms.
         Use block to wait indefinitely"""
         start_time = time.ticks_ms()
+        self.debounce_time = time.ticks_ms() if not self.flushed_flag else 0
         while time.ticks_ms() < self.debounce_time + DEBOUNCE:
-            pass
-        if block:
             self.flush_events()
+        if not self.flushed_flag or block:
+            # Makes sure events that happened between pages load are cleared.
+            # On animated pages, where block=False, intermediary events must be checked,
+            # so events won't be cleared after flushed_flag is set
+            self.flush_events()
+            self.flushed_flag = not block
+
+        self.screensaver_time = start_time
         while True:
             if self.enter_event():
                 return BUTTON_ENTER
@@ -185,17 +199,39 @@ class Input:
                 return BUTTON_PAGE_PREV
             if self.touch_event():
                 return BUTTON_TOUCH
+
             self.entropy += 1
             wdt.feed()  # here is where krux spends most of its time
+
             if not block and time.ticks_ms() > start_time + wait_duration:
                 return None
+
+            # Check for screensaver
+            if (
+                block
+                and enable_screensaver
+                and not self.screensaver_active
+                and self.screensaver_fallback
+                and self.screensaver_time
+                + (Settings().appearance.screensaver_time * 60000)
+                < time.ticks_ms()
+            ):
+                self.screensaver_active = True
+                self.screensaver_fallback()
+                self.screensaver_active = False
+                self.screensaver_time = time.ticks_ms()
+                return None
+
             time.sleep_ms(BUTTON_WAIT_PRESS_DELAY)
 
-    def wait_for_button(self, block=True):
+    def wait_for_button(self, block=True, enable_screensaver=False):
         """Waits for any button to release, optionally blocking if block=True.
         Returns the button that was released, or None if non blocking.
         """
-        btn = self.wait_for_press(block)
+        if Settings().appearance.screensaver_time == 0:
+            enable_screensaver = False
+        btn = self.wait_for_press(block, enable_screensaver=enable_screensaver)
+
         if btn == BUTTON_ENTER:
             # Wait for release
             while self.enter_value() == PRESSED:
@@ -243,7 +279,7 @@ class Input:
                 btn = SWIPE_UP
             if self.swipe_down_value() == PRESSED:
                 btn = SWIPE_DOWN
-        self.debounce_time = time.ticks_ms()
+
         return btn
 
     def flush_events(self):
