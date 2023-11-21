@@ -36,10 +36,11 @@ from ..krux_settings import (
     BitcoinSettings,
     TouchSettings,
     EncoderSettings,
+    t,
 )
 from ..input import BUTTON_ENTER, BUTTON_PAGE, BUTTON_PAGE_PREV, BUTTON_TOUCH
-from ..krux_settings import t
 from ..sd_card import SDHandler
+from ..encryption import QR_CODE_ITER_MULTIPLE
 from . import (
     Page,
     Menu,
@@ -166,7 +167,7 @@ class SettingsPage(Page):
             t("Restore factory settings and reboot?"), self.ctx.display.height() // 2
         ):
             self.ctx.display.clear()
-            # Android only code
+            # Custom for Android
             from ..settings import store
 
             store.restore_defaults()
@@ -223,6 +224,7 @@ class SettingsPage(Page):
             ],
         )
         _, status = submenu.run_loop()
+        # Custom for Android
         if not status:
             status = MENU_CONTINUE
         return status
@@ -412,7 +414,16 @@ class SettingsPage(Page):
 
         new_value = setting.numtype(new_value)
         if setting.value_range[0] <= new_value <= setting.value_range[1]:
-            setting.__set__(settings_namespace, new_value)
+            if (
+                setting.attr == "pbkdf2_iterations"
+                and (new_value % QR_CODE_ITER_MULTIPLE) != 0
+            ):
+                self.flash_text(
+                    t("Value must be multiple of %s") % QR_CODE_ITER_MULTIPLE,
+                    theme.error_color,
+                )
+            else:
+                setting.__set__(settings_namespace, new_value)
         else:
             self.flash_text(
                 t("Value %s out of range: [%s, %s]")

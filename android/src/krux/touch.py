@@ -22,6 +22,7 @@
 # pylint: disable=R0902
 
 import time
+
 from krux.touchscreens.ft6x36 import touch_control
 from .logging import logger as log
 from .krux_settings import Settings

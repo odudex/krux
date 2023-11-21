@@ -23,7 +23,6 @@ import lcd
 import board
 # from machine import I2C
 from .themes import theme
-from .qr import add_qr_frame
 
 DEFAULT_PADDING = 10
 FONT_WIDTH, FONT_HEIGHT = board.config["krux"]["display"]["font"]
@@ -182,36 +181,27 @@ class Display:
             columns = self.usable_width() // self.font_width
         else:
             columns = self.width() // self.font_width
-        words = []
+
+        # Processing the words and maintaining newline characters
+        processed_text = []
         for word in text.split(" "):
             subwords = word.split("\n")
             for i, subword in enumerate(subwords):
                 if len(subword) > columns:
                     j = 0
                     while j < len(subword):
-                        words.append(subword[j : j + columns])
+                        processed_text.append(subword[j : j + columns])
                         j += columns
                 else:
-                    words.append(subword)
+                    processed_text.append(subword)
 
                 if len(subwords) > 1 and i < len(subwords) - 1:
-                    # Only add newline to the end of the last word of the slug if its length
-                    # is less than the amount of columns.
-                    # If it's exactly equal, a newline will be implicit.
-                    slug_len = len(words[-1])
-                    for x_index in range(1, len(words)):
-                        # Length of maximum words that fit the line
-                        if (
-                            slug_len + len(words[-x_index - 1]) + 1 <= columns
-                            and "\n" not in words[-x_index - 1]
-                        ):
-                            slug_len += len(words[-x_index - 1]) + 1
-                        else:
-                            break
-                    if slug_len < columns:
-                        words[-1] += "\n"
+                    # Ensure proper handling of newline characters at the end of lines
+                    if not processed_text[-1].endswith("\n"):
+                        processed_text.append("\n")
 
-        num_words = len(words)
+        num_words = len(processed_text)
+        words = processed_text
 
         # calculate cost of all pairs of words
         cost_between = [[0 for _ in range(num_words + 1)] for _ in range(num_words + 1)]
@@ -312,10 +302,10 @@ class Display:
         if info_box:
             bg_color = theme.disabled_color
             self.fill_rectangle(
-                DEFAULT_PADDING - 1,
+                DEFAULT_PADDING - 3,
                 offset_y - 1,
-                self.usable_width() + 2,
-                (len(lines) + 1) * self.font_height + 2,
+                self.usable_width() + 6,
+                (len(lines)) * self.font_height + 2,
                 bg_color,
             )
 
@@ -358,9 +348,8 @@ class Display:
         self, offset_y, qr_code, dark_color=QR_DARK_COLOR, light_color=QR_LIGHT_COLOR
     ):
         """Draws a QR code on the screen"""
-        _, qr_code = add_qr_frame(qr_code)
-        lcd.draw_qr_code(
-            offset_y, qr_code, self.width(), dark_color, light_color, theme.bg_color
+        lcd.draw_qr_code_binary(
+            offset_y, qr_code, self.width(), dark_color, light_color, light_color
         )
 
     def set_backlight(self, level):
@@ -374,6 +363,5 @@ class Display:
 
     def max_lines(self, line_offset=0):
         """The max lines of text supported by the display"""
-        return (self.height() - 2 * DEFAULT_PADDING - line_offset) // (
-            2 * self.font_height
-        )
+        pad = DEFAULT_PADDING if line_offset else 2 * DEFAULT_PADDING
+        return (self.height() - pad - line_offset) // (2 * self.font_height)
