@@ -33,10 +33,17 @@ FORMAT_UR = 2
 PMOFN_PREFIX_LENGTH_1D = 6
 PMOFN_PREFIX_LENGTH_2D = 8
 UR_GENERIC_PREFIX_LENGTH = 22
-UR_CHECKSUM_SIZE = 32
+
+# CBOR_PREFIX = 6 bytes for tags, 1 for index, 1 for max_index, 2 for message len, 4 for checksum
+# Check UR's fountain_encoder.py file, on Part.cbor() function for more details
+UR_CBOR_PREFIX_LEN = 14
+UR_BYTEWORDS_CRC_LEN = 4  # 32 bits CRC used on Bytewords encoding
+
 UR_MIN_FRAGMENT_LENGTH = 10
+
 # List of capacities, based on versions
 # Version 1(index 0)=21x21px = 17 bytes, version 2=25x25px = 32 bytes ...
+# Limited to version 20
 QR_CAPACITY = [
     17,
     32,
@@ -79,7 +86,14 @@ class QRPartParser:
             if self.decoder.fountain_decoder.expected_part_indexes is None:
                 return 1 if self.decoder.result is not None else 0
             completion_pct = self.decoder.estimated_percent_complete()
-            return math.ceil(completion_pct * self.total_count())
+            return math.ceil(completion_pct * self.total_count() / 2) + len(
+                self.decoder.fountain_decoder.received_part_indexes
+            )
+        return len(self.parts)
+
+    def processed_parts_count(self):
+        if self.format == FORMAT_UR:
+            return self.decoder.fountain_decoder.processed_parts_count
         return len(self.parts)
 
     def total_count(self):
@@ -88,7 +102,7 @@ class QRPartParser:
             # Single-part URs have no expected part indexes
             if self.decoder.fountain_decoder.expected_part_indexes is None:
                 return 1
-            return self.decoder.expected_part_count()
+            return self.decoder.expected_part_count() * 2
         return self.total
 
     def parse(self, data):
@@ -172,23 +186,16 @@ def get_size(qr_code):
     return int(size)
 
 
-def data_len(data):
-    """Returns the length of the payload data, accounting for the UR type"""
-    if isinstance(data, UR):
-        return len(data.cbor)
-    return len(data)
-
-
 def max_qr_bytes(max_width):
     """Calculates the maximum length, in bytes, a QR code of a given size can store"""
     # Given qr_size =  17 + 4 * version + 2 * frame_size
     max_width -= 2  # Subtract frame width
     qr_version = (max_width - 17) // 4
     try:
-        capacity = QR_CAPACITY[qr_version - 1]
+        return QR_CAPACITY[qr_version - 1]
     except:
-        capacity = QR_CAPACITY[-1]
-    return capacity
+        # Limited to version 20
+        return QR_CAPACITY[-1]
 
 
 def find_min_num_parts(data, max_width, qr_format):
@@ -208,18 +215,18 @@ def find_min_num_parts(data, max_width, qr_format):
         part_size = (data_length + num_parts - 1) // num_parts
     elif qr_format == FORMAT_UR:
         qr_capacity -= (
-            UR_GENERIC_PREFIX_LENGTH  # index: ~ "ur:crypto-psbt/xxx-xx/"UR index grows
+            # This is an approximation, UR index grows indefinitely
+            UR_GENERIC_PREFIX_LENGTH  # index: ~ "ur:crypto-psbt/xxx-xx/"
         )
+        # UR will add a bunch of info (some duplicated) on the body of each QR
+        # Info's lenght is multiplied by 2 in Bytewords.encode step
+        qr_capacity -= (UR_CBOR_PREFIX_LEN + UR_BYTEWORDS_CRC_LEN) * 2
         data_length = len(data.cbor)
-        data_length += UR_CHECKSUM_SIZE  # UR 32 bits Checksum
-        # This help make UR QRs huge:
-        data_length *= 2  # UR will Bytewords.encode, which is 2 chars per byte
+        data_length *= 2  # UR will Bytewords.encode, which multiply bytes length by 2
         num_parts = (data_length + qr_capacity - 1) // qr_capacity
         # For UR, part size will be the input for "max_fragment_len"
         part_size = len(data.cbor) // num_parts
-        part_size = max(
-            part_size, UR_MIN_FRAGMENT_LENGTH
-        )
+        part_size = max(part_size, UR_MIN_FRAGMENT_LENGTH)
     else:
         raise ValueError("Invalid format type")
     return num_parts, part_size
