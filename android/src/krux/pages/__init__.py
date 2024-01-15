@@ -108,6 +108,7 @@ class Page:
         autocomplete_fn=None,
         possible_keys_fn=None,
         delete_key_fn=None,
+        progress_bar_fn=None,
         go_on_change=False,
         starting_buffer="",
         esc_prompt=True,
@@ -126,7 +127,10 @@ class Page:
                 self.ctx.display.draw_hcentered_text(title, offset_y)
                 offset_y += self.ctx.display.font_height * 3 // 2
             self.ctx.display.draw_hcentered_text(buffer, offset_y)
-            offset_y = pad.keypad_offset()
+
+            # offset_y = pad.keypad_offset()  # Dead code?
+            if progress_bar_fn:
+                progress_bar_fn()
             possible_keys = pad.keys
             if possible_keys_fn is not None:
                 possible_keys = possible_keys_fn(buffer)
@@ -258,31 +262,6 @@ class Page:
                 'Captured QR Code in format "%d": %s' % (qr_format, data)
             )
         return (code, qr_format)
-
-    def capture_camera_entropy(self):
-        "Helper to capture camera's entropy as the hash of image buffer"
-        self._time_frame = time.ticks_ms()
-
-        def callback():
-            # Accepted
-            if self.ctx.input.enter_event() or self.ctx.input.touch_event():
-                return 1
-
-            # Exited
-            if self.ctx.input.page_event() or self.ctx.input.page_prev_event():
-                return 2
-            return 0
-
-        self.ctx.display.clear()
-        self.ctx.display.draw_centered_text(t("TOUCH or ENTER to capture"))
-        self.ctx.display.to_landscape()
-        entropy_bytes = None
-        try:
-            entropy_bytes = self.ctx.camera.capture_entropy(callback)
-        except:
-            self.ctx.log.exception("Exception occurred capturing camera's entropy")
-        self.ctx.display.to_portrait()
-        return entropy_bytes
 
     def display_qr_codes(self, data, qr_format, title=""):
         """Displays a QR code or an animated series of QR codes to the user, encoding them
@@ -638,6 +617,8 @@ class Menu:
                     self.menu_view.move_backward()
 
     def _clicked_item(self, selected_item_index):
+        if self.menu_view[selected_item_index][1] is None:
+            return MENU_CONTINUE
         try:
             self.ctx.display.clear()
             status = self.menu_view[selected_item_index][1]()
@@ -766,6 +747,9 @@ class Menu:
             offset_y -= len(menu_item_lines) * self.ctx.display.font_height
             offset_y //= 2
             offset_y += Page.y_keypad_map[i]
+            fg_color = (
+                theme.fg_color if menu_item[1] is not None else theme.disabled_color
+            )
             for j, text in enumerate(menu_item_lines):
                 if selected_item_index == i and self.ctx.input.buttons_active:
                     self.ctx.display.fill_rectangle(
@@ -773,17 +757,17 @@ class Menu:
                         offset_y + 1 - self.ctx.display.font_height // 2,
                         self.ctx.display.width(),
                         (len(menu_item_lines) + 1) * self.ctx.display.font_height,
-                        theme.fg_color,
+                        fg_color,
                     )
                     self.ctx.display.draw_hcentered_text(
                         text,
                         offset_y + self.ctx.display.font_height * j,
                         theme.bg_color,
-                        theme.fg_color,
+                        fg_color,
                     )
                 else:
                     self.ctx.display.draw_hcentered_text(
-                        text, offset_y + self.ctx.display.font_height * j
+                        text, offset_y + self.ctx.display.font_height * j, fg_color
                     )
 
     def _draw_menu(self, selected_item_index):
@@ -800,6 +784,9 @@ class Menu:
             offset_y //= 2
             offset_y += self.ctx.display.font_height // 2
         for i, menu_item in enumerate(self.menu_view):
+            fg_color = (
+                theme.fg_color if menu_item[1] is not None else theme.disabled_color
+            )
             menu_item_lines = self.ctx.display.to_lines(menu_item[0])
             delta_y = (len(menu_item_lines) + 1) * self.ctx.display.font_height
             if selected_item_index == i:
@@ -808,19 +795,18 @@ class Menu:
                     offset_y + 1 - self.ctx.display.font_height // 2,
                     self.ctx.display.width(),
                     delta_y - 2,
-                    theme.fg_color,
+                    fg_color,
                 )
                 for j, text in enumerate(menu_item_lines):
                     self.ctx.display.draw_hcentered_text(
                         text,
                         offset_y + self.ctx.display.font_height * j,
                         theme.bg_color,
-                        theme.fg_color,
+                        fg_color,
                     )
             else:
                 for j, text in enumerate(menu_item_lines):
                     self.ctx.display.draw_hcentered_text(
-                        text,
-                        offset_y + self.ctx.display.font_height * j,
+                        text, offset_y + self.ctx.display.font_height * j, fg_color
                     )
             offset_y += delta_y

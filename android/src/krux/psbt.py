@@ -109,6 +109,7 @@ class PSBTSigner:
             inp_amount += inp.witness_utxo.value
         resume_inputs_str = (
             (t("Inputs (%d): ") % len(self.psbt.inputs))
+            # TODO try ₿  again
             + ("B %s" % format_btc(inp_amount))
             + "\n\n"
         )

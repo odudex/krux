@@ -184,50 +184,6 @@ class SettingsPage(Page):
             except:
                 pass
             self.ctx.power_manager.reboot()
-        return None
-
-    def erase_spiffs(self):
-        """Erase all SPIFFS, removing all saved configs and mnemonics"""
-
-        import flash
-        from ..firmware import FLASH_SIZE, SPIFFS_ADDR, ERASE_BLOCK_SIZE
-
-        empty_buf = b"\xff" * ERASE_BLOCK_SIZE
-        for address in range(SPIFFS_ADDR, FLASH_SIZE, ERASE_BLOCK_SIZE):
-            if flash.read(address, ERASE_BLOCK_SIZE) == empty_buf:
-                continue
-            flash.erase(address, ERASE_BLOCK_SIZE)
-
-    def wipe_device(self):
-        """Fully formats SPIFFS memory"""
-        self.ctx.display.clear()
-        if self.prompt(
-            t(
-                "Permanently remove all stored encrypted mnemonics and settings from flash?"
-            ),
-            self.ctx.display.height() // 2,
-        ):
-            self.ctx.display.clear()
-            self.ctx.display.draw_centered_text(t("Wiping Device.."))
-            self.erase_spiffs()
-            # Reboot so default settings take place and SPIFFS is formatted.
-            self.ctx.power_manager.reboot()
-
-    def restore_menu(self):
-        """Option to restore settings and wipe device"""
-        submenu = Menu(
-            self.ctx,
-            [
-                (t("Restore Default Settings"), self.restore_settings),
-                # (t("Wipe Device"), self.wipe_device),
-                (t("Back"), lambda: None),
-            ],
-        )
-        _, status = submenu.run_loop()
-        # Custom for Android
-        if not status:
-            status = MENU_CONTINUE
-        return status
 
     def _settings_exit_check(self):
         """Handler for the 'Back' on settings screen"""
@@ -309,7 +265,7 @@ class SettingsPage(Page):
 
             # Case for "Back" on the main Settings
             if settings_namespace.namespace == Settings.namespace:
-                items.append((t("Factory Settings"), self.restore_menu))
+                items.append((t("Factory Settings"), self.restore_settings))
                 items.append((t("Back"), self._settings_exit_check))
             else:
                 items.append((t("Back"), lambda: MENU_EXIT))
@@ -398,13 +354,13 @@ class SettingsPage(Page):
             if self.prompt(
                 t("Change theme and reboot?"), self.ctx.display.height() // 2
             ):
+                self._settings_exit_check()
                 self.ctx.display.clear()
                 return MENU_SHUTDOWN  # Android Only
             else:
                 # Restore previous theme
                 setting.__set__(settings_namespace, starting_category)
                 theme.update()
-                store.save_settings()
 
         return MENU_CONTINUE
 

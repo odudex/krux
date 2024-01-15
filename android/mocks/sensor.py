@@ -25,15 +25,29 @@ from .qrreader import QRReader
 from unittest import mock
 from kivy.properties import ObjectProperty
 
-class Mockhistogram_threshold:
-    def value(self):
-        return 1
+class MockStatistics:
+    """
+    Used to mock openMV the statistics object returned by the sensor module
+    """
+    def __init__(self, img):
+        self.img = img  # LAB image
+        # Split the LAB image into L, a, and b channels
+        lab_l, lab_a, lab_b = split(img)
+
+        # Calculate the standard deviation of each channel
+        self.std_L = std(lab_l)
+        self.std_a = std(lab_a)
+        self.std_b = std(lab_b)
 
 
-class Mockhistogram:
-    def get_threshold(self):
-        return Mockhistogram_threshold()
-
+    def l_stdev(self):
+        return self.std_L
+    
+    def a_stdev(self):
+        return self.std_a
+    
+    def b_stdev(self):
+        return self.std_b
 
 class Sensor(Widget):
     RGB565 = 0
@@ -48,9 +62,7 @@ class Sensor(Widget):
         self.codes = []
         self.m = mock.MagicMock()
         self.m.get_frame.return_value = None
-        self.m.get_histogram.return_value = Mockhistogram()
         self.m.find_qrcodes.return_value = []
-        # self.running = ObjectProperty()
 
     def reset(self, freq=None, dual_buff=False):
         pass
@@ -59,18 +71,15 @@ class Sensor(Widget):
     def run(self, on):
         if on:
             self.running = True
-            # self.qrreader.connect_camera(analyze_pixels_resolution = 640,
-            #                          enable_analyze_pixels = True)
         else:
             self.running = False
-            # self.qrreader.disconnect_camera()
 
     def snapshot(self):
         codes = self.qrreader.pick_annotations()
         self.m.get_frame.return_value = None
-        self.m.get_histogram.return_value = Mockhistogram()
         self.m.find_qrcodes.return_value = codes
         self.m.to_bytes.return_value = self.qrreader.pick_snapshot_bytes()
+        # self.m.get_statistics.return_value = MockStatistics(lab_frame)
         return self.m
 
     def get_id(self):

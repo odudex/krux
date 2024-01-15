@@ -26,7 +26,7 @@ sys.path.append(".")
 
 from unittest import mock
 from .board_mock import config
-from . import machine, Maix, fpioa_manager, image, utime, qrcode, sensor, ft6x36, uos
+from . import machine, Maix, fpioa_manager, image, utime, qrcode, sensor, shannon, ft6x36, uos
 from .lcd_mock import LCD
 from .sensor import Sensor
 sys.modules["board"] = mock.MagicMock(config=config)
