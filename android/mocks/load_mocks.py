@@ -28,10 +28,8 @@ from unittest import mock
 from .board_mock import config
 from . import machine, Maix, fpioa_manager, image, utime, qrcode, sensor, shannon, ft6x36, uos
 from .lcd_mock import LCD
-from .sensor import Sensor
 sys.modules["board"] = mock.MagicMock(config=config)
-main_sensor = Sensor()
+main_sensor = sensor.Sensor()
 sys.modules["sensor"] = main_sensor
 lcd = LCD()
 sys.modules["lcd"] = lcd
-# sys.modules["time"] = utime

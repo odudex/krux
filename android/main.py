@@ -8,6 +8,7 @@ from kivy.core.window import Window
 from kivy.lang import Builder
 from kivy.core.text import LabelBase
 from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.button import Button
 from kivy.utils import platform
 from kivy.clock import Clock
@@ -21,8 +22,6 @@ from src.krux.power import power_manager
 from src.krux.context import Context
 from src.krux.pages.login import Login
 from src.krux.pages.home import Home
-
-import sensor
 
 Builder.load_string("""
 <RootWidget>:
@@ -82,12 +81,14 @@ class PhysicalButtons(BoxLayout):
         self.add_widget(Button(text='↳'))
         self.size_hint= (1, 0.3)
 
-class RootWidget(BoxLayout):
+class RootWidget(FloatLayout):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.orientation = 'vertical'
         self.stop = False
         self.touch_control = touch_control
+        self.lcd_widget = mocks.load_mocks.lcd
+        self.camera_widget = mocks.load_mocks.main_sensor.qrreader
 
     @mainthread
     def btn_pressed(self, instance, pos):
@@ -104,25 +105,27 @@ class RootWidget(BoxLayout):
 
     def camera_pressed(self, instance, pos):
         self.touch_control.feed_position((1,1))
-        mocks.load_mocks.main_sensor.qrreader.pressed = False
+        self.camera_widget.pressed = False
         Clock.schedule_once(self.camera_release, 0.1)
 
     
     @mainthread
     def camera_on(self, instance, on):
         if on:
-            self.remove_widget(mocks.load_mocks.lcd)
-            mocks.load_mocks.main_sensor.qrreader.__init__()
-            self.add_widget(mocks.load_mocks.main_sensor.qrreader)
-            mocks.load_mocks.main_sensor.qrreader.connect_camera(
+            # Set up and add the camera widget
+            self.camera_widget.__init__()
+            self.camera_widget.size_hint = (1, 0.8)  # Full width, 80% height
+            self.camera_widget.pos = (0, self.height * 0.2)
+            self.camera_widget.connect_camera(
                 enable_photo = False,
                 analyze_pixels_resolution = 640,
                 enable_analyze_pixels = True,
             )
+            self.add_widget(self.camera_widget)
         else:
-            mocks.load_mocks.main_sensor.qrreader.disconnect_camera()
-            self.remove_widget(sensor.qrreader)
-            self.add_widget(mocks.load_mocks.lcd)
+            # Remove the camera widget and reset LCD widget
+            self.camera_widget.disconnect_camera()
+            self.remove_widget(self.camera_widget)
 
     def android_back_click(self, window,key,*largs):
         if key in [27, 1001]:
@@ -130,13 +133,13 @@ class RootWidget(BoxLayout):
         
     def start_thread(self):
         Window.bind(on_keyboard=self.android_back_click)
-        mocks.load_mocks.lcd.bind(pressed=self.btn_pressed)
-        mocks.load_mocks.lcd.bind(released=self.btn_released)
-        mocks.load_mocks.main_sensor.qrreader.bind(pressed=self.camera_pressed)
+        self.lcd_widget.bind(pressed=self.btn_pressed)
+        self.lcd_widget.bind(released=self.btn_released)
+        self.camera_widget.bind(pressed=self.camera_pressed)
         mocks.load_mocks.main_sensor.bind(running=self.camera_on)
         self.remove_widget(self.label_1)
         self.remove_widget(self.but_1)
-        self.add_widget(mocks.load_mocks.lcd)
+        self.add_widget(self.lcd_widget)
         self.ctx = Context()
         self.ctx.power_manager = power_manager
         self.ctx.input.touch.index -= 1

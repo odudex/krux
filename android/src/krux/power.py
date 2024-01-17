@@ -48,7 +48,7 @@ class PowerManager:
     def has_battery(self):
         """Returns if the device has a battery"""
         try:
-            assert int(self.pmu.get_battery_voltage()) > 0
+            assert int(self.pmu.get_battery_voltage()) > 1000
         except:
             return False
         return True

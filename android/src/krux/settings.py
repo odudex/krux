@@ -248,6 +248,9 @@ class AndroidStore:
     def restore_defaults(self):
         self.settings.clear()
 
+    def save_settings(self):
+        return True
+
 
 
 # Initialize singleton

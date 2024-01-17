@@ -26,10 +26,10 @@ import sys
 import math
 from unittest import mock
 
-def entropy_img16b(img_bytes):
+def entropy_img24b(img_bytes):
     """Function to calculate Shannon's entropy.
     Will return average number of bits required to encode each pixel,
-    based on the probability distribution of the pixel values, ranging from 0 to 16.
+    based on the probability distribution of the pixel values, ranging from 0 to 24.
     The entropy value is a theoretical lower bound on the number of bits needed to
     encode the image without loss, under an ideal compression algorithm.
     This means that in the best-case scenario, you can't compress the image to
@@ -37,15 +37,17 @@ def entropy_img16b(img_bytes):
 
     # Calculate frequency of each pixel value
     pixel_counts = {}
-    for i in range(0, len(img_bytes), 2):
-        pixel_value = int.from_bytes(img_bytes[i : i + 2], "little")
+    # Img_bytes contains RGBA data
+    for i in range(0, len(img_bytes), 4):
+        #Add first three bytes(RGB), ignore A(alpha) channel which is constant
+        pixel_value = int.from_bytes(img_bytes[i : i + 3], "little")
         if pixel_value in pixel_counts:
             pixel_counts[pixel_value] += 1
         else:
             pixel_counts[pixel_value] = 1
 
     # Total number of pixels (half the number of bytes)
-    total_pixels = len(img_bytes) // 2
+    total_pixels = len(img_bytes) // 4
 
     # Calculate entropy
     entropy = 0
@@ -57,5 +59,5 @@ def entropy_img16b(img_bytes):
 
 if "shannon" not in sys.modules:
     sys.modules["shannon"] = mock.MagicMock(
-        entropy_img16b=entropy_img16b,
+        entropy_img24b=entropy_img24b,
     )

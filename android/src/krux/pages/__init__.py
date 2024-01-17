@@ -203,7 +203,7 @@ class Page:
             if self.ctx.input.page_event():
                 if self.ctx.camera.has_antiglare():
                     self._time_frame = time.ticks_ms()
-                    self.ctx.display.to_portrait()
+                    # self.ctx.display.to_portrait()
                     if not self.ctx.camera.antiglare_enabled:
                         self.ctx.camera.enable_antiglare()
                         self.ctx.display.draw_centered_text(t("Anti-glare enabled"))
@@ -211,7 +211,7 @@ class Page:
                         self.ctx.camera.disable_antiglare()
                         self.ctx.display.draw_centered_text(t("Anti-glare disabled"))
                     time.sleep_ms(ANTI_GLARE_WAIT_TIME)
-                    self.ctx.display.to_landscape()
+                    # self.ctx.display.to_landscape()
                     self.ctx.input.flush_events()
                     return 0
                 return 1
@@ -222,14 +222,13 @@ class Page:
 
             # Indicate progress to the user that a new part was captured
             if new_part:
-                self.ctx.display.to_portrait()
+                # self.ctx.display.to_portrait()
                 filled = self.ctx.display.width() * num_parts_captured
                 filled //= part_total
-                self.ctx.display.width()
                 if self.ctx.display.height() < 320:  # M5StickV
                     height = 210
-                elif self.ctx.display.height() > 320:  # Amigo
-                    height = 380
+                elif self.ctx.display.height() > 320:  # Amigo, Android
+                    height = (self.ctx.display.height() * 8) // 10  # 80%
                 else:
                     height = 305
                 self.ctx.display.fill_rectangle(
@@ -240,13 +239,13 @@ class Page:
                     theme.fg_color,
                 )
                 time.sleep_ms(QR_CODE_STEP_TIME)
-                self.ctx.display.to_landscape()
+                # self.ctx.display.to_landscape()
 
             return 0
 
         self.ctx.display.clear()
         self.ctx.display.draw_centered_text(t("Loading Camera.."))
-        self.ctx.display.to_landscape()
+        # self.ctx.display.to_landscape()
         code = None
         qr_format = None
         try:
@@ -255,7 +254,7 @@ class Page:
             self.ctx.log.exception("Exception occurred capturing QR code")
         if self.ctx.light:
             self.ctx.light.turn_off()
-        self.ctx.display.to_portrait()
+        # self.ctx.display.to_portrait()
         if code is not None:
             data = code.cbor if isinstance(code, UR) else code
             self.ctx.log.debug(
@@ -639,7 +638,7 @@ class Menu:
     def draw_status_bar(self):
         """Draws a status bar along the top of the UI"""
         self.draw_logging_indicator()
-        self.draw_battery_indicator()
+        # self.draw_battery_indicator()
         self.draw_network_indicator()
 
     #     self.draw_ram_indicator()

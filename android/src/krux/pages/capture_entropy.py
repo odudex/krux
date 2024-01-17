@@ -84,7 +84,7 @@ class CameraEntropy(Page):
 
         self.ctx.display.clear()
         self.ctx.display.draw_centered_text(t("TOUCH or ENTER to capture"))
-        self.ctx.display.to_landscape()
+        # self.ctx.display.to_landscape()
         self.ctx.camera.initialize_sensor()
         sensor.run(1)
         self.ctx.display.clear()
@@ -102,7 +102,7 @@ class CameraEntropy(Page):
                     img.get_statistics().b_stdev(),
                 ]
             )
-            self.ctx.display.to_portrait()
+            # self.ctx.display.to_portrait()
             self.ctx.display.fill_rectangle(
                 0,
                 y_label_offset,
@@ -122,14 +122,14 @@ class CameraEntropy(Page):
                 self.ctx.display.draw_hcentered_text(
                     "Insufficient entropy", y_label_offset, theme.error_color
                 )
-            self.ctx.display.to_landscape()
+            # self.ctx.display.to_landscape()
             command = self._callback()
             if command != NOT_PRESSED:
                 break
 
             self.display_image(img)
 
-        self.ctx.display.to_portrait()
+        # self.ctx.display.to_portrait()
         gc.collect()
         sensor.run(0)
 
@@ -141,20 +141,21 @@ class CameraEntropy(Page):
         self.ctx.display.draw_centered_text(t("Calculating Shannon's entropy"))
 
         img_bytes = img.to_bytes()
+        img_pixels = img.width() * img.height()
         del img
 
         # Calculate Shannon's entropy:
-        shannon_16b = shannon.entropy_img16b(img_bytes)
-        shannon_16b_total = shannon_16b * 320 * 240
-
+        # Android images calculate Shannon's over 24 bits
+        shannon_24b = shannon.entropy_img24b(img_bytes)
+        shannon_24b_total = shannon_24b * img_pixels
         entropy_msg = "Shannon's entropy:\n"
-        entropy_msg += str(round(shannon_16b, 2)) + " bits/px\n"
-        entropy_msg += "(" + str(int(shannon_16b_total)) + " total)\n\n"
+        entropy_msg += str(round(shannon_24b, 2)) + " bits/px\n"
+        entropy_msg += "(" + str(int(shannon_24b_total)) + " total)\n\n"
         entropy_msg += "Pixels deviation index: "
         entropy_msg += str(stdev_index)
         self.ctx.display.clear()
         if (
-            shannon_16b < INSUFFICIENT_SHANNONS_ENTROPY_TH
+            shannon_24b < INSUFFICIENT_SHANNONS_ENTROPY_TH
             or stdev_index < INSUFFICIENT_VARIANCE_TH
         ):
             error_msg = t("Insufficient Entropy!")

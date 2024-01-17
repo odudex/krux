@@ -31,7 +31,6 @@ from kivy.core.window import Window
 from kivy.properties import ListProperty
 from kivy.graphics import Rotate
 from kivy.clock import mainthread
-from unittest.mock import MagicMock
 
 COLOR_BLACK = (0, 0, 0, 1)
 COLOR_WHITE = (1, 1, 1, 1)
@@ -244,18 +243,6 @@ class LCD(Widget):
     @mainthread
     def display(self, img, oft=None, roi=None):
         return
-        self.frame_counter += 1
-        # self.clear()
-        self.draw_string(50,50, str(self.frame_counter))
-        frame = img.get_frame()
-        if not isinstance(frame, MagicMock):
-            buf = frame.tostring()
-            image_texture = Texture.create(
-                size=(self._width(), self._height()), colorfmt='bgr')
-            image_texture.blit_buffer(buf, colorfmt='bgr', bufferfmt='ubyte')
-            self.texture = image_texture
-            with self.canvas:
-                Rectangle(texture=image_texture, pos=self.pos, size=(self._width(), self._height()))
 
     def on_touch_down(self, touch):
         x, y = touch.pos

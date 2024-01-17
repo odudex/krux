@@ -74,14 +74,16 @@ class Key:
 
     def fingerprint_hex_str(self, pretty=False):
         """Returns the master key fingerprint in hex format"""
-        formatted_txt = t("⊚ %s") if pretty else "%s"
+        # Android: t("⊚ %s") if pretty else "%s" - ⊚ is not supported by the font
+        formatted_txt = t("%s") if pretty else "%s"
         return formatted_txt % hexlify(self.fingerprint).decode("utf-8")
 
     def derivation_str(self, pretty=False):
         """Returns the derivation path for the Hierarchical Deterministic Wallet to
         be displayed as string
         """
-        formatted_txt = t("↳ %s") if pretty else "%s"
+        # Android: formatted_txt = t("↳ %s") if pretty else "%s" - ↳ is not supported by the font
+        formatted_txt = t("%s") if pretty else "%s"
         return (formatted_txt % self.derivation).replace("h", HARDENED_STR_REPLACE)
 
     def sign(self, message_hash):
@@ -130,6 +132,7 @@ class Key:
         """Return the Krux default derivation path for single-sig or multisig to
         be displayd as string
         """
-        return "↳ " + Key.get_default_derivation(multisig, network).replace(
+        # Android: ↳ is not supported by the font
+        return Key.get_default_derivation(multisig, network).replace(
             "h", HARDENED_STR_REPLACE
         )

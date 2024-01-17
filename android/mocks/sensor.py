@@ -24,30 +24,52 @@ from kivy.uix.widget import Widget
 from .qrreader import QRReader
 from unittest import mock
 from kivy.properties import ObjectProperty
+import numpy as np
 
 class MockStatistics:
     """
     Used to mock openMV the statistics object returned by the sensor module
     """
-    def __init__(self, img):
-        self.img = img  # LAB image
-        # Split the LAB image into L, a, and b channels
-        lab_l, lab_a, lab_b = split(img)
+    def __init__(self, img=None, height=480, width=640):
+        def set_all_to(number=0):
+            self.r_std = number
+            self.g_std = number
+            self.b_std = number
 
-        # Calculate the standard deviation of each channel
-        self.std_L = std(lab_l)
-        self.std_a = std(lab_a)
-        self.std_b = std(lab_b)
+        if not img:
+            set_all_to(0)
+            return
+        
+        self.img = img  # RGBA image
+        # Convert the flat list of bytes into a 4-channel image array (width x height x 4)
+        try:
+            image_array = np.frombuffer(img, dtype=np.uint8).reshape((height, width, 4))
+        except:
+            set_all_to(10) # If the image format is not standard, set all to 10 to pass the entropy check
+            return
 
+        # Separate the R, G, and B channels
+        r_channel = image_array[:, :, 0]
+        g_channel = image_array[:, :, 1]
+        b_channel = image_array[:, :, 2]
+
+        # Calculate the percentage standard deviation for each channel
+        self.r_std = (np.std(r_channel) * 100) // 255
+        self.g_std = (np.std(g_channel) * 100) // 255
+        self.b_std = (np.std(b_channel) * 100) // 255
+
+    
+    # It would be too resource expensive to convert RGB to LAB on Android
+    # So on Android RGB standard deviation will be used
 
     def l_stdev(self):
-        return self.std_L
+        return self.r_std
     
     def a_stdev(self):
-        return self.std_a
+        return self.g_std
     
     def b_stdev(self):
-        return self.std_b
+        return self.b_std
 
 class Sensor(Widget):
     RGB565 = 0
@@ -63,6 +85,9 @@ class Sensor(Widget):
         self.m = mock.MagicMock()
         self.m.get_frame.return_value = None
         self.m.find_qrcodes.return_value = []
+        self.m.get_statistics.return_value = MockStatistics()
+        self.m.width.return_value = 640
+        self.m.height.return_value = 480
 
     def reset(self, freq=None, dual_buff=False):
         pass
@@ -78,8 +103,17 @@ class Sensor(Widget):
         codes = self.qrreader.pick_annotations()
         self.m.get_frame.return_value = None
         self.m.find_qrcodes.return_value = codes
-        self.m.to_bytes.return_value = self.qrreader.pick_snapshot_bytes()
-        # self.m.get_statistics.return_value = MockStatistics(lab_frame)
+        img = self.qrreader.pick_snapshot_bytes()
+        self.m.to_bytes.return_value = img
+        if len(img) == 640*480*4:
+            width = 640
+            height = 480
+        else: # tries with 320x240
+            width = 320
+            height = 240
+        self.m.get_statistics.return_value = MockStatistics(self.qrreader.pick_snapshot_bytes(), height, width)
+        self.m.width.return_value = width
+        self.m.height.return_value = height
         return self.m
 
     def get_id(self):

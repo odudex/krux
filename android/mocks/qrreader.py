@@ -27,7 +27,6 @@ from kivy.graphics import Line, Color, Rectangle
 from pyzbar import pyzbar
 from pyzbar.pyzbar import ZBarSymbol
 from PIL import Image
-
 from kivy.properties import ObjectProperty
 from gestures4kivy import CommonGestures
 from camera4kivy import Preview
@@ -53,12 +52,12 @@ class QRReader(Preview, CommonGestures):
     ####################################
     
     def analyze_pixels_callback(self, pixels, image_size, image_pos, scale, mirror):
-        # pixels : Kivy Texture pixels
+        # pixels : Kivy Texture pixels 640x480, RGBA, 4 bytes per pixel
         # image_size   : pixels size (w,h)
         # image_pos    : location of Texture in Preview Widget (letterbox)
         # scale  : scale from Analysis resolution to Preview resolution
         # mirror : true if Preview is mirrored
-        pil_image = Image.frombytes(mode='RGBA', size=image_size, data= pixels)
+        pil_image = Image.frombytes(mode='RGBA', size=image_size, data=pixels)
         barcodes = pyzbar.decode(pil_image, symbols=[ZBarSymbol.QRCODE])
         codes = []
         if barcodes:
