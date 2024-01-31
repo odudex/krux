@@ -1,6 +1,6 @@
 # The MIT License (MIT)
 
-# Copyright (c) 2021-2023 Krux contributors
+# Copyright (c) 2021-2024 Krux contributors
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -48,7 +48,7 @@ class PowerManager:
     def has_battery(self):
         """Returns if the device has a battery"""
         try:
-            assert int(self.pmu.get_battery_voltage()) > 1000
+            assert int(self.pmu.get_battery_voltage()) > 1000  # Android custom
         except:
             return False
         return True
@@ -62,11 +62,18 @@ class PowerManager:
             charge = max(0, (mv - 3131.427782118631) / 790.56172897)
         else:
             charge = max(0, ((mv - MIN_BATTERY_MV) / (MAX_BATTERY_MV - MIN_BATTERY_MV)))
+
+        # Dirty trick to avoid showing 100% when battery is not fully charged
+        if self.pmu.charging():
+            charge -= 0.35  # compensates for the batt voltage raise when charging
+            # limits in 90% when still charging to let user know it's not fully charged
+            charge = min(0.9, charge)
+
         return min(1, charge)
 
-    def charging(self):
-        """Returns true if device has power delivered through USB"""
-        return self.pmu.get_usb_voltage() > 4200
+    def usb_connected(self):
+        """Returns True if USB connected, False otherwise"""
+        return self.pmu.usb_connected()
 
     def set_screen_brightness(self, value):
         """Sets the screen brightness by modifying the backlight voltage"""

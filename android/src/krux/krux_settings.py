@@ -1,6 +1,6 @@
 # The MIT License (MIT)
 
-# Copyright (c) 2021-2023 Krux contributors
+# Copyright (c) 2021-2024 Krux contributors
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -82,37 +82,6 @@ class BitcoinSettings(SettingsNamespace):
         """Returns a label for UI when given a setting name or namespace"""
         return {
             "network": t("Network"),
-        }[attr]
-
-
-class LoggingSettings(SettingsNamespace):
-    """Log-specific settings"""
-
-    NONE = 99
-    ERROR = 40
-    WARN = 30
-    INFO = 20
-    DEBUG = 10
-    NONE_TXT = "NONE"
-    ERROR_TXT = "ERROR"
-    WARN_TXT = "WARN"
-    INFO_TXT = "INFO"
-    DEBUG_TXT = "DEBUG"
-    LEVEL_NAMES = {
-        NONE: NONE_TXT,
-        ERROR: ERROR_TXT,
-        WARN: WARN_TXT,
-        INFO: INFO_TXT,
-        DEBUG: DEBUG_TXT,
-    }
-
-    namespace = "settings.logging"
-    level = CategorySetting("level", NONE_TXT, list(LEVEL_NAMES.values()))
-
-    def label(self, attr):
-        """Returns a label for UI when given a setting name or namespace"""
-        return {
-            "level": t("Log Level"),
         }[attr]
 
 
@@ -380,7 +349,6 @@ class Settings(SettingsNamespace):
         self.bitcoin = BitcoinSettings()
         self.hardware = HardwareSettings()
         self.i18n = I18nSettings()
-        self.logging = LoggingSettings()
         self.encryption = EncryptionSettings()
         self.persist = PersistSettings()
         self.appearance = ThemeSettings()

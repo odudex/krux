@@ -1,6 +1,6 @@
 # The MIT License (MIT)
 
-# Copyright (c) 2021-2023 Krux contributors
+# Copyright (c) 2021-2024 Krux contributors
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -44,7 +44,6 @@ YELLOW = 0x85F6
 BLUE = 0xF800
 LIGHTBLUE = 0xBD0E
 CYAN = 0xFF07
-MAGENTA = 0x1FF8  # Remove this color after logger is removed
 
 
 THEMES = {

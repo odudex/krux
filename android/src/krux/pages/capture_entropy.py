@@ -1,6 +1,6 @@
 # The MIT License (MIT)
 
-# Copyright (c) 2021-2023 Krux contributors
+# Copyright (c) 2021-2024 Krux contributors
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -84,7 +84,7 @@ class CameraEntropy(Page):
 
         self.ctx.display.clear()
         self.ctx.display.draw_centered_text(t("TOUCH or ENTER to capture"))
-        # self.ctx.display.to_landscape()
+        # self.ctx.display.to_landscape()  # Android custom
         self.ctx.camera.initialize_sensor()
         sensor.run(1)
         self.ctx.display.clear()
@@ -92,6 +92,8 @@ class CameraEntropy(Page):
         y_label_offset = self.ctx.display.bottom_line
         if board.config["type"].startswith("amigo"):
             y_label_offset = self.ctx.display.bottom_prompt_line
+        # Flush events ocurred while loading camera
+        self.ctx.input.flush_events()
         while True:
             wdt.feed()
             img = sensor.snapshot()
@@ -102,7 +104,7 @@ class CameraEntropy(Page):
                     img.get_statistics().b_stdev(),
                 ]
             )
-            # self.ctx.display.to_portrait()
+            # self.ctx.display.to_portrait()  # Android custom
             self.ctx.display.fill_rectangle(
                 0,
                 y_label_offset,
@@ -112,24 +114,24 @@ class CameraEntropy(Page):
             )
             if stdev_index > POOR_VARIANCE_TH:
                 self.ctx.display.draw_hcentered_text(
-                    "Good entropy", y_label_offset, theme.go_color
+                    t("Good entropy"), y_label_offset, theme.go_color
                 )
             elif stdev_index > INSUFFICIENT_VARIANCE_TH:
                 self.ctx.display.draw_hcentered_text(
-                    "Poor entropy", y_label_offset, theme.del_color
+                    t("Poor entropy"), y_label_offset, theme.del_color
                 )
             else:
                 self.ctx.display.draw_hcentered_text(
-                    "Insufficient entropy", y_label_offset, theme.error_color
+                    t("Insufficient entropy"), y_label_offset, theme.error_color
                 )
-            # self.ctx.display.to_landscape()
+            # self.ctx.display.to_landscape()  # Android custom
             command = self._callback()
             if command != NOT_PRESSED:
                 break
 
             self.display_image(img)
 
-        # self.ctx.display.to_portrait()
+        # self.ctx.display.to_portrait()  # Android custom
         gc.collect()
         sensor.run(0)
 
@@ -148,10 +150,10 @@ class CameraEntropy(Page):
         # Android images calculate Shannon's over 24 bits
         shannon_24b = shannon.entropy_img24b(img_bytes)
         shannon_24b_total = shannon_24b * img_pixels
-        entropy_msg = "Shannon's entropy:\n"
+        entropy_msg = t("Shannon's entropy:\n")
         entropy_msg += str(round(shannon_24b, 2)) + " bits/px\n"
-        entropy_msg += "(" + str(int(shannon_24b_total)) + " total)\n\n"
-        entropy_msg += "Pixels deviation index: "
+        entropy_msg += t("(%d total)\n\n") % int(shannon_24b_total)
+        entropy_msg += t("Pixels deviation index: ")
         entropy_msg += str(stdev_index)
         self.ctx.display.clear()
         if (

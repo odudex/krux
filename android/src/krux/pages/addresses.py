@@ -1,6 +1,6 @@
 # The MIT License (MIT)
 
-# Copyright (c) 2021-2023 Krux contributors
+# Copyright (c) 2021-2024 Krux contributors
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -72,7 +72,7 @@ class Addresses(Page):
             if addr_type == 1:
                 loading_txt = t("Loading change address %d..")
 
-            max_addresses = self.ctx.display.max_lines() - 3
+            max_addresses = self.ctx.display.max_menu_lines() - 3
 
             num_checked = 0
             while True:

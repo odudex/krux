@@ -1,6 +1,6 @@
 # The MIT License (MIT)
 
-# Copyright (c) 2021-2023 Krux contributors
+# Copyright (c) 2021-2024 Krux contributors
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -48,8 +48,8 @@ class Tools(Page):
             Menu(
                 ctx,
                 [
-                    (t("Check SD Card"), self.sd_check),
-                    (t("Print Test QR"), self.print_test),
+                    (t("Check SD Card"), None),  # SD Check not available for Android
+                    (t("Print Test QR"), None),  # Print not available for Android
                     (t("Create QR Code"), self.create_qr),
                     (t("Delete Mnemonic"), self.del_stored_mnemonic),
                     (t("Wipe Device"), None),  # Wipe not available for Android

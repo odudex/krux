@@ -1,6 +1,6 @@
 # The MIT License (MIT)
 
-# Copyright (c) 2021-2023 Krux contributors
+# Copyright (c) 2021-2024 Krux contributors
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -191,7 +191,7 @@ class EncryptMnemonic(Page):
         if version == "AES-CBC":
             self.ctx.display.clear()
             self.ctx.display.draw_centered_text(
-                t("Aditional entropy from camera required for AES-CBC mode")
+                t("Additional entropy from camera required for AES-CBC mode")
             )
             if not self.prompt(t("Proceed?"), self.ctx.display.bottom_prompt_line):
                 self.flash_text(t("Mnemonic was not encrypted"))

@@ -1,6 +1,6 @@
 # The MIT License (MIT)
 
-# Copyright (c) 2021-2023 Krux contributors
+# Copyright (c) 2021-2024 Krux contributors
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -28,8 +28,22 @@ FONT_WIDTH, FONT_HEIGHT = board.config["krux"]["display"]["font"]
 PORTRAIT, LANDSCAPE = [1, 2]
 QR_DARK_COLOR, QR_LIGHT_COLOR = board.config["krux"]["display"]["qr_colors"]
 
-
 DEFAULT_BACKLIGHT = 1
+
+# Splash will use h. centered text plots. This spaces are used to align without being
+SPLASH = [
+    "██   ",
+    "██   ",
+    "██   ",
+    "██████   ",
+    "██   ",
+    " ██  ██",
+    "██ ██",
+    "████ ",
+    "██ ██",
+    " ██  ██",
+    "  ██   ██",
+]
 
 
 class Display:
@@ -156,87 +170,61 @@ class Display:
         lcd.rotation(PORTRAIT)
         self.portrait = True
 
-    def to_lines(self, text):
+    def to_lines(self, text, max_lines=None):
         """Takes a string of text and converts it to lines to display on
         the screen
         """
+        lines = []
+        start = 0
+        line_count = 0
         if self.width() > 135:
             columns = self.usable_width() // self.font_width
         else:
             columns = self.width() // self.font_width
 
-        # Processing the words and maintaining newline characters
-        processed_text = []
-        for word in text.split(" "):
-            subwords = word.split("\n")
-            for i, subword in enumerate(subwords):
-                if len(subword) > columns:
-                    j = 0
-                    while j < len(subword):
-                        processed_text.append(subword[j : j + columns])
-                        j += columns
-                else:
-                    processed_text.append(subword)
+        # Quick return if content fits in one line
+        if len(text) <= columns and "\n" not in text:
+            return [text]
 
-                if len(subwords) > 1 and i < len(subwords) - 1:
-                    # Ensure proper handling of newline characters at the end of lines
-                    if not processed_text[-1].endswith("\n"):
-                        processed_text.append("\n")
+        if not max_lines:
+            max_lines = self.total_lines
 
-        num_words = len(processed_text)
-        words = processed_text
+        while start < len(text) and line_count < max_lines:
+            # Find the next line break, if any
+            line_break = text.find("\n", start)
+            if line_break == -1:
+                next_break = len(text)
+            else:
+                next_break = min(line_break, len(text))
 
-        # calculate cost of all pairs of words
-        cost_between = [[0 for _ in range(num_words + 1)] for _ in range(num_words + 1)]
-        for i in range(1, num_words + 1):
-            for j in range(i, num_words + 1):
-                for k in range(i, j + 1):
-                    if words[k - 1].endswith("\n"):
-                        word = words[k - 1].split("\n")[0]
-                        if word != "":
-                            cost_between[i][j] += len(words[k - 1]) + 1
-                        if i <= k < j:
-                            cost_between[i][j] += float("inf")
-                    else:
-                        cost_between[i][j] += len(words[k - 1]) + 1
-                cost_between[i][j] -= 1
-                cost_between[i][j] = columns - cost_between[i][j]
-                if cost_between[i][j] < 0:
-                    cost_between[i][j] = float("inf")
-                cost_between[i][j] = cost_between[i][j] ** 2
+            end = start + columns
+            # If next segment fits on one line, add it and continue
+            if end >= next_break:
+                lines.append(text[start:next_break].rstrip())
+                start = next_break + 1
+                line_count += 1
+                continue
 
-        # find optimal number of words on each line
-        indexes = [0 for _ in range(num_words + 1)]
-        cost = [0 for _ in range(num_words + 1)]
-        cost[0] = 0
-        for j in range(1, num_words + 1):
-            cost[j] = float("inf") * float("inf")
-            for i in range(1, j + 1):
-                if cost[i - 1] + cost_between[i][j] < cost[j]:
-                    cost[j] = cost[i - 1] + cost_between[i][j]
-                    indexes[j] = i
+            # If the end of the line is in the middle of a word,
+            # move the end back to the end of the previous word
+            if text[end] != " " and text[end] != "\n":
+                end = text.rfind(" ", start, end)
 
-        def build_lines(words, num_words, indexes):
-            lines = []
-            start = indexes[num_words]
-            end = num_words
-            if start != 1:
-                lines.extend(build_lines(words, start - 1, indexes))
-            line = ""
-            for i in range(start, end + 1):
-                if words[i - 1].endswith("\n"):
-                    word = words[i - 1].split("\n")[0]
-                    if word != "":
-                        line += (" " if len(line) > 0 else "") + word
-                    lines.append(line)
-                    line = ""
-                else:
-                    line += (" " if len(line) > 0 else "") + words[i - 1]
-            if len(line) > 0:
-                lines.append(line)
-            return lines
+            # If there is no space, force break the word
+            if end == -1 or end < start:
+                end = start + columns
 
-        return build_lines(words, num_words, indexes)
+            lines.append(text[start:end].rstrip())
+            # don't jump space if we're breaking a word
+            jump_space = 1 if text[end] == " " else 0
+            start = end + jump_space
+            line_count += 1
+
+        # Replace last line with ellipsis if we didn't finish the text
+        if line_count == max_lines and start < len(text):
+            lines[-1] = lines[-1][: columns - 3] + "..."
+
+        return lines
 
     def clear(self):
         """Clears the display"""
@@ -256,15 +244,6 @@ class Display:
             x -= width
         lcd.fill_rectangle(x, y, width, height, color)
 
-    def draw_img_hcentered_other_img(
-        self, img, other_img, offset_y=DEFAULT_PADDING, alpha=255
-    ):
-        """Draws other_img horizontally-centered on the img, at the given offset_y.
-        Alpha value is used, so any value less than 256 makes black pixels invisible"""
-        img.draw_image(
-            other_img, offset_y, (img.height() - other_img.height()) // 2, alpha=alpha
-        )
-
     def draw_string(self, x, y, text, color=theme.fg_color, bg_color=theme.bg_color):
         """Draws a string to the screen"""
         if board.config["krux"]["display"]["inverted_coordinates"]:
@@ -279,9 +258,12 @@ class Display:
         color=theme.fg_color,
         bg_color=theme.bg_color,
         info_box=False,
+        max_lines=None,
     ):
         """Draws text horizontally-centered on the display, at the given offset_y"""
-        lines = text if isinstance(text, list) else self.to_lines(text)
+        lines = (
+            text if isinstance(text, list) else self.to_lines(text, max_lines=max_lines)
+        )
         if info_box:
             bg_color = theme.disabled_color
             self.fill_rectangle(
@@ -291,34 +273,13 @@ class Display:
                 (len(lines)) * self.font_height + 2,
                 bg_color,
             )
-
         for i, line in enumerate(lines):
             if len(line) > 0:
-                offset_x = self._obtain_hcentered_offset(line)
+                offset_x = max(0, (self.width() - self.font_width * len(line)) // 2)
                 self.draw_string(
                     offset_x, offset_y + (i * self.font_height), line, color, bg_color
                 )
-
-    def _obtain_hcentered_offset(self, line_str):
-        """Return the offset_x to the horizontally-centered line_str"""
-        return max(0, (self.width() - self.font_width * len(line_str)) // 2)
-
-    def draw_line_hcentered_with_fullw_bg(
-        self,
-        line_str,
-        qtd_offset_y,
-        color=theme.fg_color,
-        bg_color=theme.bg_color,
-    ):
-        """Draw a line_str horizontally-centered on the display, at qtd_offset_y times font_height,
-        useful for screensaver"""
-        lcd.fill_rectangle(
-            0, qtd_offset_y * self.font_height, self.width(), self.font_height, bg_color
-        )
-        offset_x = self._obtain_hcentered_offset(line_str)
-        self.draw_string(
-            offset_x, (qtd_offset_y * self.font_height), line_str, color, bg_color
-        )
+        return len(lines)  # return number of lines drawn
 
     def draw_centered_text(self, text, color=theme.fg_color, bg_color=theme.bg_color):
         """Draws text horizontally and vertically centered on the display"""
@@ -342,7 +303,7 @@ class Display:
 
         power_manager.set_screen_brightness(level)
 
-    def max_lines(self, line_offset=0):
-        """The max lines of text supported by the display"""
+    def max_menu_lines(self, line_offset=0):
+        """Maximum menu items the display can fit"""
         pad = DEFAULT_PADDING if line_offset else 2 * DEFAULT_PADDING
         return (self.height() - pad - line_offset) // (2 * self.font_height)

@@ -1,6 +1,6 @@
 # The MIT License (MIT)
 
-# Copyright (c) 2021-2023 Krux contributors
+# Copyright (c) 2021-2024 Krux contributors
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -24,7 +24,6 @@
 import time
 
 from krux.touchscreens.ft6x36 import touch_control
-from .logging import logger as log
 from .krux_settings import Settings
 
 IDLE = 0
@@ -158,7 +157,7 @@ class Touch:
                         self.gesture = SWIPE_UP
                 self.state = RELEASED
         else:
-            log.warn("Touch error: " + str(data))
+            print("Touch error")
         return self.state
 
     def event(self):

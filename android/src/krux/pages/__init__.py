@@ -1,6 +1,6 @@
 # The MIT License (MIT)
 
-# Copyright (c) 2021-2023 Krux contributors
+# Copyright (c) 2021-2024 Krux contributors
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -24,7 +24,7 @@ import math
 import time
 import board
 from .keypads import Keypad
-from ..themes import theme, WHITE, RED, GREEN, DARKGREEN, ORANGE, MAGENTA
+from ..themes import theme, WHITE, RED, GREEN, DARKGREEN, ORANGE
 from ..ur.ur import UR
 from ..input import (
     BUTTON_ENTER,
@@ -37,7 +37,7 @@ from ..input import (
 )
 from ..display import DEFAULT_PADDING
 from ..qr import to_qr_codes
-from ..krux_settings import t, Settings, LoggingSettings, BitcoinSettings
+from ..krux_settings import t, Settings, BitcoinSettings
 from ..sd_card import SDHandler
 
 MENU_CONTINUE = 0
@@ -203,7 +203,7 @@ class Page:
             if self.ctx.input.page_event():
                 if self.ctx.camera.has_antiglare():
                     self._time_frame = time.ticks_ms()
-                    # self.ctx.display.to_portrait()
+                    # self.ctx.display.to_portrait()  # Android custom
                     if not self.ctx.camera.antiglare_enabled:
                         self.ctx.camera.enable_antiglare()
                         self.ctx.display.draw_centered_text(t("Anti-glare enabled"))
@@ -211,7 +211,7 @@ class Page:
                         self.ctx.camera.disable_antiglare()
                         self.ctx.display.draw_centered_text(t("Anti-glare disabled"))
                     time.sleep_ms(ANTI_GLARE_WAIT_TIME)
-                    # self.ctx.display.to_landscape()
+                    # self.ctx.display.to_landscape()  # Android custom
                     self.ctx.input.flush_events()
                     return 0
                 return 1
@@ -222,7 +222,7 @@ class Page:
 
             # Indicate progress to the user that a new part was captured
             if new_part:
-                # self.ctx.display.to_portrait()
+                # self.ctx.display.to_portrait()  # Android custom
                 filled = self.ctx.display.width() * num_parts_captured
                 filled //= part_total
                 if self.ctx.display.height() < 320:  # M5StickV
@@ -239,27 +239,22 @@ class Page:
                     theme.fg_color,
                 )
                 time.sleep_ms(QR_CODE_STEP_TIME)
-                # self.ctx.display.to_landscape()
+                # self.ctx.display.to_landscape()  # Android custom
 
             return 0
 
         self.ctx.display.clear()
         self.ctx.display.draw_centered_text(t("Loading Camera.."))
-        # self.ctx.display.to_landscape()
+        # self.ctx.display.to_landscape()  # Android custom
         code = None
         qr_format = None
         try:
             code, qr_format = self.ctx.camera.capture_qr_code_loop(callback)
         except:
-            self.ctx.log.exception("Exception occurred capturing QR code")
+            print("Camera error")
         if self.ctx.light:
             self.ctx.light.turn_off()
-        # self.ctx.display.to_portrait()
-        if code is not None:
-            data = code.cbor if isinstance(code, UR) else code
-            self.ctx.log.debug(
-                'Captured QR Code in format "%d": %s' % (qr_format, data)
-            )
+        # self.ctx.display.to_portrait()  # Android custom
         return (code, qr_format)
 
     def display_qr_codes(self, data, qr_format, title=""):
@@ -545,10 +540,17 @@ class Menu:
         self.menu = menu
         self.menu_offset = offset
         max_viewable = min(
-            self.ctx.display.max_lines(self.menu_offset),
+            self.ctx.display.max_menu_lines(self.menu_offset),
             len(self.menu),
         )
         self.menu_view = ListView(self.menu, max_viewable)
+
+    def screensaver(self):
+        """Loads and starts screensaver"""
+        from .screensaver import ScreenSaver
+
+        screen_saver = ScreenSaver(self.ctx)
+        screen_saver.start()
 
     def run_loop(self, start_from_index=None):
         """Runs the menu loop until one of the menu items returns either a MENU_EXIT
@@ -585,7 +587,11 @@ class Menu:
                     return (self.menu_view.index(selected_item_index), status)
                 start_from_submenu = False
             else:
-                btn = self.ctx.input.wait_for_button(enable_screensaver=True)
+                btn = self.ctx.input.wait_for_button(
+                    # Block if screen saver not active
+                    block=Settings().appearance.screensaver_time == 0,
+                    wait_duration=Settings().appearance.screensaver_time * 60000,
+                )
                 if self.ctx.input.touch is not None:
                     if btn == BUTTON_TOUCH:
                         selected_item_index = self.ctx.input.touch.current_index()
@@ -614,6 +620,9 @@ class Menu:
                     self.menu_view.move_forward()
                 elif btn == SWIPE_DOWN:
                     self.menu_view.move_backward()
+                elif btn is None and not self.menu_offset:
+                    # Activates screensaver if there's no info_box(other things draw on the screen)
+                    self.screensaver()
 
     def _clicked_item(self, selected_item_index):
         if self.menu_view[selected_item_index][1] is None:
@@ -624,10 +633,6 @@ class Menu:
             if status != MENU_CONTINUE:
                 return status
         except Exception as e:
-            self.ctx.log.exception(
-                'Exception occurred in menu item "%s"'
-                % self.menu_view[selected_item_index][0]
-            )
             self.ctx.display.clear()
             self.ctx.display.draw_centered_text(
                 t("Error:\n%s") % repr(e), theme.error_color
@@ -637,9 +642,9 @@ class Menu:
 
     def draw_status_bar(self):
         """Draws a status bar along the top of the UI"""
-        self.draw_logging_indicator()
-        # self.draw_battery_indicator()
-        self.draw_network_indicator()
+        if self.menu_offset == 0:  # Only draws if menu is full screen
+            # self.draw_battery_indicator()  # Android custom
+            self.draw_network_indicator()
 
     #     self.draw_ram_indicator()
 
@@ -648,31 +653,13 @@ class Menu:
     #     ram_text = "RAM: " + str(gc.mem_free())
     #     self.ctx.display.draw_string(12, 0, ram_text, GREEN)
 
-    def draw_logging_indicator(self):
-        """Draws a square mark if logging is enabled"""
-        log_level = Settings().logging.level
-
-        if log_level == LoggingSettings.NONE_TXT:
-            return
-
-        color = RED  # ERROR
-        if log_level == LoggingSettings.WARN_TXT:
-            color = ORANGE
-        if log_level == LoggingSettings.INFO_TXT:
-            color = DARKGREEN
-        if log_level == LoggingSettings.DEBUG_TXT:
-            color = MAGENTA
-
-        # print the square at the top left
-        self.ctx.display.fill_rectangle(3, 3, 6, 6, color)
-
     def draw_battery_indicator(self):
         """Draws a battery icon with depletion proportional to battery voltage"""
         if not self.ctx.power_manager.has_battery():
             return
 
         charge = self.ctx.power_manager.battery_charge_remaining()
-        if self.ctx.power_manager.charging():
+        if self.ctx.power_manager.usb_connected():
             battery_color = theme.go_color
         else:
             if charge < 0.3:
@@ -725,7 +712,7 @@ class Menu:
         height_multiplier = (
             self.ctx.display.height() - 2 * DEFAULT_PADDING - self.menu_offset
         )
-        height_multiplier //= offset_y
+        height_multiplier //= max(offset_y, 1)
         Page.y_keypad_map = [
             n * height_multiplier + DEFAULT_PADDING + self.menu_offset
             for n in Page.y_keypad_map

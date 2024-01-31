@@ -1,6 +1,6 @@
 # The MIT License (MIT)
 
-# Copyright (c) 2021-2023 Krux contributors
+# Copyright (c) 2021-2024 Krux contributors
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -21,7 +21,7 @@
 # THE SOFTWARE.
 # pylint: disable=C2801
 
-from ..themes import theme, RED, GREEN, ORANGE, MAGENTA
+from ..themes import theme, GREEN, ORANGE
 from ..settings import (
     CategorySetting,
     NumberSetting,
@@ -32,7 +32,6 @@ from ..settings import (
 )
 from ..krux_settings import (
     Settings,
-    LoggingSettings,
     BitcoinSettings,
     TouchSettings,
     EncoderSettings,
@@ -44,7 +43,6 @@ from ..encryption import QR_CODE_ITER_MULTIPLE
 from . import (
     Page,
     Menu,
-    FLASH_MSG_TIME,
     MENU_CONTINUE,
     MENU_EXIT,
     MENU_SHUTDOWN,
@@ -55,14 +53,9 @@ import os
 
 DIGITS = "0123456789"
 
-WAIT_TO_CHECK_INPUT = 200
 SD_MSG_TIME = 2500
 
 CATEGORY_SETTING_COLOR_DICT = {
-    LoggingSettings.ERROR_TXT: RED,
-    LoggingSettings.WARN_TXT: ORANGE,
-    LoggingSettings.INFO_TXT: GREEN,
-    LoggingSettings.DEBUG_TXT: MAGENTA,
     BitcoinSettings.MAIN_TXT: ORANGE,
     BitcoinSettings.TEST_TXT: GREEN,
 }
@@ -80,12 +73,12 @@ class SettingsPage(Page):
         location = Settings().persist.location
         if location == SD_PATH:
             if self.has_sd_card():
-                self._display_centered_text(
+                self.flash_text(
                     t("Your changes will be kept on the SD card."),
                     duration=SD_MSG_TIME,
                 )
             else:
-                self._display_centered_text(
+                self.flash_text(
                     t("SD card not detected.")
                     + "\n\n"
                     + t("Changes will last until shutdown."),
@@ -95,12 +88,12 @@ class SettingsPage(Page):
             try:
                 # Check for flash
                 # os.listdir("/" + FLASH_PATH + "/.")  # Commented for Android
-                self._display_centered_text(
+                self.flash_text(
                     t("Your changes will be kept on device flash storage."),
                     duration=SD_MSG_TIME,
                 )
             except OSError:
-                self._display_centered_text(
+                self.flash_text(
                     t("Device flash storage not detected.")
                     + "\n\n"
                     + t("Changes will last until shutdown."),
@@ -108,19 +101,6 @@ class SettingsPage(Page):
                 )
 
         return self.namespace(Settings())()
-
-    def _display_centered_text(
-        self,
-        message,
-        duration=FLASH_MSG_TIME,
-        color=theme.fg_color,
-        bg_color=theme.bg_color,
-    ):
-        """Display a text for duration ms or until you press a button"""
-        self.ctx.display.clear()
-        self.ctx.display.draw_centered_text(message, color, bg_color)
-        self.ctx.input.wait_for_press(block=False, wait_duration=duration)
-        self.ctx.display.clear()
 
     def _draw_settings_pad(self):
         """Draws buttons to change settings with touch"""
@@ -197,12 +177,12 @@ class SettingsPage(Page):
                 # Check for SD hot-plug
                 with SDHandler():
                     if store.save_settings():
-                        self._display_centered_text(
+                        self.flash_text(
                             t("Changes persisted to SD card!"),
                             duration=SD_MSG_TIME,
                         )
             except OSError:
-                self._display_centered_text(
+                self.flash_text(
                     t("SD card not detected.")
                     + "\n\n"
                     + t("Changes will last until shutdown."),
@@ -212,12 +192,12 @@ class SettingsPage(Page):
             self.ctx.display.clear()
             try:
                 if store.save_settings():
-                    self._display_centered_text(
+                    self.flash_text(
                         t("Changes persisted to Flash!"),
                         duration=SD_MSG_TIME,
                     )
             except:
-                self._display_centered_text(
+                self.flash_text(
                     t("Unexpected error saving to Flash.")
                     + "\n\n"
                     + t("Changes will last until shutdown."),

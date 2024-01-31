@@ -1,6 +1,6 @@
 # The MIT License (MIT)
 
-# Copyright (c) 2021-2023 Krux contributors
+# Copyright (c) 2021-2024 Krux contributors
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -524,7 +524,7 @@ class Login(Page):
 
         def possible_letters(prefix):
             if len(prefix) == 0:
-                return LETTERS
+                return LETTERS.replace("x", "")
             letter = prefix[0]
             if letter not in search_ranges:
                 return ""
