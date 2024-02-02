@@ -238,7 +238,7 @@ class AndroidStore:
     
     def set(self, namespace, setting_name, setting_value):
         """Stores a setting value under the given namespace"""
-        self.settings[namespace] = {setting_name : setting_value}
+        self.set_value(namespace, setting_name, setting_value)
 
     def set_value(self,namespace, setting_name, setting_value):
         self.settings[namespace][setting_name] = setting_value
