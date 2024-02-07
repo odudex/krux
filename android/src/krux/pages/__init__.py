@@ -128,7 +128,6 @@ class Page:
                 offset_y += self.ctx.display.font_height * 3 // 2
             self.ctx.display.draw_hcentered_text(buffer, offset_y)
 
-            # offset_y = pad.keypad_offset()  # Dead code?
             if progress_bar_fn:
                 progress_bar_fn()
             possible_keys = pad.keys
@@ -412,11 +411,11 @@ class Page:
                     )
             elif self.ctx.input.touch is not None:
                 for region in self.x_keypad_map:
-                    self.ctx.display.fill_rectangle(
+                    self.ctx.display.draw_line(
                         region,
                         self.y_keypad_map[0],
-                        1,
-                        2 * self.ctx.display.font_height,
+                        region,
+                        self.y_keypad_map[0] + 2 * self.ctx.display.font_height,
                         theme.frame_color,
                     )
             btn = self.ctx.input.wait_for_button()
@@ -426,7 +425,7 @@ class Page:
                 self.ctx.display.fill_rectangle(
                     0,
                     offset_y - self.ctx.display.font_height,
-                    self.ctx.display.width() + 1,
+                    self.ctx.display.width(),
                     3 * self.ctx.display.font_height,
                     theme.bg_color,
                 )
@@ -620,7 +619,7 @@ class Menu:
                     self.menu_view.move_forward()
                 elif btn == SWIPE_DOWN:
                     self.menu_view.move_backward()
-                elif btn is None and not self.menu_offset:
+                elif btn is None and not self.menu_offset and board.config["type"] != "android":
                     # Activates screensaver if there's no info_box(other things draw on the screen)
                     self.screensaver()
 
@@ -722,8 +721,8 @@ class Menu:
         # draw dividers and outline
         for i, y in enumerate(Page.y_keypad_map[:-1]):
             if i and not self.ctx.input.buttons_active:
-                self.ctx.display.fill_rectangle(
-                    0, y, self.ctx.display.width(), 1, theme.frame_color
+                self.ctx.display.draw_line(
+                    0, y, self.ctx.display.width(), y, theme.frame_color
                 )
 
         # draw centralized strings in regions

@@ -80,11 +80,14 @@ class Setting:
     def __set__(self, obj, value):
         if self.attr == "location":
             store.update_file_location(value)
-            # Custom for Android
-        if value == self.default_value and board.config["type"] != "android":
+        # Custom for Android
+        if board.config["type"] == "android":
+            try:
+                store.set_value(obj.namespace, self.attr, value) # Will edit json key
+            except:
+                store.set(obj.namespace, self.attr, value)  # Will create json key
+        elif value == self.default_value:
             store.delete(obj.namespace, self.attr)  # do not store defaults
-        else:
-            store.set(obj.namespace, self.attr, value)  # do store custom settings
 
 
 class CategorySetting(Setting):
@@ -118,7 +121,6 @@ class Store:
                 self.settings = json.loads(f.read())
         except:
             pass
-
         self.file_location = (
             self.settings.get("settings", {})
             .get("persist", {})
@@ -238,9 +240,15 @@ class AndroidStore:
     
     def set(self, namespace, setting_name, setting_value):
         """Stores a setting value under the given namespace"""
-        self.set_value(namespace, setting_name, setting_value)
+        print("Setting", namespace, setting_name, setting_value)
+        # print(self.settings[namespace])
+        self.settings[namespace] = {setting_name : setting_value}
 
     def set_value(self,namespace, setting_name, setting_value):
+        """
+        Stores a setting value under the given namespace,
+        creating the namespace if it doesn't exist
+        """
         self.settings[namespace][setting_name] = setting_value
         # This weird line below will save to the file
         self.settings[namespace] = self.settings[namespace]

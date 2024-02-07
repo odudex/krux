@@ -25,14 +25,15 @@ from src.krux.pages.home import Home
 
 Builder.load_string("""
 <RootWidget>:
-    but_1: but_1
     label_1: label_1
+    but_1: but_1
 
     Label:
         id: label_1
         font_size: root.height // 30
         font_name: 'JetBrainsMono-Medium.ttf'
-        size_hint_y: 1
+        size_hint: 1, 0.8
+        pos_hint: {'top': 1}
         text_size: self.width, None
         height: self.texture_size[1]
         text: 'Krux Android app is intended for learning about Krux and Bitcoin air-gapped transactions.\\nDue to many possible vulnerabilities inherent in phones such as the lack of control of the OS, libraries and hardware peripherals, Krux app should NOT be used to manage wallets containing savings or important keys and mnemonics. For that, a dedicated device is recommended.'
@@ -46,7 +47,8 @@ Builder.load_string("""
         color: 0, 1, 0, 1
         halign: 'center'
         text: '| Start Krux |'
-        size_hint: 1, 0.3
+        size_hint: 1, 0.2
+        pos_hint: {'y': 0}
         on_release: root.start_thread()  
 """)
 

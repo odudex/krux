@@ -24,7 +24,7 @@ import time
 import math
 
 from kivy.uix.widget import Widget
-from kivy.graphics import Color, Rectangle
+from kivy.graphics import Color, Rectangle, RoundedRectangle, Line
 from kivy.graphics.texture import Texture
 from kivy.uix.label import CoreLabel
 from kivy.core.window import Window
@@ -86,11 +86,33 @@ class LCD(Widget):
             self.canvas.add(Rectangle(size=text.size, pos=(x,y), texture=text))
 
     @mainthread
-    def fill_rectangle(self, x, y, w, h, color=COLOR_WHITE):
+    def draw_line(self, x1, y1, x2, y2, color=COLOR_WHITE):
+        color = self.rgb565torgb111(color)
+        y1 = self._height() - y1
+        y2 = self._height() - y2
+        x1 += 1
+        x2 += 1
+        self.canvas.add(Color(color[0], color[1], color[2], color[3]))
+        self.canvas.add(Line(points=(x1, y1, x2, y2), width=1))
+        self.canvas.add(Color(1,1,1))
+
+    @mainthread
+    def draw_outline(self, x, y, w, h, color=COLOR_WHITE, radius=0):
         color = self.rgb565torgb111(color)
         y = self._height() - y - h
         self.canvas.add(Color(color[0], color[1], color[2], color[3]))
-        self.canvas.add(Rectangle(pos=(x, y), size=(w, h)))
+        self.canvas.add(Line(rectangle=(x, y, w, h)))
+        self.canvas.add(Color(1,1,1)) #come back to default white
+
+    @mainthread
+    def fill_rectangle(self, x, y, w, h, color=COLOR_WHITE, radius=0):
+        color = self.rgb565torgb111(color)
+        y = self._height() - y - h
+        self.canvas.add(Color(color[0], color[1], color[2], color[3]))
+        if radius == 0:
+            self.canvas.add(Rectangle(pos=(x, y), size=(w, h)))
+        else:
+            self.canvas.add(RoundedRectangle(pos=(x, y), size=(w, h), radius=[radius]))
         self.canvas.add(Color(1,1,1)) #come back to default white
     
     @mainthread
