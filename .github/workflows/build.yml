@@ -40,7 +40,7 @@ jobs:
           context: .
           build-args: DEVICE=maixpy_m5stickv
           push: true
-          tags: localhost:5000/selfcustody/krux-builder-m5stickv:latest
+          tags: localhost:5000/selfcustody/krux-builder:latest
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
 
@@ -48,7 +48,7 @@ jobs:
         id: extract-m5stickv
         uses: shrink/actions-docker-extract@v3
         with:
-          image: localhost:5000/selfcustody/krux-builder-m5stickv:latest
+          image: localhost:5000/selfcustody/krux-builder:latest
           path: /src/firmware/Kboot/build/.
 
       - name: Upload firmware for M5StickV
@@ -63,7 +63,7 @@ jobs:
           context: .
           build-args: DEVICE=maixpy_amigo
           push: true
-          tags: localhost:5000/selfcustody/krux-builder-amigo:latest
+          tags: localhost:5000/selfcustody/krux-builder:latest
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
       
@@ -71,7 +71,7 @@ jobs:
         id: extract-amigo
         uses: shrink/actions-docker-extract@v3
         with:
-          image: localhost:5000/selfcustody/krux-builder-amigo:latest
+          image: localhost:5000/selfcustody/krux-builder:latest
           path: /src/firmware/Kboot/build/.
       
       - name: Upload firmware for Amigo
@@ -86,7 +86,7 @@ jobs:
           context: .
           build-args: DEVICE=maixpy_bit
           push: true
-          tags: localhost:5000/selfcustody/krux-builder-bit:latest
+          tags: localhost:5000/selfcustody/krux-builder:latest
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
 
@@ -94,7 +94,7 @@ jobs:
         id: extract-bit
         uses: shrink/actions-docker-extract@v3
         with:
-          image: localhost:5000/selfcustody/krux-builder-bit:latest
+          image: localhost:5000/selfcustody/krux-builder:latest
           path: /src/firmware/Kboot/build/.
 
       - name: Upload firmware for Bit
@@ -109,7 +109,7 @@ jobs:
           context: .
           build-args: DEVICE=maixpy_dock
           push: true
-          tags: localhost:5000/selfcustody/krux-builder-dock:latest
+          tags: localhost:5000/selfcustody/krux-builder:latest
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
       
@@ -117,7 +117,7 @@ jobs:
         id: extract-dock
         uses: shrink/actions-docker-extract@v3
         with:
-          image: localhost:5000/selfcustody/krux-builder-dock:latest
+          image: localhost:5000/selfcustody/krux-builder:latest
           path: /src/firmware/Kboot/build/.
       
       - name: Upload firmware for Dock
@@ -132,7 +132,7 @@ jobs:
           context: .
           build-args: DEVICE=maixpy_yahboom
           push: true
-          tags: localhost:5000/selfcustody/krux-builder-yahboom:latest
+          tags: localhost:5000/selfcustody/krux-builder:latest
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
       
@@ -140,7 +140,7 @@ jobs:
         id: extract-yahboom
         uses: shrink/actions-docker-extract@v3
         with:
-          image: localhost:5000/selfcustody/krux-builder-yahboom:latest
+          image: localhost:5000/selfcustody/krux-builder:latest
           path: /src/firmware/Kboot/build/.
       
       - name: Upload firmware for Yahboom
