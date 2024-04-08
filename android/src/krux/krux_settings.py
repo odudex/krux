@@ -69,19 +69,21 @@ def t(slug):
     return lookup[slug_id]
 
 
-class BitcoinSettings(SettingsNamespace):
+class DefaultWallet(SettingsNamespace):
     """Bitcoin-specific settings"""
 
     MAIN_TXT = "main"
     TEST_TXT = "test"
 
-    namespace = "settings.bitcoin"
+    namespace = "settings.wallet"
     network = CategorySetting("network", MAIN_TXT, [MAIN_TXT, TEST_TXT])
+    multisig = CategorySetting("multisig", False, [False, True])
 
     def label(self, attr):
         """Returns a label for UI when given a setting name or namespace"""
         return {
             "network": t("Network"),
+            "multisig": t("Multisig"),
         }[attr]
 
 
@@ -112,7 +114,7 @@ class ThermalSettings(SettingsNamespace):
     def label(self, attr):
         """Returns a label for UI when given a setting name or namespace"""
         return {
-            "adafruit": t("Adafruit"),
+            "adafruit": "Adafruit",
         }[attr]
 
 
@@ -170,7 +172,7 @@ class CNCSettings(SettingsNamespace):
             "depth_per_pass": t("Depth Per Pass"),
             "part_size": t("Part Size"),
             "border_padding": t("Border Padding"),
-            "grbl": t("GRBL"),
+            "grbl": "GRBL",
         }[attr]
 
 
@@ -216,16 +218,17 @@ class PrinterSettings(SettingsNamespace):
         }[attr]
 
 
-class EncoderSettings(SettingsNamespace):
-    """Encoder debounce settings"""
+class ButtonsSettings(SettingsNamespace):
+    """Buttons debounce settings"""
 
-    namespace = "settings.encoder"
-    debounce = NumberSetting(int, "debounce", 100, [100, 250])
+    namespace = "settings.buttons"
+    debounce_value = 300 if board.config["type"] == "cube" else 100
+    debounce = NumberSetting(int, "debounce", debounce_value, [100, 500])
 
     def label(self, attr):
         """Returns a label for UI when given a setting name or namespace"""
         return {
-            "debounce": t("Encoder Debounce"),
+            "debounce": t("Buttons Debounce"),
         }[attr]
 
 
@@ -249,6 +252,7 @@ class AmgDisplaySettings(SettingsNamespace):
     flipped_x_coordinates = CategorySetting("flipped_x", True, [False, True])
     inverted_colors = CategorySetting("inverted_colors", True, [False, True])
     bgr_colors = CategorySetting("bgr_colors", True, [False, True])
+    lcd_type = CategorySetting("lcd_type", 0, [0, 1])
 
     def label(self, attr):
         """Returns a label for UI when given a setting name or namespace"""
@@ -256,6 +260,7 @@ class AmgDisplaySettings(SettingsNamespace):
             "flipped_x": t("Flipped X Coordinates"),
             "inverted_colors": t("Inverted Colors"),
             "bgr_colors": t("BGR Colors"),
+            "lcd_type": t("LCD Type"),
         }[attr]
 
 
@@ -266,15 +271,11 @@ class HardwareSettings(SettingsNamespace):
 
     def __init__(self):
         self.printer = PrinterSettings()
-        if (
-            board.config["type"].startswith("amigo")
-            or board.config["type"] == "yahboom"
-        ):
+        self.buttons = ButtonsSettings()
+        if board.config["type"] == "amigo" or board.config["type"] == "yahboom":
             self.touch = TouchSettings()
-        if board.config["type"].startswith("amigo"):
+        if board.config["type"] == "amigo":
             self.display = AmgDisplaySettings()
-        if board.config["type"] == "dock":
-            self.encoder = EncoderSettings()
 
     def label(self, attr):
         """Returns a label for UI when given a setting name or namespace"""
@@ -282,15 +283,11 @@ class HardwareSettings(SettingsNamespace):
         hardware_menu = {
             "printer": t("Printer"),
         }
-        if (
-            board.config["type"].startswith("amigo")
-            or board.config["type"] == "yahboom"
-        ):
+        hardware_menu["buttons"] = t("Buttons")
+        if board.config["type"] == "amigo" or board.config["type"] == "yahboom":
             hardware_menu["touchscreen"] = t("Touchscreen")
-        if board.config["type"].startswith("amigo"):
+        if board.config["type"] == "amigo":
             hardware_menu["amg_display"] = t("Display")
-        if board.config["type"] == "dock":
-            hardware_menu["encoder"] = t("Encoder")
 
         return hardware_menu[attr]
 
@@ -357,7 +354,22 @@ class ThemeSettings(SettingsNamespace):
         """Returns a label for UI when given a setting name or namespace"""
         return {
             "theme": t("Theme"),
-            "screensaver_time": t("Screensaver (Disabled)"),
+            "screensaver_time": t("Screensaver Time"),
+        }[attr]
+
+
+class SecuritySettings(SettingsNamespace):
+    """Security settings"""
+
+    namespace = "settings.security"
+    auto_shutdown = NumberSetting(int, "auto_shutdown", 10, [0, 60])
+    hide_mnemonic = CategorySetting("hide_mnemonic", False, [False, True])
+
+    def label(self, attr):
+        """Returns a label for UI when given a setting name or namespace"""
+        return {
+            "auto_shutdown": t("Shutdown Time"),
+            "hide_mnemonic": t("Hide Mnemonics"),
         }[attr]
 
 
@@ -367,7 +379,8 @@ class Settings(SettingsNamespace):
     namespace = "settings"
 
     def __init__(self):
-        self.bitcoin = BitcoinSettings()
+        self.wallet = DefaultWallet()
+        self.security = SecuritySettings()
         self.hardware = HardwareSettings()
         self.i18n = I18nSettings()
         self.encryption = EncryptionSettings()
@@ -377,11 +390,12 @@ class Settings(SettingsNamespace):
     def label(self, attr):
         """Returns a label for UI when given a setting name or namespace"""
         main_menu = {
-            "bitcoin": t("Bitcoin"),
-            #"hardware": t("Hardware"),
+            "wallet": t("Default Wallet"),
+            "security": t("Security"),
+            "hardware": t("Hardware"),
             "i18n": t("Language"),
             "encryption": t("Encryption"),
-            #"persist": t("Persist"),
+            "persist": t("Persist"),
             "appearance": t("Appearance"),
         }
 

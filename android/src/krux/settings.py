@@ -121,6 +121,7 @@ class Store:
                 self.settings = json.loads(f.read())
         except:
             pass
+
         self.file_location = (
             self.settings.get("settings", {})
             .get("persist", {})
@@ -208,12 +209,13 @@ class Store:
         if self.dirty:
             settings_filename = self.file_location + SETTINGS_FILENAME
             new_contents = json.dumps(self.settings)
+            old_contents = "{}"
             try:
                 with open(settings_filename, "r") as f:
                     old_contents = f.read()
             except:
-                old_contents = None
-
+                pass
+            # Compare old and new file contents, if different, write new content
             if new_contents != old_contents:
                 try:
                     with open(settings_filename, "w") as f:

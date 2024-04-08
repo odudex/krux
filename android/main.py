@@ -21,7 +21,7 @@ from  mocks.ft6x36 import touch_control
 from src.krux.power import power_manager
 from src.krux.context import Context
 from src.krux.pages.login import Login
-from src.krux.pages.home import Home
+from src.krux.pages.home_pages.home import Home
 
 Builder.load_string("""
 <RootWidget>:

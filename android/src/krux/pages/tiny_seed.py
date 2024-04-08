@@ -1,3 +1,25 @@
+# The MIT License (MIT)
+
+# Copyright (c) 2021-2024 Krux contributors
+
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+
 import hashlib
 import board
 import lcd
@@ -9,7 +31,7 @@ from . import Page, FLASH_MSG_TIME
 from ..themes import theme
 from ..wdt import wdt
 from ..krux_settings import t
-from ..display import DEFAULT_PADDING
+from ..display import DEFAULT_PADDING, MINIMAL_DISPLAY, FONT_HEIGHT, FONT_WIDTH
 from ..camera import OV7740_ID, OV2640_ID, OV5642_ID
 from ..input import BUTTON_ENTER, BUTTON_PAGE, BUTTON_PAGE_PREV, BUTTON_TOUCH
 
@@ -29,18 +51,18 @@ class TinySeed(Page):
     def __init__(self, ctx):
         super().__init__(ctx, None)
         self.ctx = ctx
-        self.x_offset = DEFAULT_PADDING // 2 + 2 * self.ctx.display.font_width
+        self.x_offset = DEFAULT_PADDING // 2 + 2 * FONT_WIDTH
         self.printer = None
-        # case for non m5stickv
-        if self.ctx.display.width() > 135:
-            self.y_offset = DEFAULT_PADDING + 3 * self.ctx.display.font_height
+        if self.ctx.display.width() > 140:
             self.x_pad = self.ctx.display.width() * 2 // 27
             self.y_pad = self.ctx.display.height() // 17
         else:
-            # case for m5stickv
-            self.y_offset = 2 * self.ctx.display.font_height
-            self.x_pad = self.ctx.display.font_width + 1
-            self.y_pad = self.ctx.display.font_height
+            self.x_pad = FONT_WIDTH + 1
+            self.y_pad = FONT_HEIGHT
+        if self.ctx.display.height() > 240:
+            self.y_offset = DEFAULT_PADDING + 3 * FONT_HEIGHT
+        else:
+            self.y_offset = 2 * FONT_HEIGHT
 
     def _draw_grid(self):
         """Draws grid for import and export Tinyseed UI"""
@@ -66,17 +88,16 @@ class TinySeed(Page):
 
     def _draw_labels(self, page):
         """Draws labels for import and export Tinyseed UI"""
-        self.ctx.display.draw_hcentered_text(t("Tiny Seed"))
+        self.ctx.display.draw_hcentered_text("Tiny Seed")
 
-        # case for non m5stickv
-        if self.ctx.display.width() > 135:
+        # case for non m5stickv, cube
+        if not MINIMAL_DISPLAY:
             self.ctx.display.to_landscape()
             bit_number = 2048
-            bit_offset = DEFAULT_PADDING // 2 + 2 * self.ctx.display.font_height
+            bit_offset = DEFAULT_PADDING // 2 + 2 * FONT_HEIGHT
             for _ in range(12):
                 lcd.draw_string(
-                    (7 - len(str(bit_number))) * self.ctx.display.font_width
-                    - DEFAULT_PADDING // 2,
+                    (7 - len(str(bit_number))) * FONT_WIDTH - DEFAULT_PADDING // 2,
                     self.ctx.display.width() - bit_offset,
                     str(bit_number),
                     theme.fg_color,
@@ -86,7 +107,7 @@ class TinySeed(Page):
                 bit_offset += self.x_pad
             self.ctx.display.to_portrait()
         y_offset = self.y_offset
-        y_offset += (self.y_pad - self.ctx.display.font_height) // 2
+        y_offset += (self.y_pad - FONT_HEIGHT) // 2
         for x in range(12):
             line = str(page * 12 + x + 1)
             if (page * 12 + x + 1) < 10:
@@ -97,7 +118,12 @@ class TinySeed(Page):
     def _draw_punched(self, words, page):
         """Draws punched bits for import and export Tinyseed UI"""
         y_offset = self.y_offset
-        radius = (self.x_pad - 5) // 3
+        if self.x_pad < self.y_pad:
+            radius = (self.x_pad - 5) // 3
+        else:
+            radius = (self.y_pad - 5) // 3
+        if radius < 4:
+            radius = 0  # Don't round corners if too small
         for x in range(12):
             if isinstance(words[0], str):
                 word_list_index = WORDLIST.index(words[page * 12 + x]) + 1
@@ -144,7 +170,7 @@ class TinySeed(Page):
         pad_y = 8  # 2mm*8px
         self.ctx.display.clear()
         self.ctx.display.draw_hcentered_text(
-            t("Printing ..."), self.ctx.display.height() // 2
+            t("Printing") + " ...", self.ctx.display.height() // 2
         )
         self.printer.print_string("Tiny Seed\n\n")
         for page in range(len(words) // 12):
@@ -179,8 +205,8 @@ class TinySeed(Page):
 
             # labels
             y_offset = grid_y_offset
-            if self.ctx.display.font_height > pad_y:
-                y_offset -= (self.ctx.display.font_height - pad_y) // 2 + 1
+            if FONT_HEIGHT > pad_y:
+                y_offset -= (FONT_HEIGHT - pad_y) // 2 + 1
 
             # grid
             y_offset = grid_y_offset
@@ -249,25 +275,22 @@ class TinySeed(Page):
         """Outline index postition"""
         width = 6 * self.x_pad - 2
         height = self.y_pad - 2
+        y_position = index // 12
+        y_position *= self.y_pad
+        y_position += self.y_offset + 1
+        if index >= TS_ESC_START_POSITION:
+            y_position -= 3 * self.y_pad // 4
+            height = 2 * self.y_pad - self.y_pad // 4 - 2
 
         if index > TS_ESC_END_POSITION:
             x_position = self.x_offset + 6 * self.x_pad + 1
-            # case for m5stickv
-            if self.ctx.display.width() == 135:
-                height = self.y_pad
         elif index >= TS_ESC_START_POSITION:
             x_position = self.x_offset + 1
-            # case for m5stickv
-            if self.ctx.display.width() == 135:
-                height = self.y_pad
         else:
             x_position = index % 12
             x_position *= self.x_pad
             x_position += self.x_offset + 1
             width = self.x_pad - 2
-        y_position = index // 12
-        y_position *= self.y_pad
-        y_position += self.y_offset + 1
         self.ctx.display.outline(
             x_position,
             y_position,
@@ -283,15 +306,15 @@ class TinySeed(Page):
             y_pad = self.ctx.input.touch.y_regions[14] - y_offset
         else:
             y_offset = self.y_offset + 13 * self.y_pad
-            y_pad = self.y_pad
+            y_pad = self.y_pad // 3
         x_offset = self.x_offset
         esc_x_offset = round(x_offset + 1.9 * self.x_pad)
 
-        # case for non m5stickv
-        if self.ctx.display.width() > 135:
+        # case for non m5stickv, cube
+        if not MINIMAL_DISPLAY:
             esc_x_offset = round(x_offset + 2.3 * self.x_pad)
 
-        text_offset = y_offset + y_pad // 2 - self.ctx.display.font_height // 2
+        text_offset = y_offset + y_pad // 2 - FONT_HEIGHT // 2
         self.ctx.display.draw_string(
             esc_x_offset, text_offset, t("Esc"), theme.no_esc_color
         )
@@ -566,7 +589,7 @@ class TinyScanner(Page):
         self.x_regions = []
         self.y_regions = []
         if not page:
-            if board.config["type"].startswith("amigo"):
+            if board.config["type"] == "amigo":
                 # Amigo has mirrored coordinates
                 x_offset = rect_size[0] + (rect_size[2] * 39) / 345
                 y_offset = rect_size[1] + (rect_size[3] * 44) / 272
@@ -574,7 +597,7 @@ class TinyScanner(Page):
                 x_offset = rect_size[0] + (rect_size[2] * 65) / 345
                 y_offset = rect_size[1] + (rect_size[3] * 17) / 272
         else:
-            if board.config["type"].startswith("amigo"):
+            if board.config["type"] == "amigo":
                 x_offset = rect_size[0] + (rect_size[2] * 42) / 345
                 y_offset = rect_size[1] + (rect_size[3] * 41) / 272
             else:
@@ -602,7 +625,7 @@ class TinyScanner(Page):
 
         # Regions: Upper left, upper right, lower left and lower right
         # are corner fractions of main TinySeed rectangle
-        if not board.config["type"].startswith("amigo"):
+        if not board.config["type"] == "amigo":
             region_ul = (
                 rect[0] + rect[2] // 8,
                 rect[1] + rect[3] // 30,
@@ -805,7 +828,7 @@ class TinyScanner(Page):
             return page_seed_numbers
         y_map = self.y_regions[0:-1]
         x_map = self.x_regions[0:-1]
-        if board.config["type"].startswith("amigo"):
+        if board.config["type"] == "amigo":
             x_map.reverse()
         else:
             y_map.reverse()
@@ -919,6 +942,9 @@ class TinyScanner(Page):
 
     def _process_24w_pg0_scan(self, page_seed_numbers):
         if page_seed_numbers == self.previous_seed_numbers and self.capturing:
+            # Flush events ocurred while processing
+            self.ctx.input.reset_ios_state()
+
             self._exit_camera()
             self.ctx.display.draw_centered_text(
                 t("Review scanned data, edit if necessary")
@@ -963,7 +989,8 @@ class TinyScanner(Page):
         if precamera_ticks + FLASH_MSG_TIME > postcamera_ticks:
             time.sleep_ms(precamera_ticks + FLASH_MSG_TIME - postcamera_ticks)
         del message, precamera_ticks, postcamera_ticks
-        self.ctx.input.flush_events()
+        # Flush events ocurred while starting
+        self.ctx.input.reset_ios_state()
         # # Debug FPS 1/4
         # clock = time.clock()
         # fps = 0
@@ -988,7 +1015,10 @@ class TinyScanner(Page):
             if full_screen:
                 lcd.display(img)
             else:
-                lcd.display(img, oft=(2, 40))  # Centralize image in Amigo
+                # Centralize image on top Amigo's screen
+                # Offset x = 480 - 320 - 2 = 158 if not flipped
+                oft_x = 2 if self.ctx.display.flipped_x_coordinates else 158
+                lcd.display(img, oft=(oft_x, 40))
 
             if page_seed_numbers:
                 if w24:

@@ -47,18 +47,14 @@ class PowerManager:
 
     def has_battery(self):
         """Returns if the device has a battery"""
-        try:
-            assert int(self.pmu.get_battery_voltage()) > 1000  # Android custom
-        except:
-            return False
-        return True
-
+        return False  # Android custom
+        
     def battery_charge_remaining(self):
         """Returns the state of charge of the device's battery"""
         mv = int(self.pmu.get_battery_voltage())
-        if board.config["type"].startswith("amigo"):
+        if board.config["type"] == "amigo":
             charge = max(0, (mv - 3394.102415024943) / 416.73204356)
-        elif board.config["type"] == "m5stickv":
+        elif board.config["type"] in ("m5stickv", "cube"):
             charge = max(0, (mv - 3131.427782118631) / 790.56172897)
         else:
             charge = max(0, ((mv - MIN_BATTERY_MV) / (MAX_BATTERY_MV - MIN_BATTERY_MV)))
@@ -68,7 +64,7 @@ class PowerManager:
             charge -= 0.35  # compensates for the batt voltage raise when charging
             # limits in 90% when still charging to let user know it's not fully charged
             charge = min(0.9, charge)
-
+        charge = max(0, charge)  # Avoid negative values
         return min(1, charge)
 
     def usb_connected(self):

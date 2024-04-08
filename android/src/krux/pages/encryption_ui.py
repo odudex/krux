@@ -20,8 +20,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+from ..display import BOTTOM_PROMPT_LINE
 from ..krux_settings import t, Settings, AES_BLOCK_SIZE
-from ..themes import theme
 from . import (
     Page,
     Menu,
@@ -59,7 +59,7 @@ class EncryptionKey(Page):
 
         if key:
             self.ctx.display.clear()
-            continue_string = t("Key: ") + key + "\n\n"
+            continue_string = t("Key") + ": " + key + "\n\n"
             continue_string += t("Continue?")
             if self.prompt(
                 continue_string,
@@ -78,13 +78,10 @@ class EncryptionKey(Page):
         """Loads and returns a key from a QR code"""
         data, _ = self.capture_qr_code()
         if data is None:
-            self.flash_text(t("Failed to load key"), theme.error_color)
+            self.flash_error(t("Failed to load key"))
             return None
         if len(data) > ENCRYPTION_KEY_MAX_LEN:
-            self.flash_text(
-                t("Maximum length exceeded (%s)") % ENCRYPTION_KEY_MAX_LEN,
-                theme.error_color,
-            )
+            self.flash_error(t("Maximum length exceeded (%s)") % ENCRYPTION_KEY_MAX_LEN)
             return None
         return data
 
@@ -99,16 +96,16 @@ class EncryptMnemonic(Page):
     def encrypt_menu(self):
         """Menu with mnemonic encryption output options"""
 
-        def _sd_store_function():
-            return self.store_mnemonic_on_memory(sd_card=True)
-
-        if self.has_sd_card():
-            sd_store_func = _sd_store_function
-        else:
-            sd_store_func = None
         encrypt_outputs_menu = [
             (t("Store on Flash"), self.store_mnemonic_on_memory),
-            (t("Store on SD Card"), sd_store_func),
+            (
+                t("Store on SD Card"),
+                (
+                    None
+                    if not self.has_sd_card()
+                    else lambda: self.store_mnemonic_on_memory(True)
+                ),
+            ),
             (t("Encrypted QR Code"), self.encrypted_qr_code),
             (t("Back"), lambda: MENU_EXIT),
         ]
@@ -116,15 +113,14 @@ class EncryptMnemonic(Page):
         _, _ = submenu.run_loop()
         return MENU_CONTINUE
 
-    def store_mnemonic_on_memory(self, sd_card=False):
-        """Save encrypted mnemonic on flash or sd_card"""
-        from ..encryption import MnemonicStorage
+    def _get_user_inputs(self):
+        """Ask user for the key, mnemonic_id and i_vector"""
 
         key_capture = EncryptionKey(self.ctx)
         key = key_capture.encryption_key()
         if key is None:
             self.flash_text(t("Mnemonic was not encrypted"))
-            return
+            return None
 
         version = Settings().encryption.version
         i_vector = None
@@ -133,19 +129,20 @@ class EncryptMnemonic(Page):
             self.ctx.display.draw_centered_text(
                 t("Additional entropy from camera required for AES-CBC mode")
             )
-            if not self.prompt(t("Proceed?"), self.ctx.display.bottom_prompt_line):
-                return
+            if not self.prompt(t("Proceed?"), BOTTOM_PROMPT_LINE):
+                self.flash_text(t("Mnemonic was not encrypted"))
+                return None
             from .capture_entropy import CameraEntropy
 
             camera_entropy = CameraEntropy(self.ctx)
             entropy = camera_entropy.capture(show_entropy_details=False)
             if entropy is None:
                 self.flash_text(t("Mnemonic was not encrypted"))
-                return
+                return None
             i_vector = entropy[:AES_BLOCK_SIZE]
-        self.ctx.display.clear()
-        mnemonic_storage = MnemonicStorage()
+
         mnemonic_id = None
+        self.ctx.display.clear()
         if self.prompt(
             t(
                 "Give this mnemonic a custom ID? Otherwise current fingerprint will be used"
@@ -158,19 +155,34 @@ class EncryptMnemonic(Page):
             )
         if mnemonic_id in (None, ESC_KEY):
             mnemonic_id = self.ctx.wallet.key.fingerprint_hex_str()
+
+        return (key, mnemonic_id, i_vector)
+
+    def store_mnemonic_on_memory(self, sd_card=False):
+        """Save encrypted mnemonic on flash or sd_card"""
+
+        user_inputs = self._get_user_inputs()
+        if user_inputs is None:
+            return
+        key, mnemonic_id, i_vector = user_inputs
+
+        from ..encryption import MnemonicStorage
+
+        mnemonic_storage = MnemonicStorage()
         if mnemonic_id in mnemonic_storage.list_mnemonics(sd_card):
             self.flash_text(
-                t("ID already exists\n") + t("Encrypted mnemonic was not stored")
+                t("ID already exists") + "\n" + t("Encrypted mnemonic was not stored")
             )
             del mnemonic_storage
             return
-        words = self.ctx.wallet.key.mnemonic
+
         self.ctx.display.clear()
         self.ctx.display.draw_centered_text(t("Processing ..."))
+        words = self.ctx.wallet.key.mnemonic
         if mnemonic_storage.store_encrypted(key, mnemonic_id, words, sd_card, i_vector):
             self.ctx.display.clear()
             self.ctx.display.draw_centered_text(
-                t("Encrypted mnemonic was stored with ID: ") + mnemonic_id
+                t("Encrypted mnemonic was stored with ID:") + " " + mnemonic_id
             )
         else:
             self.ctx.display.clear()
@@ -181,51 +193,18 @@ class EncryptMnemonic(Page):
     def encrypted_qr_code(self):
         """Exports an encryprted mnemonic QR code"""
 
-        key_capture = EncryptionKey(self.ctx)
-        key = key_capture.encryption_key()
-        if key is None:
-            self.flash_text(t("Mnemonic was not encrypted"))
+        user_inputs = self._get_user_inputs()
+        if user_inputs is None:
             return
-        version = Settings().encryption.version
-        i_vector = None
-        if version == "AES-CBC":
-            self.ctx.display.clear()
-            self.ctx.display.draw_centered_text(
-                t("Additional entropy from camera required for AES-CBC mode")
-            )
-            if not self.prompt(t("Proceed?"), self.ctx.display.bottom_prompt_line):
-                self.flash_text(t("Mnemonic was not encrypted"))
-                return
-            from .capture_entropy import CameraEntropy
+        key, mnemonic_id, i_vector = user_inputs
 
-            camera_entropy = CameraEntropy(self.ctx)
-            entropy = camera_entropy.capture(show_entropy_details=False)
-            if entropy is None:
-                self.flash_text(t("Mnemonic was not encrypted"))
-                return
-            i_vector = entropy[:AES_BLOCK_SIZE]
-        mnemonic_id = None
-        self.ctx.display.clear()
-        if self.prompt(
-            t(
-                "Give this mnemonic a custom ID? Otherwise current fingerprint will be used"
-            ),
-            self.ctx.display.height() // 2,
-        ):
-            mnemonic_id = self.capture_from_keypad(
-                t("Mnemonic Storage ID"),
-                [LETTERS, UPPERCASE_LETTERS, NUM_SPECIAL_1],
-            )
-        if mnemonic_id in (None, ESC_KEY):
-            mnemonic_id = self.ctx.wallet.key.fingerprint_hex_str()
-
-        words = self.ctx.wallet.key.mnemonic
         self.ctx.display.clear()
         self.ctx.display.draw_centered_text(t("Processing ..."))
 
         from ..encryption import EncryptedQRCode
 
         encrypted_qr = EncryptedQRCode()
+        words = self.ctx.wallet.key.mnemonic
         qr_data = encrypted_qr.create(key, mnemonic_id, words, i_vector)
         del encrypted_qr
 
@@ -242,13 +221,12 @@ class LoadEncryptedMnemonic(Page):
         super().__init__(ctx, None)
         self.ctx = ctx
 
-    def load_from_storage(self, delete_opt=False):
+    def load_from_storage(self, remove_opt=False):
         """Lists all encrypted mnemonics stored is flash and SD card"""
         from ..encryption import MnemonicStorage
 
         mnemonic_ids_menu = []
         mnemonic_storage = MnemonicStorage()
-        has_sd = mnemonic_storage.has_sd_card
         mnemonics = mnemonic_storage.list_mnemonics()
         sd_mnemonics = mnemonic_storage.list_mnemonics(sd_card=True)
         del mnemonic_storage
@@ -257,23 +235,24 @@ class LoadEncryptedMnemonic(Page):
             mnemonic_ids_menu.append(
                 (
                     mnemonic_id + "(flash)",
-                    lambda m_id=mnemonic_id: self._delete_encrypted_mnemonic(m_id)
-                    if delete_opt
-                    else self._load_encrypted_mnemonic(m_id),
+                    lambda m_id=mnemonic_id: (
+                        self._remove_encrypted_mnemonic(m_id)
+                        if remove_opt
+                        else self._load_encrypted_mnemonic(m_id)
+                    ),
                 )
             )
-        if has_sd:
-            for mnemonic_id in sd_mnemonics:
-                mnemonic_ids_menu.append(
-                    (
-                        mnemonic_id + "(SD card)",
-                        lambda m_id=mnemonic_id: self._delete_encrypted_mnemonic(
-                            m_id, sd_card=True
-                        )
-                        if delete_opt
-                        else self._load_encrypted_mnemonic(m_id, sd_card=True),
-                    )
+        for mnemonic_id in sd_mnemonics:
+            mnemonic_ids_menu.append(
+                (
+                    mnemonic_id + "(SD card)",
+                    lambda m_id=mnemonic_id: (
+                        self._remove_encrypted_mnemonic(m_id, sd_card=True)
+                        if remove_opt
+                        else self._load_encrypted_mnemonic(m_id, sd_card=True)
+                    ),
                 )
+            )
         mnemonic_ids_menu.append((t("Back"), lambda: MENU_EXIT))
         submenu = Menu(self.ctx, mnemonic_ids_menu)
         index, status = submenu.run_loop()
@@ -288,7 +267,7 @@ class LoadEncryptedMnemonic(Page):
         key_capture = EncryptionKey(self.ctx)
         key = key_capture.encryption_key()
         if key in (None, "", ESC_KEY):
-            self.flash_text(t("Key was not provided"), theme.error_color)
+            self.flash_error(t("Key was not provided"))
             return MENU_CONTINUE
         self.ctx.display.clear()
         self.ctx.display.draw_centered_text(t("Processing ..."))
@@ -296,32 +275,32 @@ class LoadEncryptedMnemonic(Page):
         try:
             words = mnemonic_storage.decrypt(key, mnemonic_id, sd_card).split()
         except:
-            self.flash_text(t("Failed to decrypt"), theme.error_color)
+            self.flash_error(t("Failed to decrypt"))
             return MENU_CONTINUE
 
         if len(words) not in (12, 24):
-            self.flash_text(t("Failed to decrypt"), theme.error_color)
+            self.flash_error(t("Failed to decrypt"))
             return MENU_CONTINUE
         del mnemonic_storage
         return words
 
-    def _delete_encrypted_mnemonic(self, mnemonic_id, sd_card=False):
+    def _remove_encrypted_mnemonic(self, mnemonic_id, sd_card=False):
         """Deletes a mnemonic"""
         from ..encryption import MnemonicStorage
 
         mnemonic_storage = MnemonicStorage()
         self.ctx.display.clear()
-        if self.prompt(t("Delete %s?") % mnemonic_id, self.ctx.display.height() // 2):
+        if self.prompt(t("Remove %s?") % mnemonic_id, self.ctx.display.height() // 2):
             mnemonic_storage.del_mnemonic(mnemonic_id, sd_card)
             self.ctx.display.clear()
             if sd_card:
-                message = t("%s was deleted from SD card") % mnemonic_id
+                message = t("%s was removed from SD card") % mnemonic_id
                 message += "\n\n"
                 message += t(
                     "Fully erase your SD card in another device to ensure data is unrecoverable"
                 )
             else:
-                message = t("%s was deleted from flash") % mnemonic_id
+                message = t("%s was removed from flash") % mnemonic_id
                 message += "\n\n"
                 message += t("To ensure data is unrecoverable use Wipe Device feature")
             self.ctx.display.draw_centered_text(message)

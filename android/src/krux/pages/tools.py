@@ -20,10 +20,10 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-from ..sd_card import SDHandler
 import uos
+from ..sd_card import SDHandler
+from ..display import BOTTOM_PROMPT_LINE
 from ..krux_settings import t
-from ..themes import theme
 from ..qr import FORMAT_NONE
 from . import (
     Page,
@@ -36,7 +36,7 @@ from . import (
     NUM_SPECIAL_1,
     NUM_SPECIAL_2,
 )
-from .files_manager import SD_ROOT_PATH, THOUSANDS_SEPARATOR
+from .file_manager import SD_ROOT_PATH, THOUSANDS_SEPARATOR
 
 
 class Tools(Page):
@@ -51,7 +51,7 @@ class Tools(Page):
                     (t("Check SD Card"), None),  # SD Check not available for Android
                     (t("Print Test QR"), None),  # Print not available for Android
                     (t("Create QR Code"), self.create_qr),
-                    (t("Delete Mnemonic"), self.del_stored_mnemonic),
+                    (t("Remove Mnemonic"), self.rm_stored_mnemonic),
                     (t("Wipe Device"), None),  # Wipe not available for Android
                     (t("Back"), lambda: MENU_EXIT),
                 ],
@@ -74,41 +74,39 @@ class Tools(Page):
                 self.ctx.display.draw_hcentered_text(
                     t("SD card")
                     + "\n\n"
-                    + t("Size: ")
-                    + "{:,}".format(sd_total_MB).replace(",", THOUSANDS_SEPARATOR)
+                    + t("Size:")
+                    + " {:,}".format(sd_total_MB).replace(",", THOUSANDS_SEPARATOR)
                     + " MB"
                     + "\n\n"
-                    + t("Used: ")
-                    + "{:,}".format(sd_total_MB - sd_free_MB).replace(
+                    + t("Used:")
+                    + " {:,}".format(sd_total_MB - sd_free_MB).replace(
                         ",", THOUSANDS_SEPARATOR
                     )
                     + " MB"
                     + "\n\n"
-                    + t("Free: ")
-                    + "{:,}".format(sd_free_MB).replace(",", THOUSANDS_SEPARATOR)
+                    + t("Free:")
+                    + " {:,}".format(sd_free_MB).replace(",", THOUSANDS_SEPARATOR)
                     + " MB"
                 )
-                if self.prompt(
-                    t("Explore files?"), self.ctx.display.bottom_prompt_line
-                ):
-                    from .files_manager import FileManager
+                if self.prompt(t("Explore files?"), BOTTOM_PROMPT_LINE):
+                    from .file_manager import FileManager
 
                     file_manager = FileManager(self.ctx)
                     file_manager.select_file(
                         select_file_handler=file_manager.show_file_details
                     )
         except OSError:
-            self.flash_text(t("SD card not detected"), theme.error_color)
+            self.flash_error(t("SD card not detected"))
 
         return MENU_CONTINUE
 
-    def del_stored_mnemonic(self):
+    def rm_stored_mnemonic(self):
         """Lists and allow deletion of stored mnemonics"""
         from .encryption_ui import LoadEncryptedMnemonic
 
         encrypted_mnemonics = LoadEncryptedMnemonic(self.ctx)
         while True:
-            ret = encrypted_mnemonics.load_from_storage(delete_opt=True)
+            ret = encrypted_mnemonics.load_from_storage(remove_opt=True)
             if ret == MENU_CONTINUE:
                 del encrypted_mnemonics
                 return ret
@@ -118,9 +116,11 @@ class Tools(Page):
 
         import flash
         from ..firmware import FLASH_SIZE, SPIFFS_ADDR, ERASE_BLOCK_SIZE
+        from ..wdt import wdt
 
         empty_buf = b"\xff" * ERASE_BLOCK_SIZE
         for address in range(SPIFFS_ADDR, FLASH_SIZE, ERASE_BLOCK_SIZE):
+            wdt.feed()
             if flash.read(address, ERASE_BLOCK_SIZE) == empty_buf:
                 continue
             flash.erase(address, ERASE_BLOCK_SIZE)
@@ -135,7 +135,11 @@ class Tools(Page):
             self.ctx.display.height() // 2,
         ):
             self.ctx.display.clear()
-            self.ctx.display.draw_centered_text(t("Wiping Device.."))
+            self.ctx.display.draw_centered_text(
+                t("Wiping Device..")
+                + "\n\n"
+                + t("Do not power off, it may take a while to complete.")
+            )
             self.erase_spiffs()
             # Reboot so default settings take place and SPIFFS is formatted.
             self.ctx.power_manager.reboot()

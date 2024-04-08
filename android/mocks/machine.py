@@ -44,7 +44,7 @@ class UART:
         pass
 
 class WDT:
-    def __init__(self, timeout) -> None:
+    def __init__(self, id=0, timeout=1000) -> None:
         pass
 
     def feed(self):

@@ -20,15 +20,16 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-from ..krux_settings import t
-from . import (
+from ...display import FONT_HEIGHT
+from ...krux_settings import t
+from .. import (
     Page,
     Menu,
     MENU_CONTINUE,
     MENU_EXIT,
 )
 
-from ..sd_card import PUBKEY_FILE_EXTENSION
+from ...sd_card import PUBKEY_FILE_EXTENSION
 
 # to start xpub value without the xpub/zpub/ypub prefix
 WALLET_XPUB_START = 4
@@ -37,15 +38,11 @@ WALLET_XPUB_START = 4
 class PubkeyView(Page):
     """UI to show and export extended public key"""
 
-    def __init__(self, ctx):
-        super().__init__(ctx, None)
-        self.ctx = ctx
-
     def public_key(self):
         """Handler for the 'xpub' menu item"""
 
         def _save_xpub_to_sd(version):
-            from .files_operations import SaveFile
+            from ..file_operations import SaveFile
 
             save_page = SaveFile(self.ctx)
             xpub = self.ctx.wallet.key.key_expression(version)
@@ -62,21 +59,20 @@ class PubkeyView(Page):
             )
 
         def _pub_key_text(version):
-            def _save_sd_pubk_function():
-                return _save_xpub_to_sd(version)
-
-            if self.has_sd_card():
-                save_sd_pubk_func = _save_sd_pubk_function
-            else:
-                save_sd_pubk_func = None
-
             pub_text_menu_items = [
-                (t("Save to SD card"), save_sd_pubk_func),
+                (
+                    t("Save to SD card"),
+                    (
+                        None
+                        if not self.has_sd_card()
+                        else lambda: _save_xpub_to_sd(version)
+                    ),
+                ),
                 (t("Back"), lambda: MENU_EXIT),
             ]
             full_pub_key = self.ctx.wallet.key.account_pubkey_str(version)
             menu_offset = 5 + len(self.ctx.display.to_lines(full_pub_key))
-            menu_offset *= self.ctx.display.font_height
+            menu_offset *= FONT_HEIGHT
             pub_key_menu = Menu(self.ctx, pub_text_menu_items, offset=menu_offset)
             self.ctx.display.clear()
             self.ctx.display.draw_hcentered_text(
@@ -85,7 +81,7 @@ class PubkeyView(Page):
                 + self.ctx.wallet.key.derivation_str(pretty=True)
                 + "\n\n"
                 + full_pub_key,
-                offset_y=self.ctx.display.font_height,
+                offset_y=FONT_HEIGHT,
                 info_box=True,
             )
             pub_key_menu.run_loop()
@@ -95,7 +91,7 @@ class PubkeyView(Page):
                 :WALLET_XPUB_START
             ].upper()
             xpub = self.ctx.wallet.key.key_expression(version)
-            from .qr_view import SeedQRView
+            from ..qr_view import SeedQRView
 
             seed_qr_view = SeedQRView(self.ctx, data=xpub, title=title)
             seed_qr_view.display_qr(allow_export=True, transcript_tools=False)
