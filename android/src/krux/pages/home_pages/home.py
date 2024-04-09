@@ -111,8 +111,8 @@ class Home(Page):
         self.ctx.display.clear()
         self.ctx.display.draw_centered_text(
             t(
-                "Customizing your wallet will generate a new Key,"
-                "and any existing passphrase will need to be re-entered."
+                "Customizing your wallet will generate a new Key, "
+                "mnemonic and passphrase will be kept."
             )
         )
         if not self.prompt(t("Proceed?"), BOTTOM_PROMPT_LINE):
@@ -123,16 +123,17 @@ class Home(Page):
         from ...wallet import Wallet
 
         wallet_settings = WalletSettings(self.ctx)
-        network, multisig, script_type, account = (
-            wallet_settings.customize_wallet(self.ctx.wallet.key)
+        network, multisig, script_type, account = wallet_settings.customize_wallet(
+            self.ctx.wallet.key
         )
         mnemonic = self.ctx.wallet.key.mnemonic
+        passphrase = self.ctx.wallet.key.passphrase
         self.ctx.wallet = Wallet(
             Key(
                 mnemonic,
                 multisig,
                 network,
-                "",
+                passphrase,
                 account,
             )
         )
@@ -160,7 +161,10 @@ class Home(Page):
                 (t("Wallet Descriptor"), self.wallet_descriptor),
                 (t("Passphrase"), self.passphrase),
                 (t("Customize"), self.customize),
-                (t("BIP85"),self.bip85,),
+                (
+                    t("BIP85"),
+                    self.bip85,
+                ),
                 (t("Back"), lambda: MENU_EXIT),
             ],
         )

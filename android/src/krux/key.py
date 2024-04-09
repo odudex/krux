@@ -32,7 +32,7 @@ from embit.wordlists.bip39 import WORDLIST
 from embit.networks import NETWORKS
 
 DER_SINGLE = "m/84h/%dh/%dh"
-DER_MULTI = "m/48h/%dh/0h/2h"
+DER_MULTI = "m/48h/%dh/%dh/2h"
 HARDENED_STR_REPLACE = "'"
 
 
@@ -50,6 +50,7 @@ class Key:
         self.mnemonic = mnemonic
         self.multisig = multisig
         self.network = network
+        self.passphrase = passphrase
         self.account_index = account
         self.root = bip32.HDKey.from_seed(
             bip39.mnemonic_to_seed(mnemonic, passphrase), version=network["xprv"]
@@ -134,9 +135,8 @@ class Key:
     @staticmethod
     def get_default_derivation(multisig, network, account=0):
         """Return the Krux default derivation path for single-sig or multisig"""
-        if multisig:
-            return DER_MULTI % network["bip32"]
-        return DER_SINGLE % (network["bip32"], account)
+        der_format = DER_MULTI if multisig else DER_SINGLE
+        return der_format % (network["bip32"], account)
 
     @staticmethod
     def get_default_derivation_str(multisig, network, account=0):
@@ -144,6 +144,6 @@ class Key:
         be displayd as string
         """
         # Android: ↳ is not supported by the font
-        return Key.get_default_derivation(
-            multisig, network, account
-        ).replace("h", HARDENED_STR_REPLACE)
+        return Key.get_default_derivation(multisig, network, account).replace(
+            "h", HARDENED_STR_REPLACE
+        )
