@@ -129,18 +129,20 @@ def parse_wallet(wallet_data, network):
 
     If the descriptor cannot be derived, an exception is raised.
     """
-    import urtypes
+    from .urtypes import crypto
 
     if isinstance(wallet_data, UR):
         # Try to parse as a Crypto-Output type
         try:
-            output = urtypes.crypto.Output.from_cbor(wallet_data.cbor)
+            output = crypto.Output.from_cbor(wallet_data.cbor)
             return Descriptor.from_string(output.descriptor()), None
         except:
             pass
 
         # Treat the UR as a generic UR bytes object and extract the data for further processing
-        wallet_data = urtypes.Bytes.from_cbor(wallet_data.cbor).data
+        from .urtypes import Bytes
+        
+        wallet_data = Bytes.from_cbor(wallet_data.cbor).data
 
     # Process as a string
     wallet_data = (

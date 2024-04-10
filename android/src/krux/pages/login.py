@@ -322,7 +322,7 @@ class Login(Page):
 
         words = []
         if qr_format == FORMAT_UR:
-            from urtypes.crypto.bip39 import BIP39
+            from ..urtypes.crypto.bip39 import BIP39
 
             words = BIP39.from_cbor(data.cbor).words
         else:
