@@ -225,16 +225,11 @@ class Login(Page):
         multisig = Settings().wallet.multisig
         network = NETWORKS[Settings().wallet.network]
         account = 0
+        script_type = "p2wpkh"
         from ..wallet import Wallet
 
         while True:
-            key = Key(
-                mnemonic,
-                multisig,
-                network,
-                passphrase,
-                account,
-            )
+            key = Key(mnemonic, multisig, network, passphrase, account, script_type)
 
             wallet_info = key.fingerprint_hex_str(True) + "\n"
             wallet_info += network["name"] + "\n"
@@ -244,9 +239,11 @@ class Login(Page):
             wallet_info += (
                 self.fit_to_line(key.derivation_str(True), crop_middle=False) + "\n"
             )
-            wallet_info += "No Passphrase\n" if not passphrase else "Passphrase: *..*"
+            wallet_info += (
+                t("No Passphrase") if not passphrase else t("Passphrase") + ": *..*"
+            )
 
-            self.ctx.display.draw_hcentered_text(wallet_info, info_box=True)
+            info_len = self.ctx.display.draw_hcentered_text(wallet_info, info_box=True)
             submenu = Menu(
                 self.ctx,
                 [
@@ -255,7 +252,7 @@ class Login(Page):
                     (t("Customize"), lambda: None),
                     (t("Back"), lambda: MENU_EXIT),
                 ],
-                offset=5 * FONT_HEIGHT + DEFAULT_PADDING,
+                offset=info_len * FONT_HEIGHT + DEFAULT_PADDING,
             )
             index, _ = submenu.run_loop()
             if index == len(submenu.menu) - 1:
@@ -322,7 +319,7 @@ class Login(Page):
 
         words = []
         if qr_format == FORMAT_UR:
-            from ..urtypes.crypto.bip39 import BIP39
+            from urtypes.crypto.bip39 import BIP39
 
             words = BIP39.from_cbor(data.cbor).words
         else:

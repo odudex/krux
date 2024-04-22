@@ -31,6 +31,8 @@ from .. import (
     MENU_EXIT,
 )
 
+MAX_POLICY_COSIGNERS_DISPLAYED = 5
+
 
 class Home(Page):
     """Home is the main menu page of the app"""
@@ -81,9 +83,9 @@ class Home(Page):
 
     def passphrase(self):
         """Add or replace wallet's passphrase"""
-        self.ctx.display.clear()
-        self.ctx.display.draw_centered_text(t("Add or change wallet passphrase."))
-        if not self.prompt(t("Proceed?"), BOTTOM_PROMPT_LINE):
+        if not self.prompt(
+            t("Add or change wallet passphrase?"), self.ctx.display.height() // 2
+        ):
             return MENU_CONTINUE
 
         from ..wallet_settings import PassphraseEditor
@@ -102,6 +104,7 @@ class Home(Page):
                 self.ctx.wallet.key.network,
                 passphrase,
                 self.ctx.wallet.key.account_index,
+                self.ctx.wallet.key.script_type,
             )
         )
         return MENU_CONTINUE
@@ -135,6 +138,7 @@ class Home(Page):
                 network,
                 passphrase,
                 account,
+                script_type,
             )
         )
         return MENU_CONTINUE
@@ -161,10 +165,7 @@ class Home(Page):
                 (t("Wallet Descriptor"), self.wallet_descriptor),
                 (t("Passphrase"), self.passphrase),
                 (t("Customize"), self.customize),
-                (
-                    t("BIP85"),
-                    self.bip85,
-                ),
+                ("BIP85", self.bip85),
                 (t("Back"), lambda: MENU_EXIT),
             ],
         )
@@ -224,6 +225,21 @@ class Home(Page):
         psbt_filename, data = utils.load_file(PSBT_FILE_EXTENSION, prompt=False)
         return (data, FORMAT_NONE, psbt_filename)
 
+    def _sign_menu(self):
+        sign_menu = Menu(
+            self.ctx,
+            [
+                (t("Sign to QR code"), lambda: None),
+                (
+                    t("Sign to SD card"),
+                    None if not self.has_sd_card() else lambda: None,
+                ),
+                (t("Back"), lambda: None),
+            ],
+        )
+        index, _ = sign_menu.run_loop()
+        return index
+
     def sign_psbt(self):
         """Handler for the 'sign psbt' menu item"""
         from ...sd_card import (
@@ -259,6 +275,45 @@ class Home(Page):
         from ...psbt import PSBTSigner
 
         signer = PSBTSigner(self.ctx.wallet, data, qr_format)
+        path_mismatch = signer.path_mismatch()
+        if path_mismatch:
+            self.ctx.display.clear()
+            self.ctx.display.draw_centered_text(
+                t("Warning: Mismatch between PSBT and wallet.")
+                + "\n"
+                + "PSBT: "
+                + path_mismatch
+            )
+            if not self.prompt(t("Proceed?"), BOTTOM_PROMPT_LINE):
+                return MENU_CONTINUE
+        if not self.ctx.wallet.is_loaded() and self.ctx.wallet.is_multisig():
+            from binascii import hexlify
+
+            policy_str = "PSBT policy:\n"
+            policy_str += signer.policy["type"] + "\n"
+            policy_str += (
+                str(signer.policy["m"]) + " of " + str(signer.policy["n"]) + "\n"
+            )
+            fingerprints = []
+            for inp in signer.psbt.inputs:
+                # Do we need to loop through all the inputs or just one?
+                for pub in inp.bip32_derivations:
+                    fingerprint_srt = (
+                        "⊚ " + hexlify(inp.bip32_derivations[pub].fingerprint).decode()
+                    )
+                    if fingerprint_srt not in fingerprints:
+                        if len(fingerprints) > MAX_POLICY_COSIGNERS_DISPLAYED:
+                            fingerprints[-1] = "..."
+                            break
+                        fingerprints.append(fingerprint_srt)
+
+            policy_str += "\n".join(fingerprints)
+            self.ctx.display.clear()
+            self.ctx.display.draw_centered_text(policy_str)
+            if not self.prompt(t("Proceed?"), BOTTOM_PROMPT_LINE):
+                return MENU_CONTINUE
+        self.ctx.display.clear()
+        self.ctx.display.draw_centered_text(t("Processing ..."))
         outputs = signer.outputs()
         for message in outputs:
             self.ctx.display.clear()
@@ -269,20 +324,7 @@ class Home(Page):
         del data, outputs
         gc.collect()
 
-        sign_menu = Menu(
-            self.ctx,
-            [
-                (t("Sign to QR code"), lambda: None),
-                (
-                    t("Sign to SD card"),
-                    None if not self.has_sd_card() else lambda: None,
-                ),
-                (t("Back"), lambda: None),
-            ],
-        )
-        index, _ = sign_menu.run_loop()
-        del sign_menu
-        gc.collect()
+        index = self._sign_menu()
 
         if index == 2:  # Back
             return MENU_CONTINUE

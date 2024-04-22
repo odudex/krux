@@ -122,7 +122,7 @@ class Page:
         Returns a string.
         """
         buffer = starting_buffer
-        pad = Keypad(self.ctx, keysets)
+        pad = Keypad(self.ctx, keysets, possible_keys_fn)
         while True:
             self.ctx.display.clear()
             offset_y = DEFAULT_PADDING
@@ -133,15 +133,12 @@ class Page:
 
             if progress_bar_fn:
                 progress_bar_fn()
-            possible_keys = pad.keys
-            if possible_keys_fn is not None:
-                possible_keys = possible_keys_fn(buffer)
-                pad.get_valid_index(possible_keys)
-            pad.draw_keys(possible_keys)
+            pad.compute_possible_keys(buffer)
+            pad.get_valid_index()
+            pad.draw_keys()
             btn = self.ctx.input.wait_for_button()
-            if self.ctx.input.touch is not None:
-                if btn == BUTTON_TOUCH:
-                    btn = pad.touch_to_physical(possible_keys)
+            if btn == BUTTON_TOUCH:
+                btn = pad.touch_to_physical()
             if btn == BUTTON_ENTER:
                 pad.moving_forward = True
                 changed = False
@@ -176,7 +173,6 @@ class Page:
 
                 if changed and go_on_change:
                     break
-
             else:
                 pad.navigate(btn)
 
@@ -291,7 +287,7 @@ class Page:
                 t("Part") + "\n%d / %d" % (i + 1, num_parts) if not title else title
             )
             offset_y = self.ctx.display.qr_offset()
-            if title and self.ctx.display.height() > self.ctx.display.width():
+            if subtitle and self.ctx.display.height() > self.ctx.display.width():
                 offset_y += FONT_HEIGHT
                 # Clean area below QR code to refresh subtitle/part
                 self.ctx.display.fill_rectangle(

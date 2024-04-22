@@ -68,6 +68,9 @@ class Display:
             )
         else:
             self.flipped_x_coordinates = False
+        self.blk_ctrl = None
+        if "BACKLIGHT" in board.config["krux"]["pins"]:
+            self.gpio_backlight_ctrl(Settings().hardware.display.brightness)
 
     def initialize_lcd(self):
         """Initializes the LCD"""
@@ -123,7 +126,7 @@ class Display:
                     0x2C,
                 ],
             )
-            self.set_backlight(DEFAULT_BACKLIGHT)
+            self.set_pmu_backlight(Settings().hardware.display.brightness)
         elif board.config["type"] == "yahboom":
             lcd.init(
                 invert=True,
@@ -149,6 +152,30 @@ class Display:
             lcd.mirror(False)
             lcd.bgr_to_rgb(False)
         self.to_portrait()
+
+    def gpio_backlight_ctrl(self, brightness):
+        """Control backlight using GPIO PWM"""
+
+        if self.blk_ctrl is None:
+            from machine import Timer, PWM
+
+            pwm_timer = Timer(Timer.TIMER0, Timer.CHANNEL0, mode=Timer.MODE_PWM)
+            self.blk_ctrl = PWM(
+                pwm_timer,
+                freq=1000,
+                duty=100,
+                pin=board.config["krux"]["pins"]["BACKLIGHT"],
+                enable=True,
+            )
+
+        if board.config["type"] == "cube":
+            # Calculate duty cycle
+            # Ranges from 0% to 80% duty cycle
+            # 100 is 0% duty cycle (off, not used here)
+            pwm_value = 5 - int(brightness)
+            pwm_value *= 20
+
+        self.blk_ctrl.duty(pwm_value)
 
     def qr_offset(self):
         """Retuns y offset to subtitle QR codes"""
@@ -353,13 +380,22 @@ class Display:
             offset_y, qr_code, self.width(), dark_color, light_color, light_color
         )
 
-    def set_backlight(self, level):
+    def set_pmu_backlight(self, level):
         """Sets the backlight of the display to the given power level, from 0 to 8"""
 
         from .power import power_manager
 
-        power_manager.set_screen_brightness(level)
+        # Translate 5 levels to 1-8 range = 1,2,3,5,8
+        translated_level = int(level)
+        if translated_level == 4:
+            translated_level = 5
+        elif translated_level == 5:
+            translated_level = 8
+        power_manager.set_screen_brightness(translated_level)
 
     def max_menu_lines(self, line_offset=0):
         """Maximum menu items the display can fit"""
         return (self.height() - DEFAULT_PADDING - line_offset) // (2 * FONT_HEIGHT)
+
+
+display = Display()

@@ -23,8 +23,8 @@
 import io
 import math
 import qrcode
-from .ur.ur_decoder import URDecoder
-from .ur.ur import UR
+from ur.ur_decoder import URDecoder
+from ur.ur import UR
 
 FORMAT_NONE = 0
 FORMAT_PMOFN = 1
@@ -172,7 +172,7 @@ def to_qr_codes(data, max_width, qr_format):
                 code = qrcode.encode(part)
                 yield (code, num_parts)
         elif qr_format == FORMAT_UR:
-            from .ur.ur_encoder import UREncoder
+            from ur.ur_encoder import UREncoder
 
             encoder = UREncoder(data, part_size, 0)
             while True:

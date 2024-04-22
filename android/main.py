@@ -1,7 +1,6 @@
 import sys 
 import threading
-sys.path.append("")
-sys.path.append(".")
+sys.path.append("./src")
 
 from kivy.app import App
 from kivy.core.window import Window

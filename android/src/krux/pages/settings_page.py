@@ -91,7 +91,7 @@ class SettingsPage(Page):
         else:
             try:
                 # Check for flash
-                # os.listdir("/" + FLASH_PATH + "/.")
+                # os.listdir("/" + FLASH_PATH + "/.")  # Android Custom
                 self.flash_text(
                     t("Your changes will be kept on device flash storage."),
                     duration=PERSIST_MSG_TIME,
@@ -213,6 +213,7 @@ class SettingsPage(Page):
         def handler():
             setting_list = settings_namespace.setting_list()
             namespace_list = settings_namespace.namespace_list()
+            # Android Custom
             items = []
             for ns in namespace_list:
                 # Avoid disabled (comented) settings, Android Only
@@ -338,6 +339,11 @@ class SettingsPage(Page):
                     break
             if setting.attr == "theme":
                 theme.update()
+            if setting.attr == "brightness":
+                if board.config["type"] == "cube":
+                    self.ctx.display.gpio_backlight_ctrl(new_category)
+                elif board.config["type"] == "m5stickv":
+                    self.ctx.display.set_pmu_backlight(new_category)
             if setting.attr == "flipped_x" and new_category is not None:
                 self.ctx.display.flipped_x_coordinates = new_category
             if setting.attr == "bgr_colors" and new_category is not None:

@@ -59,7 +59,8 @@ class Bip85(Page):
                 break
             except ValueError:
                 self.flash_error(
-                    t("Please insert a value between 0 and %d") % MAX_BIP85_CHILD_INDEX
+                    t("Value %s out of range: [%s, %s]")
+                    % (child_index, 0, MAX_BIP85_CHILD_INDEX)
                 )
                 continue
         bip85_words = bip85.derive_mnemonic(
@@ -75,6 +76,7 @@ class Bip85(Page):
             bip85_words,
             self.ctx.wallet.key.multisig,
             self.ctx.wallet.key.network,
+            script_type=self.ctx.wallet.key.script_type,
         )
         if not Settings().security.hide_mnemonic:
             self.display_mnemonic(
