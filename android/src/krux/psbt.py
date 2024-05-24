@@ -27,23 +27,38 @@ from urtypes.crypto import CRYPTO_PSBT
 from .baseconv import base_decode
 from .krux_settings import t
 from .qr import FORMAT_PMOFN
+from .bbqr import BBQR_FORMATS
+from .key import Key, P2PKH, P2SH, P2SH_P2WPKH, P2SH_P2WSH, P2WPKH, P2WSH, P2TR
 
 # PSBT Output Types:
 CHANGE = 0
 SELF_TRANSFER = 1
 SPEND = 2
 
+# We always uses thin spaces after the ₿ in this file
+
 
 class PSBTSigner:
     """Responsible for validating and signing PSBTs"""
 
-    def __init__(self, wallet, psbt_data, qr_format):
+    def __init__(self, wallet, psbt_data, qr_format, psbt_filename=None):
         self.wallet = wallet
         self.base_encoding = None
         self.ur_type = None
         self.qr_format = qr_format
         # Parse the PSBT
-        if isinstance(psbt_data, UR):
+        if psbt_filename:
+            gc.collect()
+            from .sd_card import SD_PATH
+
+            try:
+                file_path = "/%s/%s" % (SD_PATH, psbt_filename)
+                with open(file_path, "rb") as file:
+                    self.psbt = PSBT.read_from(file, compress=1)
+                self.base_encoding = 64  # In case it is exported as QR code
+            except Exception as e:
+                raise ValueError("Error loading PSBT file: %s" % e)
+        elif isinstance(psbt_data, UR):
             try:
                 self.psbt = PSBT.parse(
                     urtypes.crypto.PSBT.from_cbor(psbt_data.cbor).data
@@ -82,7 +97,7 @@ class PSBTSigner:
         for inp in self.psbt.inputs:
             # get policy of the input
             try:
-                inp_policy = get_policy(inp, inp.witness_utxo.script_pubkey, xpubs)
+                inp_policy = self.get_policy_from_psbt_input(inp, xpubs)
             except:
                 raise ValueError("Unable to get policy")
             # if policy is None - assign current
@@ -105,17 +120,29 @@ class PSBTSigner:
             if self.wallet.policy != self.policy:
                 raise ValueError("policy mismatch")
 
+    def get_policy_from_psbt_input(self, tx_input, xpubs):
+        """Extracts the scriptPubKey from an input's UTXO and determines the policy."""
+        if tx_input.witness_utxo:
+            scriptpubkey = tx_input.witness_utxo.script_pubkey
+        elif tx_input.non_witness_utxo:
+            # Retrieve the scriptPubKey from the specified output in the non_witness_utxo
+            scriptpubkey = tx_input.non_witness_utxo.vout[tx_input.vout].script_pubkey
+        else:
+            raise ValueError("No UTXO information available in the input.")
+
+        return get_policy(tx_input, scriptpubkey, xpubs)
+
     def path_mismatch(self):
         """Verifies if the PSBT path matches wallet's derivation path"""
         mismatched_paths = []
         der_path_nodes = len(self.wallet.key.derivation.split("/")) - 1
         for _input in self.psbt.inputs:
-            if self.policy["type"] == "p2tr":
+            if self.policy["type"] == P2TR:
                 derivations = _input.taproot_bip32_derivations
             else:
                 derivations = _input.bip32_derivations
             for pubkey in derivations:
-                if self.policy["type"] == "p2tr":
+                if self.policy["type"] == P2TR:
                     derivation_path = derivations[pubkey][
                         1
                     ].derivation  # ignore taproot leaf
@@ -131,7 +158,7 @@ class PSBTSigner:
                     if textual_path not in mismatched_paths:
                         mismatched_paths.append(textual_path)
         if mismatched_paths:
-            return ", ".join(mismatched_paths)
+            return Key.format_derivation(", ".join(mismatched_paths))
         return ""
 
     def _classify_output(self, out_policy, i, out):
@@ -152,21 +179,23 @@ class PSBTSigner:
             # empty script by default
             sc = script.Script(b"")
             # multisig, we know witness script
-            if self.policy["type"] == "p2wsh":
+            if self.policy["type"] == P2WSH:
                 sc = script.p2wsh(out.witness_script)
-            elif self.policy["type"] == "p2sh-p2wsh":
+            elif self.policy["type"] == P2SH_P2WSH:
                 sc = script.p2sh(script.p2wsh(out.witness_script))
             # single-sig
             elif "pkh" in self.policy["type"]:
                 if len(list(out.bip32_derivations.values())) > 0:
                     der = list(out.bip32_derivations.values())[0].derivation
                     my_hd_prvkey = self.wallet.key.root.derive(der)
-                    if self.policy["type"] == "p2wpkh":
+                    if self.policy["type"] == P2WPKH:
                         sc = script.p2wpkh(my_hd_prvkey)
-                    elif self.policy["type"] == "p2sh-p2wpkh":
+                    elif self.policy["type"] == P2SH_P2WPKH:
                         sc = script.p2sh(script.p2wpkh(my_hd_prvkey))
+                    elif self.policy["type"] == P2PKH:
+                        sc = script.p2pkh(my_hd_prvkey)
 
-            if self.policy["type"] == "p2tr":
+            if self.policy["type"] == P2TR:
                 address_from_my_wallet = (
                     len(list(out.taproot_bip32_derivations.values())) > 0
                 )
@@ -191,11 +220,15 @@ class PSBTSigner:
 
     def outputs(self):
         """Returns a list of messages describing where amounts are going"""
-        from .format import format_btc
+        from .format import format_btc, replace_decimal_separator
 
         inp_amount = 0
         for inp in self.psbt.inputs:
-            inp_amount += inp.witness_utxo.value
+            if inp.witness_utxo:
+                inp_amount += inp.witness_utxo.value
+            elif inp.non_witness_utxo:  # Legacy
+                # Retrieve the value from the specified output in the non_witness_utxo
+                inp_amount += inp.non_witness_utxo.vout[inp.vout].value
         resume_inputs_str = (
             (t("Inputs (%d):") % len(self.psbt.inputs))
             # TODO try ₿  again
@@ -267,7 +300,21 @@ class PSBTSigner:
             )
 
         fee = inp_amount - spend_amount - self_amount - change_amount
-        resume_fee_str = t("Fee:") + (" B %s" % format_btc(fee))
+
+        # fee percent with 1 decimal precision using math.ceil (minimum of 0.1)
+        fee_percent = max(
+            0.1,
+            (((fee * 10000 // (spend_amount + self_amount + change_amount)) + 9) // 10)
+            / 10,
+        )
+
+        resume_fee_str = (
+            t("Fee:")
+            + (" B%s" % format_btc(fee))
+            + " ("
+            + replace_decimal_separator("%.1f" % fee_percent)
+            + "%)"
+        )
 
         messages = []
         # first screen - resume
@@ -301,11 +348,48 @@ class PSBTSigner:
 
         return messages
 
-    def sign(self):
-        """Signs the PSBT"""
+    def add_signatures(self):
+        """Add signatures to PSBT"""
         sigs_added = self.psbt.sign_with(self.wallet.key.root)
         if sigs_added == 0:
             raise ValueError("cannot sign")
+
+    def fill_zero_fingerprint(self):
+        """Fix for zeroes in fingerprint that happen when user imports the wallet
+        with XPUB only (without derivation path)
+        """
+        filled = 0
+
+        for inp in self.psbt.inputs:
+            filled += self._fill_zero_fingerprint_scope(inp)
+
+        for out in self.psbt.outputs:
+            filled += self._fill_zero_fingerprint_scope(out)
+
+        return filled
+
+    def _fill_zero_fingerprint_scope(self, scope):
+        """Helper function to fill a scope (input/output)"""
+        filled = 0
+        if self.policy["type"] == P2TR:
+            derivations = scope.taproot_bip32_derivations
+        else:
+            derivations = scope.bip32_derivations
+        for pub in derivations:
+            if self.policy["type"] == P2TR:
+                derivation = derivations[pub][1]  # ignore taproot leaf
+            else:
+                derivation = derivations[pub]
+            if derivation.fingerprint == b"\x00\x00\x00\x00":
+                # check if pubkey matches
+                if self.wallet.key.get_xpub(derivation.derivation).key == pub:
+                    derivation.fingerprint = self.wallet.key.fingerprint
+                    filled += 1
+        return filled
+
+    def sign(self):
+        """Signs the PSBT removing all irrelevant data"""
+        self.add_signatures()
 
         trimmed_psbt = PSBT(self.psbt.tx)
         for i, inp in enumerate(self.psbt.inputs):
@@ -322,6 +406,11 @@ class PSBTSigner:
 
         self.psbt = None  # Remove PSBT free RAM
         gc.collect()
+
+        if self.qr_format in BBQR_FORMATS:
+            from .bbqr import encode_bbqr
+
+            return encode_bbqr(psbt_data, self.qr_format)
 
         if self.base_encoding is not None:
             from .baseconv import base_encode
@@ -369,7 +458,7 @@ def is_multisig(policy):
     """Returns a boolean indicating if the policy is a multisig"""
     return (
         "type" in policy
-        and "p2wsh" in policy["type"]
+        and P2WSH in policy["type"]
         and "m" in policy
         and "n" in policy
         and "cosigners" in policy
@@ -409,17 +498,17 @@ def get_policy(scope, scriptpubkey, xpubs):
     script_type = scriptpubkey.script_type()
     # p2sh can be either legacy multisig, or nested segwit multisig
     # or nested segwit singlesig
-    if script_type == "p2sh":
+    if script_type == P2SH:
         if scope.witness_script is not None:
-            script_type = "p2sh-p2wsh"
+            script_type = P2SH_P2WSH
         elif (
             scope.redeem_script is not None
-            and scope.redeem_script.script_type() == "p2wpkh"
+            and scope.redeem_script.script_type() == P2WPKH
         ):
-            script_type = "p2sh-p2wpkh"
+            script_type = P2SH_P2WPKH
     policy = {"type": script_type}
     # expected multisig
-    if "p2wsh" in script_type and scope.witness_script is not None:
+    if P2WSH in script_type and scope.witness_script is not None:
         m, pubkeys = parse_multisig(scope.witness_script)
         # check pubkeys are derived from cosigners
         cosigners = get_cosigners(pubkeys, scope.bip32_derivations, xpubs)

@@ -42,9 +42,10 @@ class WalletDescriptor(Page):
         """Handler for the 'wallet' menu item"""
         self.ctx.display.clear()
         if not self.ctx.wallet.is_loaded():
-            self.ctx.display.draw_centered_text(
-                t("Wallet output descriptor not found.")
-            )
+            text = t("Wallet output descriptor not found.")
+            if not self.ctx.wallet.is_multisig():
+                text += " " + t("It is optional for single-sig.")
+            self.ctx.display.draw_centered_text(text)
             if self.prompt(t("Load one?"), BOTTOM_PROMPT_LINE):
                 return self._load_wallet()
         else:
@@ -146,7 +147,9 @@ class WalletDescriptor(Page):
 
         if not wallet.is_multisig() and include_qr:
             wallet_data, qr_format = wallet.wallet_qr()
-            self.display_qr_codes(wallet_data, qr_format, title=about)
+            self.display_qr_codes(
+                wallet_data, qr_format, title=about, file_type="U"
+            )  # U for Unicode
         else:
             self.ctx.display.draw_hcentered_text(about, offset_y=DEFAULT_PADDING)
 
@@ -167,7 +170,9 @@ class WalletDescriptor(Page):
                 # Try to show the wallet output descriptor as a QRCode
                 try:
                     wallet_data, qr_format = wallet.wallet_qr()
-                    self.display_qr_codes(wallet_data, qr_format, title=wallet.label)
+                    self.display_qr_codes(
+                        wallet_data, qr_format, title=wallet.label, file_type="U"
+                    )
                 except Exception as e:
                     self.ctx.display.clear()
                     self.ctx.display.draw_centered_text(

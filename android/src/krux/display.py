@@ -26,22 +26,32 @@ from .themes import theme
 from .krux_settings import Settings
 
 DEFAULT_PADDING = 10
+MINIMAL_PADDING = 5
 FONT_WIDTH, FONT_HEIGHT = board.config["krux"]["display"]["font"]
 PORTRAIT, LANDSCAPE = [2, 3] if board.config["type"] == "cube" else [1, 2]
-QR_DARK_COLOR, QR_LIGHT_COLOR = board.config["krux"]["display"]["qr_colors"]
-MINIMAL_DISPLAY = board.config["type"] in ("m5stickv", "cube")
-# Android custom - redefine screen size constants
-
-TOTAL_LINES = lcd._height() // FONT_HEIGHT
+QR_DARK_COLOR, QR_LIGHT_COLOR = (
+    [16904, 61307] if board.config["type"] == "m5stickv" else [0, 6342]
+)
+TOTAL_LINES = board.config["lcd"]["width"] // FONT_HEIGHT
 BOTTOM_LINE = (TOTAL_LINES - 1) * FONT_HEIGHT
-BOTTOM_PROMPT_LINE = BOTTOM_LINE - 3 * FONT_HEIGHT
+MINIMAL_DISPLAY = board.config["type"] in ("m5stickv", "cube")
+if MINIMAL_DISPLAY:
+    BOTTOM_PROMPT_LINE = BOTTOM_LINE - DEFAULT_PADDING
+else:
+    # room left for no/yes buttons
+    BOTTOM_PROMPT_LINE = BOTTOM_LINE - 3 * FONT_HEIGHT
 
-DEFAULT_BACKLIGHT = 1
-
+# Status bar dimensions
+STATUS_BAR_HEIGHT = (
+    FONT_HEIGHT + 1 if MINIMAL_DISPLAY else FONT_HEIGHT + MINIMAL_PADDING
+)
 
 FLASH_MSG_TIME = 2000
 
-# Splash will use horizontally-centered text plots. The spaces are used to help with alignment
+SMALLEST_WIDTH = 135
+SMALLEST_HEIGHT = 240
+
+# Splash will use horizontally-centered text plots. Uses Thin spaces to help with alignment
 SPLASH = [
     "██   ",
     "██   ",
@@ -174,14 +184,13 @@ class Display:
             # 100 is 0% duty cycle (off, not used here)
             pwm_value = 5 - int(brightness)
             pwm_value *= 20
-
-        self.blk_ctrl.duty(pwm_value)
+            self.blk_ctrl.duty(pwm_value)
 
     def qr_offset(self):
         """Retuns y offset to subtitle QR codes"""
         if board.config["type"] == "cube":
             return BOTTOM_LINE
-        return self.width() + DEFAULT_PADDING // 2
+        return self.width() + MINIMAL_PADDING
 
     def width(self):
         """Returns the width of the display, taking into account rotation"""
@@ -228,7 +237,7 @@ class Display:
         lines = []
         start = 0
         line_count = 0
-        if self.width() > 135:
+        if self.width() > SMALLEST_WIDTH:
             columns = self.usable_width() // FONT_WIDTH
         else:
             columns = self.width() // FONT_WIDTH
@@ -341,7 +350,9 @@ class Display:
         )
         if info_box:
             bg_color = theme.info_bg_color
-            padding = DEFAULT_PADDING if self.width() > 135 else DEFAULT_PADDING // 2
+            padding = (
+                DEFAULT_PADDING if self.width() > SMALLEST_WIDTH else MINIMAL_PADDING
+            )
             self.fill_rectangle(
                 padding - 3,
                 offset_y - 1,
@@ -393,9 +404,9 @@ class Display:
             translated_level = 8
         power_manager.set_screen_brightness(translated_level)
 
-    def max_menu_lines(self, line_offset=0):
+    def max_menu_lines(self, line_offset=STATUS_BAR_HEIGHT):
         """Maximum menu items the display can fit"""
-        return (self.height() - DEFAULT_PADDING - line_offset) // (2 * FONT_HEIGHT)
+        return (self.height() - line_offset) // (2 * FONT_HEIGHT)
 
 
 display = Display()

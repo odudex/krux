@@ -24,6 +24,7 @@ import gc
 from ...display import BOTTOM_PROMPT_LINE
 from ...qr import FORMAT_NONE, FORMAT_PMOFN
 from ...krux_settings import t, Settings
+from ...format import replace_decimal_separator
 from .. import (
     Page,
     Menu,
@@ -113,10 +114,9 @@ class Home(Page):
         """Handler for the 'Customize' Wallet menu item"""
         self.ctx.display.clear()
         self.ctx.display.draw_centered_text(
-            t(
-                "Customizing your wallet will generate a new Key, "
-                "mnemonic and passphrase will be kept."
-            )
+            t("Customizing your wallet will generate a new Key.")
+            + " "
+            + t("Mnemonic and passphrase will be kept.")
         )
         if not self.prompt(t("Proceed?"), BOTTOM_PROMPT_LINE):
             return MENU_CONTINUE
@@ -222,8 +222,10 @@ class Home(Page):
         from ...sd_card import PSBT_FILE_EXTENSION
 
         utils = Utils(self.ctx)
-        psbt_filename, data = utils.load_file(PSBT_FILE_EXTENSION, prompt=False)
-        return (data, FORMAT_NONE, psbt_filename)
+        psbt_filename, _ = utils.load_file(
+            PSBT_FILE_EXTENSION, prompt=False, only_get_filename=True
+        )
+        return (None, FORMAT_NONE, psbt_filename)
 
     def _sign_menu(self):
         sign_menu = Menu(
@@ -262,7 +264,7 @@ class Home(Page):
         # Load a PSBT
         data, qr_format, psbt_filename = self.load_psbt()
 
-        if data is None:
+        if data is None and psbt_filename == "":
             # Both the camera and the file on SD card failed!
             self.flash_error(t("Failed to load PSBT"))
             return MENU_CONTINUE
@@ -274,20 +276,28 @@ class Home(Page):
         qr_format = FORMAT_PMOFN if qr_format == FORMAT_NONE else qr_format
         from ...psbt import PSBTSigner
 
-        signer = PSBTSigner(self.ctx.wallet, data, qr_format)
+        # Warns in case of path mismatch
+        signer = PSBTSigner(self.ctx.wallet, data, qr_format, psbt_filename)
         path_mismatch = signer.path_mismatch()
         if path_mismatch:
             self.ctx.display.clear()
             self.ctx.display.draw_centered_text(
-                t("Warning: Mismatch between PSBT and wallet.")
+                t("Warning:")
+                + " "
+                + t("Path mismatch")
+                + "\n"
+                + "Wallet: "
+                + self.ctx.wallet.key.derivation_str()
                 + "\n"
                 + "PSBT: "
                 + path_mismatch
             )
             if not self.prompt(t("Proceed?"), BOTTOM_PROMPT_LINE):
                 return MENU_CONTINUE
+
+        # Show the policy for multisig
         if not self.ctx.wallet.is_loaded() and self.ctx.wallet.is_multisig():
-            from binascii import hexlify
+            from ...key import Key
 
             policy_str = "PSBT policy:\n"
             policy_str += signer.policy["type"] + "\n"
@@ -298,8 +308,8 @@ class Home(Page):
             for inp in signer.psbt.inputs:
                 # Do we need to loop through all the inputs or just one?
                 for pub in inp.bip32_derivations:
-                    fingerprint_srt = (
-                        "⊚ " + hexlify(inp.bip32_derivations[pub].fingerprint).decode()
+                    fingerprint_srt = Key.format_fingerprint(
+                        inp.bip32_derivations[pub].fingerprint, True
                     )
                     if fingerprint_srt not in fingerprints:
                         if len(fingerprints) > MAX_POLICY_COSIGNERS_DISPLAYED:
@@ -312,9 +322,33 @@ class Home(Page):
             self.ctx.display.draw_centered_text(policy_str)
             if not self.prompt(t("Proceed?"), BOTTOM_PROMPT_LINE):
                 return MENU_CONTINUE
+
+        # Fix zero fingerprint, it is necessary for the signing process on embit in a few cases
+        if signer.fill_zero_fingerprint():
+            self.ctx.display.clear()
+            self.ctx.display.draw_centered_text(t("Fingerprint unset in PSBT"))
+            if not self.prompt(t("Proceed?"), BOTTOM_PROMPT_LINE):
+                return MENU_CONTINUE
+
         self.ctx.display.clear()
         self.ctx.display.draw_centered_text(t("Processing ..."))
-        outputs = signer.outputs()
+        outputs, fee_percent = signer.outputs()
+
+        # Warn if fees greater than 30% of what is spent
+        if fee_percent >= 30.0:
+            self.ctx.display.clear()
+            self.ctx.display.draw_centered_text(
+                t("Warning:")
+                + " "
+                + t("High fees!")
+                + "\n"
+                + replace_decimal_separator(("%.1f" % fee_percent))
+                + t("% of the amount.")
+            )
+
+            if not self.prompt(t("Proceed?"), BOTTOM_PROMPT_LINE):
+                return MENU_CONTINUE
+
         for message in outputs:
             self.ctx.display.clear()
             self.ctx.display.draw_centered_text(message)
@@ -343,7 +377,7 @@ class Home(Page):
             del signer
             gc.collect()
 
-            self.display_qr_codes(qr_signed_psbt, qr_format)
+            self.display_qr_codes(qr_signed_psbt, qr_format, file_type="P")
 
             from ..utils import Utils
 

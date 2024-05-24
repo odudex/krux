@@ -31,7 +31,15 @@ from . import Page, FLASH_MSG_TIME
 from ..themes import theme
 from ..wdt import wdt
 from ..krux_settings import t
-from ..display import DEFAULT_PADDING, MINIMAL_DISPLAY, FONT_HEIGHT, FONT_WIDTH
+from ..display import (
+    DEFAULT_PADDING,
+    MINIMAL_PADDING,
+    MINIMAL_DISPLAY,
+    FONT_HEIGHT,
+    FONT_WIDTH,
+    SMALLEST_WIDTH,
+    SMALLEST_HEIGHT,
+)
 from ..camera import OV7740_ID, OV2640_ID, OV5642_ID
 from ..input import BUTTON_ENTER, BUTTON_PAGE, BUTTON_PAGE_PREV, BUTTON_TOUCH
 
@@ -51,15 +59,15 @@ class TinySeed(Page):
     def __init__(self, ctx):
         super().__init__(ctx, None)
         self.ctx = ctx
-        self.x_offset = DEFAULT_PADDING // 2 + 2 * FONT_WIDTH
+        self.x_offset = MINIMAL_PADDING + 2 * FONT_WIDTH
         self.printer = None
-        if self.ctx.display.width() > 140:
+        if self.ctx.display.width() > SMALLEST_WIDTH:
             self.x_pad = self.ctx.display.width() * 2 // 27
             self.y_pad = self.ctx.display.height() // 17
         else:
             self.x_pad = FONT_WIDTH + 1
             self.y_pad = FONT_HEIGHT
-        if self.ctx.display.height() > 240:
+        if self.ctx.display.height() > SMALLEST_HEIGHT:
             self.y_offset = DEFAULT_PADDING + 3 * FONT_HEIGHT
         else:
             self.y_offset = 2 * FONT_HEIGHT
@@ -94,10 +102,10 @@ class TinySeed(Page):
         if not MINIMAL_DISPLAY:
             self.ctx.display.to_landscape()
             bit_number = 2048
-            bit_offset = DEFAULT_PADDING // 2 + 2 * FONT_HEIGHT
+            bit_offset = MINIMAL_PADDING + 2 * FONT_HEIGHT
             for _ in range(12):
                 lcd.draw_string(
-                    (7 - len(str(bit_number))) * FONT_WIDTH - DEFAULT_PADDING // 2,
+                    (7 - len(str(bit_number))) * FONT_WIDTH - MINIMAL_PADDING,
                     self.ctx.display.width() - bit_offset,
                     str(bit_number),
                     theme.fg_color,
@@ -112,7 +120,7 @@ class TinySeed(Page):
             line = str(page * 12 + x + 1)
             if (page * 12 + x + 1) < 10:
                 line = " " + line
-            self.ctx.display.draw_string(DEFAULT_PADDING // 2, y_offset, line)
+            self.ctx.display.draw_string(MINIMAL_PADDING, y_offset, line)
             y_offset += self.y_pad
 
     def _draw_punched(self, words, page):
@@ -801,7 +809,7 @@ class TinyScanner(Page):
         return rect
 
     def _draw_grid(self, img):
-        if self.ctx.display.height() > 240:
+        if self.ctx.display.height() > SMALLEST_HEIGHT:
             for i in range(13):
                 img.draw_line(
                     self.x_regions[i],
@@ -856,7 +864,9 @@ class TinyScanner(Page):
                     self._gradient_value(index, gradient_corners) * 4
                 ) // 5  # ~-20%
                 # Sensor image will be downscaled on small displays
-                punch_thickness = 1 if self.ctx.display.height() > 240 else 2
+                punch_thickness = (
+                    1 if self.ctx.display.height() > SMALLEST_HEIGHT else 2
+                )
                 # If the dot is punched, draws a rectangle and toggle respective bit
                 if dot_l < punch_threshold:
                     _ = img.draw_rectangle(

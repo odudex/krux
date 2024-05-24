@@ -23,6 +23,8 @@ from ur.ur import UR
 from embit.descriptor.descriptor import Descriptor
 from embit.descriptor.arguments import Key
 from .krux_settings import t
+from .key import P2PKH, P2SH_P2WPKH, P2WPKH, P2WSH, P2TR
+from .qr import BBQR_FORMATS
 
 
 class Wallet:
@@ -36,20 +38,20 @@ class Wallet:
         self.label = None
         self.policy = None
         if not self.key.multisig:
-            if self.key.script_type == "p2pkh":
+            if self.key.script_type == P2PKH:
                 self.descriptor = Descriptor.from_string(
                     "pkh(%s/{0,1}/*)" % self.key.key_expression()
                 )
-            elif self.key.script_type == "p2sh-p2wpkh":
+            elif self.key.script_type == P2SH_P2WPKH:
                 self.descriptor = Descriptor.from_string(
                     "sh(wpkh(%s/{0,1}/*))" % self.key.key_expression()
                 )
-            elif self.key.script_type == "p2wpkh":
+            elif self.key.script_type == P2WPKH:
                 self.descriptor = Descriptor.from_string(
                     "wpkh(%s/{0,1}/*)" % self.key.key_expression()
                 )
 
-            elif self.key.script_type == "p2tr":
+            elif self.key.script_type == P2TR:
                 self.descriptor = Descriptor.from_string(
                     "tr(%s/{0,1}/*)" % self.key.key_expression()
                 )
@@ -106,6 +108,10 @@ class Wallet:
 
     def wallet_qr(self):
         """Returns the original wallet data and qr format for display back as a QR code"""
+        if self.wallet_qr_format in BBQR_FORMATS:
+            from .bbqr import encode_bbqr
+
+            return encode_bbqr(self.wallet_data, self.wallet_qr_format)
         return (self.wallet_data, self.wallet_qr_format)
 
     def obtain_addresses(self, i=0, limit=None, branch_index=0):
@@ -196,7 +202,7 @@ def parse_wallet(wallet_data, network):
                 )
 
             script = key_vals[key_vals.index("Format") + 1].lower()
-            if script != "p2wsh":
+            if script != P2WSH:
                 raise ValueError("invalid script type: %s" % script)
 
             policy = key_vals[key_vals.index("Policy") + 1]

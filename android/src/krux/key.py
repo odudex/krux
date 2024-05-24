@@ -27,19 +27,49 @@ try:
 except:
     import random
 from binascii import hexlify
+from hashlib import sha256
 from embit import bip32, bip39
 from embit.wordlists.bip39 import WORDLIST
 from embit.networks import NETWORKS
+from .settings import TEST_TXT
 
 DER_SINGLE = "m/%dh/%dh/%dh"
 DER_MULTI = "m/%dh/%dh/%dh/2h"
 HARDENED_STR_REPLACE = "'"
 
+# Pay To Public Key Hash - 44' Legacy single-sig
+# address starts with 1 (mainnet) or m (testnet)
+P2PKH = "p2pkh"
+
+# Pay To Script Hash - 45' Legacy multisig
+# address starts with 3 (mainnet) or 2 (testnet)
+P2SH = "p2sh"
+
+# Pay To Witness Public Key Hash Wrapped In P2SH - 49' Nested Segwit single-sig
+# address starts with 3 (mainnet) or 2 (testnet)
+P2SH_P2WPKH = "p2sh-p2wpkh"
+
+# Pay To Witness Script Hash Wrapped In P2SH - 48'/0'/0'/1' Nested Segwit multisig
+# address starts with 3 (mainnet) or 2 (testnet)
+P2SH_P2WSH = "p2sh-p2wsh"
+
+# Pay To Witness Public Key Hash - 84' Native Segwit single-sig
+# address starts with bc1q (mainnet) or tb1q (testnet)
+P2WPKH = "p2wpkh"
+
+# Pay To Witness Script Hash - 48'/0'/0'/2' Native Segwit multisig
+# address starts with bc1q (mainnet) or tb1q (testnet)
+P2WSH = "p2wsh"
+
+# Pay To Taproot - 86' Taproot single-sig
+# address starts with bc1p (mainnet) or tb1p (testnet)
+P2TR = "p2tr"
+
 SINGLESIG_SCRIPT_PURPOSE = {
-    "p2pkh": 44,
-    "p2sh-p2wpkh": 49,
-    "p2wpkh": 84,
-    "p2tr": 86,
+    P2PKH: 44,
+    P2SH_P2WPKH: 49,
+    P2WPKH: 84,
+    P2TR: 86,
 }
 
 MULTISIG_SCRIPT_PURPOSE = 48
@@ -52,17 +82,17 @@ class Key:
         self,
         mnemonic,
         multisig,
-        network=NETWORKS["test"],
+        network=NETWORKS[TEST_TXT],
         passphrase="",
         account_index=0,
-        script_type="p2wpkh",
+        script_type=P2WPKH,
     ):
         self.mnemonic = mnemonic
         self.multisig = multisig
         self.network = network
         self.passphrase = passphrase
         self.account_index = account_index
-        self.script_type = script_type if not multisig else "p2wsh"
+        self.script_type = script_type if not multisig else P2WSH
         self.root = bip32.HDKey.from_seed(
             bip39.mnemonic_to_seed(mnemonic, passphrase), version=network["xprv"]
         )
@@ -75,6 +105,10 @@ class Key:
     def xpub(self, version=None):
         """Returns the xpub representation of the extended master public key"""
         return self.account.to_base58(version)
+
+    def get_xpub(self, path):
+        """Returns the xpub for the provided path"""
+        return self.root.derive(path).to_public()
 
     def key_expression(self, version=None):
         """Returns the extended master public key (xpub/ypub/zpub) in key expression format
@@ -95,7 +129,7 @@ class Key:
 
     def fingerprint_hex_str(self, pretty=False):
         """Returns the master key fingerprint in hex format"""
-        # Android: "⊚ %s" if pretty else "%s" - ⊚ is not supported by the font
+        # Android custom: "⊚ %s" if pretty else "%s" - ⊚ is not supported by the font
         formatted_txt = "%s" if pretty else "%s"
         return formatted_txt % hexlify(self.fingerprint).decode("utf-8")
 
@@ -103,7 +137,7 @@ class Key:
         """Returns the derivation path for the Hierarchical Deterministic Wallet to
         be displayed as string
         """
-        # Android: formatted_txt = "↳ %s" if pretty else "%s" - ↳ is not supported by the font
+        # Android custom: formatted_txt = "↳ %s" if pretty else "%s" - ↳ is not supported by the font
         formatted_txt = "%s" if pretty else "%s"
         return (formatted_txt % self.derivation).replace("h", HARDENED_STR_REPLACE)
 
@@ -137,14 +171,10 @@ class Key:
             raise ValueError("must provide 11 or 23 words")
 
         random.seed(int(time.ticks_ms() + entropy))
-        while True:
-            word = random.choice(WORDLIST)
-            mnemonic = " ".join(words) + " " + word
-            if bip39.mnemonic_is_valid(mnemonic):
-                return word
+        return random.choice(Key.get_final_word_candidates(words))
 
     @staticmethod
-    def get_default_derivation(multisig, network, account=0, script_type="p2wpkh"):
+    def get_default_derivation(multisig, network, account=0, script_type=P2WPKH):
         """Return the Krux default derivation path for single-sig or multisig"""
         der_format = DER_MULTI if multisig else DER_SINGLE
         purpose = (
@@ -155,11 +185,40 @@ class Key:
         return der_format % (purpose, network["bip32"], account)
 
     @staticmethod
-    def get_default_derivation_str(multisig, network, account=0, script_type="p2wpkh"):
-        """Return the Krux default derivation path for single-sig or multisig to
-        be displayd as string
-        """
-        # Android: ↳ is not supported by the font
-        return Key.get_default_derivation(
-            multisig, network, account, script_type
-        ).replace("h", HARDENED_STR_REPLACE)
+    def format_derivation(derivation, pretty=False):
+        """Helper method to display the derivation path formatted"""
+        # Android custom
+        formatted_txt = "%s" if pretty else "%s"
+        return (formatted_txt % derivation).replace("h", HARDENED_STR_REPLACE)
+
+    @staticmethod
+    def format_fingerprint(fingerprint, pretty=False):
+        """Helper method to display the fingerprint formatted"""
+        # Android custom
+        formatted_txt = "%s" if pretty else "%s"
+        return formatted_txt % hexlify(fingerprint).decode("utf-8")
+
+    @staticmethod
+    def get_final_word_candidates(words):
+        """Returns a list of valid final words"""
+        if len(words) != 11 and len(words) != 23:
+            raise ValueError("must provide 11 or 23 words")
+
+        accu = 0
+        for index in [WORDLIST.index(x) for x in words]:
+            accu = (accu << 11) + index
+
+        # in bits: final entropy, needed entropy, checksum
+        len_target = (len(words) * 11 + 11) // 33 * 32
+        len_needed = len_target - (len(words) * 11)
+        len_cksum = len_target // 32
+
+        candidates = []
+        for i in range(2**len_needed):
+            entropy = (accu << len_needed) + i
+            ck_bytes = sha256(entropy.to_bytes(len_target // 8, "big")).digest()
+            cksum = int.from_bytes(ck_bytes, "big") >> 256 - len_cksum
+            last_word = WORDLIST[(i << len_cksum) + cksum]
+            candidates.append(last_word)
+
+        return candidates

@@ -36,6 +36,11 @@ from . import (
 )
 from .settings_page import DIGITS
 from ..key import SINGLESIG_SCRIPT_PURPOSE, MULTISIG_SCRIPT_PURPOSE
+from ..settings import (
+    MAIN_TXT,
+    TEST_TXT,
+)
+from ..key import P2PKH, P2SH_P2WPKH, P2WPKH, P2WSH, P2TR
 
 PASSPHRASE_MAX_LEN = 200
 ACCOUNT_MAX = 2**31 - 1  # Maximum account index
@@ -111,7 +116,7 @@ class WalletSettings(Page):
                         if multisig
                         else str(SINGLESIG_SCRIPT_PURPOSE[script_type])
                     ),
-                    "0" if network == NETWORKS["main"] else "1",
+                    "0" if network == NETWORKS[MAIN_TXT] else "1",
                     str(account) + "'",
                 ]
             )
@@ -138,7 +143,7 @@ class WalletSettings(Page):
                 network = self._coin_type()
             elif index == 1:
                 multisig = self._multisig()
-                if not multisig and script_type == "p2wsh":
+                if not multisig and script_type == P2WSH:
                     # If is not multisig, and script is p2wsh, force to pick a new type
                     script_type = self._script_type()
             elif index == 2:
@@ -148,7 +153,7 @@ class WalletSettings(Page):
                 if account_temp is not None:
                     account = account_temp
         if multisig:
-            script_type = "p2wsh"
+            script_type = P2WSH
         return network, multisig, script_type, account
 
     def _coin_type(self):
@@ -162,7 +167,7 @@ class WalletSettings(Page):
             disable_statusbar=True,
         )
         index, _ = submenu.run_loop()
-        return NETWORKS["test"] if index == 1 else NETWORKS["main"]
+        return NETWORKS[TEST_TXT] if index == 1 else NETWORKS[MAIN_TXT]
 
     def _multisig(self):
         """Multisig selection menu"""
@@ -182,10 +187,10 @@ class WalletSettings(Page):
         submenu = Menu(
             self.ctx,
             [
-                ("Legacy - 44 (soon)", None),  #  lambda: "44"),
-                ("Nested Segwit (soon) - 49", None),  #  lambda: "49"),
-                ("Native Segwit - 84", lambda: "p2wpkh"),
-                ("Taproot - 86 (Experimental)", lambda: "p2tr"),
+                ("Legacy - 44", lambda: P2PKH),
+                ("Nested Segwit - 49", lambda: P2SH_P2WPKH),
+                ("Native Segwit - 84", lambda: P2WPKH),
+                ("Taproot - 86 (Experimental)", lambda: P2TR),
             ],
             disable_statusbar=True,
         )

@@ -41,6 +41,8 @@ from ..display import (
     FLASH_MSG_TIME,
     FONT_HEIGHT,
     FONT_WIDTH,
+    SMALLEST_WIDTH,
+    STATUS_BAR_HEIGHT,
 )
 from ..qr import to_qr_codes
 from ..krux_settings import t, Settings, DefaultWallet
@@ -64,6 +66,9 @@ LETTERS = "abcdefghijklmnopqrstuvwxyz"
 UPPERCASE_LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 NUM_SPECIAL_1 = "0123456789 !#$%&'()*"
 NUM_SPECIAL_2 = '+,-./:;<=>?@[\\]^_"{|}~'
+
+BATTERY_WIDTH = 22
+BATTERY_HEIGHT = 7
 
 
 class Page:
@@ -259,13 +264,15 @@ class Page:
         # self.ctx.display.to_portrait()  # Android custom
         return (code, qr_format)
 
-    def display_qr_codes(self, data, qr_format, title=""):
+    def display_qr_codes(self, data, qr_format, title="", file_type=None):
         """Displays a QR code or an animated series of QR codes to the user, encoding them
         in the specified format
         """
         done = False
         i = 0
-        code_generator = to_qr_codes(data, self.ctx.display.qr_data_width(), qr_format)
+        code_generator = to_qr_codes(
+            data, self.ctx.display.qr_data_width(), qr_format, file_type=file_type
+        )
         self.ctx.display.clear()
         bright = theme.bg_color == WHITE
         extra_debounce_flag = True
@@ -276,7 +283,10 @@ class Page:
                 code, num_parts = next(code_generator)
             except:
                 code_generator = to_qr_codes(
-                    data, self.ctx.display.qr_data_width(), qr_format
+                    data,
+                    self.ctx.display.qr_data_width(),
+                    qr_format,
+                    file_type=file_type,
                 )
                 code, num_parts = next(code_generator)
             if bright:
@@ -546,15 +556,14 @@ class Menu:
     def __init__(self, ctx, menu, offset=None, disable_statusbar=False):
         self.ctx = ctx
         self.menu = menu
+        self.disable_statusbar = disable_statusbar
         if offset is None:
             # Default offset for status bar
-            self.menu_offset = FONT_HEIGHT
+            self.menu_offset = STATUS_BAR_HEIGHT
         else:
-            self.menu_offset = offset
-        self.disable_statusbar = disable_statusbar
-        if self.menu_offset != FONT_HEIGHT:
             # Always diasble status bar if menu has non standard offset
             self.disable_statusbar = True
+            self.menu_offset = offset
         max_viewable = min(
             self.ctx.display.max_menu_lines(self.menu_offset),
             len(self.menu),
@@ -637,7 +646,7 @@ class Menu:
                     self.menu_view.move_forward()
                 elif btn == SWIPE_DOWN:
                     self.menu_view.move_backward()
-                elif btn is None and self.menu_offset == FONT_HEIGHT:
+                elif btn is None and self.menu_offset == STATUS_BAR_HEIGHT:
                     # Activates screensaver if there's no info_box(other things draw on the screen)
                     self.screensaver()
 
@@ -664,7 +673,7 @@ class Menu:
                 0,
                 0,
                 self.ctx.display.width(),
-                FONT_HEIGHT + 1,
+                STATUS_BAR_HEIGHT,
                 theme.info_bg_color,
             )
             self.draw_battery_indicator()
@@ -693,48 +702,47 @@ class Menu:
                 battery_color = theme.fg_color
 
         # Draw (filled) outline of battery in top-right corner of display
-        padding = FONT_HEIGHT // 3
-        cylinder_length = 22
-        cylinder_height = 7
+        x_padding = FONT_HEIGHT // 3
+        y_padding = (STATUS_BAR_HEIGHT // 2) - (BATTERY_HEIGHT // 2)
         self.ctx.display.outline(
-            self.ctx.display.width() - padding - cylinder_length,
-            padding,
-            cylinder_length,
-            cylinder_height,
+            self.ctx.display.width() - x_padding - BATTERY_WIDTH,
+            y_padding,
+            BATTERY_WIDTH,
+            BATTERY_HEIGHT,
             battery_color,
         )
         self.ctx.display.fill_rectangle(
-            self.ctx.display.width() - padding + 1,
-            padding + 2,
+            self.ctx.display.width() - x_padding + 1,
+            y_padding + 2,
             2,
-            cylinder_height - 3,
+            BATTERY_HEIGHT - 3,
             battery_color,
         )
 
         # Indicate how much battery is depleted
-        charge_length = int((cylinder_length - 3) * charge)
+        charge_length = int((BATTERY_WIDTH - 3) * charge)
         self.ctx.display.fill_rectangle(
-            self.ctx.display.width() - padding - cylinder_length + 2,
-            padding + 2,
+            self.ctx.display.width() - x_padding - BATTERY_WIDTH + 2,
+            y_padding + 2,
             charge_length,
-            cylinder_height - 3,
+            BATTERY_HEIGHT - 3,
             battery_color,
         )
 
     def draw_wallet_indicator(self):
         """Draws wallet fingerprint or BIP85 child at top if wallet is loaded"""
         if self.ctx.wallet is not None:
-            if self.ctx.display.width() > 140:
+            if self.ctx.display.width() > SMALLEST_WIDTH:
                 self.ctx.display.draw_hcentered_text(
                     self.ctx.wallet.key.fingerprint_hex_str(True),
-                    0,
+                    STATUS_BAR_HEIGHT - FONT_HEIGHT - 1,
                     theme.highlight_color,
                     theme.info_bg_color,
                 )
             else:
                 self.ctx.display.draw_string(
                     24,
-                    0,
+                    STATUS_BAR_HEIGHT - FONT_HEIGHT - 1,
                     self.ctx.wallet.key.fingerprint_hex_str(True),
                     theme.highlight_color,
                     theme.info_bg_color,
@@ -746,10 +754,22 @@ class Menu:
             self.ctx.wallet is not None
             and self.ctx.wallet.key.network["name"] == "Testnet"
         ):
-            if self.ctx.display.width() > 140:
-                self.ctx.display.draw_string(12, 0, "test", GREEN, theme.info_bg_color)
+            if self.ctx.display.width() > SMALLEST_WIDTH:
+                self.ctx.display.draw_string(
+                    12,
+                    STATUS_BAR_HEIGHT - FONT_HEIGHT - 1,
+                    "Test",
+                    GREEN,
+                    theme.info_bg_color,
+                )
             else:
-                self.ctx.display.draw_string(6, 0, "T", GREEN, theme.info_bg_color)
+                self.ctx.display.draw_string(
+                    6,
+                    STATUS_BAR_HEIGHT - FONT_HEIGHT - 1,
+                    "T",
+                    GREEN,
+                    theme.info_bg_color,
+                )
 
     def _draw_touch_menu(self, selected_item_index):
         # map regions with dynamic height to fill screen
@@ -807,7 +827,7 @@ class Menu:
                     )
 
     def _draw_menu(self, selected_item_index):
-        if self.menu_offset > FONT_HEIGHT:
+        if self.menu_offset > STATUS_BAR_HEIGHT:
             offset_y = self.menu_offset + 3 * FONT_HEIGHT // 2
         else:
             offset_y = len(self.menu_view) * 2
@@ -846,3 +866,22 @@ class Menu:
                         text, offset_y + FONT_HEIGHT * j, fg_color
                     )
             offset_y += delta_y
+
+
+def choose_len_mnemonic(ctx):
+    """Reusable '12 or 24 words?" menu choice"""
+    submenu = Menu(
+        ctx,
+        [
+            (t("12 words"), lambda: MENU_EXIT),
+            (t("24 words"), lambda: MENU_EXIT),
+            (t("Back"), lambda: MENU_EXIT),
+        ],
+    )
+    index, _ = submenu.run_loop()
+    ctx.display.clear()
+    if index == 0:
+        return 12
+    if index == 1:
+        return 24
+    return None
