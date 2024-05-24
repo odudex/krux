@@ -728,9 +728,18 @@ class Login(Page):
 
         from ..metadata import VERSION
 
+        load_deflate_txt = "Failed"
+
+        try:
+            import deflate
+
+            load_deflate_txt = "Loaded deflate"
+        except Exception as e:
+            load_deflate_txt = "Failed to load 'deflate\n" + str(e)
+        
         self.ctx.display.clear()
         self.ctx.display.draw_centered_text(
-            "Krux\n\n\n" + t("Version") + "\n%s" % VERSION
+            "Krux\n\n\n" + t("Version") + "\n%s" % VERSION + "\n\n\n" + load_deflate_txt
         )
         self.ctx.input.wait_for_button()
         return MENU_CONTINUE

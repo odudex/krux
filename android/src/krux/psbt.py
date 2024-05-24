@@ -346,7 +346,7 @@ class PSBTSigner:
                 + ("B %s" % format_btc(out[1]))
             )
 
-        return messages
+        return messages, fee_percent
 
     def add_signatures(self):
         """Add signatures to PSBT"""
