@@ -40,21 +40,21 @@ class Wallet:
         if not self.key.multisig:
             if self.key.script_type == P2PKH:
                 self.descriptor = Descriptor.from_string(
-                    "pkh(%s/{0,1}/*)" % self.key.key_expression()
+                    "pkh(%s/<0;1>/*)" % self.key.key_expression()
                 )
             elif self.key.script_type == P2SH_P2WPKH:
                 # This is not working on Android
                 self.descriptor = Descriptor.from_string(
-                    "sh(wpkh(%s/{0,1}/*))" % self.key.key_expression()
+                    "sh(wpkh(%s/<0;1>/*))" % self.key.key_expression()
                 )
             elif self.key.script_type == P2WPKH:
                 self.descriptor = Descriptor.from_string(
-                    "wpkh(%s/{0,1}/*)" % self.key.key_expression()
+                    "wpkh(%s/<0;1>/*)" % self.key.key_expression()
                 )
 
             elif self.key.script_type == P2TR:
                 self.descriptor = Descriptor.from_string(
-                    "tr(%s/{0,1}/*)" % self.key.key_expression()
+                    "tr(%s/<0;1>/*)" % self.key.key_expression()
                 )
             self.label = t("Single-sig")
             self.policy = {"type": self.descriptor.scriptpubkey_type()}
@@ -230,7 +230,7 @@ def parse_wallet(wallet_data, network):
                 )
             else:
                 # Single-sig - assuming Native Segwit
-                descriptor = Descriptor.from_string("wpkh(%s/{0,1}/*)" % keys[0])
+                descriptor = Descriptor.from_string("wpkh(%s/<0;1>/*)" % keys[0])
             label = (
                 key_vals[key_vals.index("Name") + 1]
                 if key_vals.index("Name") >= 0

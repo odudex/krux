@@ -37,7 +37,7 @@ version = 23.04.05
 
 # (list) Application requirements
 # comma separated e.g. requirements = sqlite3,kivy
-requirements = python3,kivy,pycryptodome,camera4kivy,gestures4kivy,pyzbar==0.1.9,libzbar,pillow,pyqrcode,embit==0.7,numpy
+requirements = python3,kivy,pycryptodome,camera4kivy,gestures4kivy,pyzbar==0.1.9,libzbar,pillow,pyqrcode,numpy
 
 # (str) Custom source folders for requirements
 # Sets custom source for any requirements with recipes
