@@ -188,7 +188,7 @@ class WalletSettings(Page):
             self.ctx,
             [
                 ("Legacy - 44", lambda: P2PKH),
-                ("Nested Segwit - 49", lambda: P2SH_P2WPKH),  # not working on Android
+                ("Nested Segwit - 49", lambda: P2SH_P2WPKH),
                 ("Native Segwit - 84", lambda: P2WPKH),
                 ("Taproot - 86 (Experimental)", lambda: P2TR),
             ],

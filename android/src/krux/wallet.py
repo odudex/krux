@@ -43,7 +43,6 @@ class Wallet:
                     "pkh(%s/<0;1>/*)" % self.key.key_expression()
                 )
             elif self.key.script_type == P2SH_P2WPKH:
-                # This is not working on Android
                 self.descriptor = Descriptor.from_string(
                     "sh(wpkh(%s/<0;1>/*))" % self.key.key_expression()
                 )

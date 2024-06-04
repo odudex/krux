@@ -32,6 +32,7 @@ PORTRAIT, LANDSCAPE = [2, 3] if board.config["type"] == "cube" else [1, 2]
 QR_DARK_COLOR, QR_LIGHT_COLOR = (
     [16904, 61307] if board.config["type"] == "m5stickv" else [0, 6342]
 )
+# Custom for Android
 TOTAL_LINES = lcd._height() // FONT_HEIGHT
 BOTTOM_LINE = (TOTAL_LINES - 1) * FONT_HEIGHT
 MINIMAL_DISPLAY = board.config["type"] in ("m5stickv", "cube")
