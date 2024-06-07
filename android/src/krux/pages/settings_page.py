@@ -397,7 +397,7 @@ class SettingsPage(Page):
             ):
                 self._settings_exit_check()
                 self.ctx.display.clear()
-                return MENU_SHUTDOWN  # Android Only
+                return MENU_SHUTDOWN  # Android custom
             else:
                 # Restore previous theme
                 setting.__set__(settings_namespace, starting_category)

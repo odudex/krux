@@ -89,7 +89,7 @@ class Login(Page):
             self.ctx,
             [
                 (t("QR Code"), self.load_key_from_qr_code),
-                ("Tiny Seed",None),
+                ("Tiny Seed",None),  # Android custom
                 (t("Back"), lambda: MENU_EXIT),
             ],
         )

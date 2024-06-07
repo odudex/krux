@@ -70,6 +70,9 @@ NUM_SPECIAL_2 = '+,-./:;<=>?@[\\]^_"{|}~'
 BATTERY_WIDTH = 22
 BATTERY_HEIGHT = 7
 
+LOAD_FROM_CAMERA = 0
+LOAD_FROM_SD = 1
+
 
 class Page:
     """Represents a page in the app, with helper methods for common display and
@@ -95,6 +98,22 @@ class Page:
         if answer:
             return ESC_KEY
         return None
+
+    def load_method(self):
+        """Prompts user to choose a method to load data from"""
+        load_menu = Menu(
+            self.ctx,
+            [
+                (t("Load from camera"), lambda: None),
+                (
+                    t("Load from SD card"),
+                    None if not self.has_sd_card() else lambda: None,
+                ),
+                (t("Back"), lambda: None),
+            ],
+        )
+        index, _ = load_menu.run_loop()
+        return index
 
     def flash_text(
         self,
@@ -264,15 +283,13 @@ class Page:
         # self.ctx.display.to_portrait()  # Android custom
         return (code, qr_format)
 
-    def display_qr_codes(self, data, qr_format, title="", file_type=None):
+    def display_qr_codes(self, data, qr_format, title=""):
         """Displays a QR code or an animated series of QR codes to the user, encoding them
         in the specified format
         """
         done = False
         i = 0
-        code_generator = to_qr_codes(
-            data, self.ctx.display.qr_data_width(), qr_format, file_type=file_type
-        )
+        code_generator = to_qr_codes(data, self.ctx.display.qr_data_width(), qr_format)
         self.ctx.display.clear()
         bright = theme.bg_color == WHITE
         extra_debounce_flag = True
@@ -283,10 +300,7 @@ class Page:
                 code, num_parts = next(code_generator)
             except:
                 code_generator = to_qr_codes(
-                    data,
-                    self.ctx.display.qr_data_width(),
-                    qr_format,
-                    file_type=file_type,
+                    data, self.ctx.display.qr_data_width(), qr_format
                 )
                 code, num_parts = next(code_generator)
             if bright:
@@ -731,7 +745,7 @@ class Menu:
 
     def draw_wallet_indicator(self):
         """Draws wallet fingerprint or BIP85 child at top if wallet is loaded"""
-        if self.ctx.wallet is not None:
+        if self.ctx.is_logged_in():
             if self.ctx.display.width() > SMALLEST_WIDTH:
                 self.ctx.display.draw_hcentered_text(
                     self.ctx.wallet.key.fingerprint_hex_str(True),
@@ -750,10 +764,7 @@ class Menu:
 
     def draw_network_indicator(self):
         """Draws test at top if testnet is enabled"""
-        if (
-            self.ctx.wallet is not None
-            and self.ctx.wallet.key.network["name"] == "Testnet"
-        ):
+        if self.ctx.is_logged_in() and self.ctx.wallet.key.network["name"] == "Testnet":
             if self.ctx.display.width() > SMALLEST_WIDTH:
                 self.ctx.display.draw_string(
                     12,

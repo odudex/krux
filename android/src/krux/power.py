@@ -53,7 +53,7 @@ class PowerManager:
         except:
             return False
         return True
-        
+
     def battery_charge_remaining(self):
         """Returns the state of charge of the device's battery"""
         mv = int(self.pmu.get_battery_voltage())
