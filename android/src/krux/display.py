@@ -53,6 +53,7 @@ SMALLEST_WIDTH = 135
 SMALLEST_HEIGHT = 240
 
 # Splash will use horizontally-centered text plots. Uses Thin spaces to help with alignment
+# Android Custom
 SPLASH = [
     "██   ",
     "██   ",
