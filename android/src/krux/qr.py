@@ -23,12 +23,6 @@
 import io
 import math
 import qrcode
-from ur.ur_decoder import URDecoder
-from ur.ur import UR
-from .bbqr import (
-    BBQrCode,
-    parse_bbqr,
-)
 
 FORMAT_NONE = 0
 FORMAT_PMOFN = 1
@@ -106,7 +100,7 @@ class QRPartParser:
         self.parts = {}
         self.total = -1
         self.format = None
-        self.decoder = URDecoder()
+        self.decoder = None
         self.bbqr = None
 
     def parsed_count(self):
@@ -149,8 +143,14 @@ class QRPartParser:
             self.parts[index] = part
             self.total = total
         elif self.format == FORMAT_UR:
+            if not self.decoder:
+                from ur.ur_decoder import URDecoder
+
+                self.decoder = URDecoder()
             self.decoder.receive_part(data)
         elif self.format == FORMAT_BBQR:
+            from .bbqr import parse_bbqr
+
             part, index, total = parse_bbqr(data)
             self.parts[index] = part
             self.total = total
@@ -173,6 +173,8 @@ class QRPartParser:
     def result(self):
         """Returns the combined part data"""
         if self.format == FORMAT_UR:
+            from ur.ur import UR
+
             return UR(self.decoder.result.type, bytearray(self.decoder.result.cbor))
 
         if self.format == FORMAT_BBQR:
@@ -237,7 +239,7 @@ def to_qr_codes(data, max_width, qr_format):
                 part = encoder.next_part()
                 code = qrcode.encode(part)
                 yield (code, encoder.fountain_encoder.seq_len())
-        elif isinstance(data, BBQrCode):
+        elif qr_format == FORMAT_BBQR:
             part_index = 0
             while True:
                 header = "B$%s%s%s%s" % (
@@ -273,6 +275,7 @@ def max_qr_bytes(max_width, encoding="byte"):
     # Given qr_size = 17 + 4 * version + 2 * frame_size
     max_width -= 2  # Subtract frame width
     qr_version = (max_width - 17) // 4
+    # Android custom
     qr_version = min(qr_version, 10)  # Avoid too dense QR codes in high DPI screens
     
     if encoding == "alphanumeric":
@@ -317,7 +320,7 @@ def find_min_num_parts(data, max_width, qr_format):
         # For UR, part size will be the input for "max_fragment_len"
         part_size = len(data.cbor) // num_parts
         part_size = max(part_size, UR_MIN_FRAGMENT_LENGTH)
-    elif isinstance(data, BBQrCode):
+    elif qr_format == FORMAT_BBQR:
         data_length = len(data.payload)
         max_part_size = qr_capacity - BBQR_PREFIX_LENGTH
         if data_length < max_part_size:
@@ -359,9 +362,11 @@ def detect_format(data):
         elif data.lower().startswith("ur:"):
             qr_format = FORMAT_UR
         elif data.startswith("B$"):
-            if data[3] in "PU":
+            from .bbqr import BBQrCode, KNOWN_ENCODINGS, KNOWN_FILETYPES
+
+            if data[3] in KNOWN_FILETYPES:
                 bbqr_file_type = data[3]
-                if data[2] in "2ZH":
+                if data[2] in KNOWN_ENCODINGS:
                     bbqr_encoding = data[2]
                     return FORMAT_BBQR, BBQrCode(None, bbqr_encoding, bbqr_file_type)
 
