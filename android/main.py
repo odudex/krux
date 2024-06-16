@@ -30,7 +30,7 @@ Builder.load_string("""
     Label:
         id: label_1
         font_size: root.height // 30
-        font_name: 'JetBrainsMono-Medium.ttf'
+        font_name: 'JetBrainsMono_krux.ttf'
         size_hint: 1, 0.8
         pos_hint: {'top': 1}
         text_size: self.width, None
@@ -41,7 +41,7 @@ Builder.load_string("""
     Button:
         id: but_1
         font_size: root.height // 30
-        font_name: 'JetBrainsMono-Medium.ttf'
+        font_name: 'JetBrainsMono_krux.ttf'
         background_color: 0, 0, 0, 1
         color: 0, 1, 0, 1
         halign: 'center'
@@ -187,7 +187,7 @@ class KruxApp(App):
         # Can't connect camera till after on_start()
 
 # registering our new custom fontstyle
-LabelBase.register(name='JetBrainsMono-Medium',
-                   fn_regular='JetBrainsMono-Medium.ttf')
+LabelBase.register(name='JetBrainsMono_krux',
+                   fn_regular='JetBrainsMono_krux.ttf')
 
 KruxApp().run()

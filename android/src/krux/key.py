@@ -129,16 +129,14 @@ class Key:
 
     def fingerprint_hex_str(self, pretty=False):
         """Returns the master key fingerprint in hex format"""
-        # Android custom: "⊚ %s" if pretty else "%s" - ⊚ is not supported by the font
-        formatted_txt = "%s" if pretty else "%s"
+        formatted_txt = "⊚ %s" if pretty else "%s"
         return formatted_txt % hexlify(self.fingerprint).decode("utf-8")
 
     def derivation_str(self, pretty=False):
         """Returns the derivation path for the Hierarchical Deterministic Wallet to
         be displayed as string
         """
-        # Android custom: formatted_txt = "↳ %s" if pretty else "%s" - ↳ is not supported by the font
-        formatted_txt = "%s" if pretty else "%s"
+        formatted_txt = "↳ %s" if pretty else "%s"
         return (formatted_txt % self.derivation).replace("h", HARDENED_STR_REPLACE)
 
     def sign(self, message_hash):
@@ -187,15 +185,13 @@ class Key:
     @staticmethod
     def format_derivation(derivation, pretty=False):
         """Helper method to display the derivation path formatted"""
-        # Android custom
-        formatted_txt = "%s" if pretty else "%s"
+        formatted_txt = "↳ %s" if pretty else "%s"
         return (formatted_txt % derivation).replace("h", HARDENED_STR_REPLACE)
 
     @staticmethod
     def format_fingerprint(fingerprint, pretty=False):
         """Helper method to display the fingerprint formatted"""
-        # Android custom
-        formatted_txt = "%s" if pretty else "%s"
+        formatted_txt = "⊚ %s" if pretty else "%s"
         return formatted_txt % hexlify(fingerprint).decode("utf-8")
 
     @staticmethod

@@ -73,7 +73,7 @@ class LCD(Widget):
 
         color = self.rgb565torgb111(color)
         bgcolor = self.rgb565torgb111(bgcolor)
-        label = CoreLabel(text=s, font_size=self.font_size, color=color, font_name='JetBrainsMono-Medium' )
+        label = CoreLabel(text=s, font_size=self.font_size, color=color, font_name='JetBrainsMono_krux' )
         label.refresh()
         text = label.texture
         if self.landscape:
