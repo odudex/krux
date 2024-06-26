@@ -1,11 +1,10 @@
 
 ## Why Does Krux Say the Entropy of My Fifty Dice Rolls Does Not Contain 128 Bits of Entropy?
-This question, frequently raised in Krux chat groups, raised the need to clarify the concepts and tools used by Krux to help the user to detect possible issues in mnemonic creation procedure.
-Tools and in Krux were designed to help the user understand the concepts involved in the process, presenting statistics and indicators, encouraging user to do experiments and evaluate results, and this way learn about best practices in key generation. Below we will dive deeper in entropy concepts to better support users in the fundamental requirement for sovereign selfcustody, which is to build up knowledge.
+This question, frequently raised in Krux chat groups, highlights the need to clarify the concepts and tools used by Krux to help users detect possible issues in the mnemonic creation procedure. Tools in Krux were designed to help users understand the concepts involved in the process, present statistics and indicators, and encourage users to experiment and evaluate results. This way, users learn about best practices in key generation. Below, we will dive deeper into entropy concepts to better support users in the fundamental requirement for sovereign self-custody, which is to build up knowledge.
 
 ## Entropy in Dice Rolls
 
-Rolling dice and collecting the resulting values can be an effective method for generating cryptographic keys due to the inherent randomness and unpredictability of each roll. Each roll of a die produces a random number within a specific range, and when multiple rolls are combined, they create a sequence that is difficult to predict or reproduce. This sequence, can be used to generate cryptographic keys that are robust against attacks. By ensuring that the dice rolls are conducted in a controlled and secure environment, and by using a sufficient number of rolls to achieve the desired level of randomness, one can create cryptographic keys that are highly secure and resistant to brute-force attacks or other forms of cryptanalysis.
+Rolling dice and collecting the resulting values can be an effective method for generating cryptographic keys due to the inherent randomness and unpredictability of each roll. Each roll of a die produces a random number within a specific range, and when multiple rolls are combined, they create a sequence that is difficult to predict or reproduce. This sequence can be used to generate cryptographic keys that are robust against attacks. By ensuring that the dice rolls are conducted in a controlled and secure environment, and by using a sufficient number of rolls to achieve the desired level of randomness, one can create cryptographic keys that are highly secure and resistant to brute-force attacks or other forms of cryptanalysis.
 
 ### Entropy Definitions
 
@@ -51,11 +50,14 @@ Consider a fair six-sided die. The possible outcomes when rolling one die are {1
    - Each outcome has a probability $p_i = \frac{1}{6}$.
    - The entropy $S$ for one die roll is calculated as:
 
-     $S = - \sum_{i=1}^{6} \left( \frac{1}{6} \log_2 \left( \frac{1}{6} \right) \right) $
+$$
+S = - \sum_{i=1}^{6} \left( \frac{1}{6} \log_2 \left( \frac{1}{6} \right) \right)
+$$
 
      Since $\log_2(1/6) = -\log_2(6) $:
-
-     $S = -6 \left( \frac{1}{6} \times -\log_2(6) \right) = \log_2(6) \approx 2.585 \text{ bits} $
+$$
+S = -6 \left( \frac{1}{6} \times -\log_2(6) \right) = \log_2(6) \approx 2.585 \text{ bits}
+$$
 
 2. **Multiple Dice Rolls:**
    - For multiple dice, the entropy increases as the number of possible outcomes increases. For $k$ fair dice, the number of possible outcomes is $6^k$.
@@ -190,23 +192,26 @@ $$
 
 Calculating Shannon's entropy on a real sample of dice rolls provides insights into the actual randomness and fairness of the dice and rolling conditions. Deviations from the theoretical entropy reflect the natural imperfections and variances inherent in real-world scenarios. This understanding helps in evaluating and improving the fairness and randomness of dice or similar systems.
 
-Shannon's entropy evaluates the statistical probability distribution of samples of a dice roll. An even distribution result in a higher entropy, closer to the theoretical maximum entropy, which assumes perfectly distributed rolls. An uneven distribution, created, for example, by a biased die, will result in a low Shannon entropy. In an extreme case, with a terribly biased die which always lands in the same side, the Shannon's entropy will be zero.
+Shannon's entropy evaluates the statistical probability distribution of samples of a dice roll. An even distribution results in higher entropy, closer to the theoretical maximum entropy, which assumes perfectly distributed rolls. An uneven distribution, created, for example, by a biased die, will result in lower Shannon entropy. In an extreme case, with a terribly biased die that always lands on the same side, Shannon's entropy will be zero.
 
 ## Cryptographic Entropy
 
-Shannon's entropy, while a powerful measure of information content and uncertainty in a statistical distribution for natural samples, is not considered cryptographic entropy due to its inability to detect patterns or other sources of predictability within data. Shannon's formula quantifies the average information produced by a stochastic process, essentially measuring the expected surprise in a sequence of symbols based on their probabilities. However, it does not account for potential structure, correlations, or regularities within the data that could be inserted by an user and exploited by an attacker.
+Shannon's entropy, while a powerful measure of information content and uncertainty in a statistical distribution for natural samples, is not considered cryptographic entropy due to its inability to detect patterns or other sources of predictability within data. Shannon's formula quantifies the average information produced by a stochastic process, essentially measuring the expected surprise in a sequence of symbols based on their probabilities. However, it does not account for potential structure, correlations, or regularities within the data that could be inserted by a user and exploited by an attacker.
 
 Cryptographic entropy, on the other hand, requires a higher standard of unpredictability. It must ensure that every bit of the cryptographic key is as random and independent as possible, making it resilient against any form of analysis that could reveal patterns or reduce the effective randomness. While Shannon's entropy can evaluate the statistical distribution of symbols, it falls short in guaranteeing the absence of patterns or dependencies, which are crucial for maintaining the security of cryptographic systems. Thus, cryptographic entropy encompasses a broader concept of randomness, ensuring that the generated keys are not only statistically random but also free from any detectable structure or predictability.
 
 ### Pattern Detection
 
-It is possible to have dice rolls with even distribution, but poor cryptographic entropy. This is the case with patterns. Sequences like: 123456123456123...; 111122223333...; 654321654321... are examples of patterns with poor entropy, but even distribution and high Shannon entropy.
+It is possible to have dice rolls with even distribution but poor cryptographic entropy. This is the case with patterns. Sequences like 123456123456123..., 111122223333..., and 654321654321... are examples of patterns with poor entropy but even distribution and high Shannon entropy.
 
 To mitigate this issue, Krux implemented a pattern detection algorithm that evaluates the Shannon entropy of rolls' derivatives. In practice, the algorithm detects arithmetic progression components in the sample and raises a warning if a threshold is crossed.
 
-## Conclusion
+## What Krux Does?
+
 - Krux requires a minimum number of rolls based on theoretical entropy.
 - Krux warns the user if low Shannon entropy, calculated with the actual rolls, is detected.
 - Krux warns the user if pattern elements are detected within the actual rolls.
 
-Krux cannot ensure rolls have good or bad cryptographic entropy but provides indicators to help users detect issues and learn about the concepts involved in mnemonic creation.
+## Conclusion
+
+While Krux cannot ensure rolls have good or bad cryptographic entropy, it does provide indicators to help users detect issues and learn about the concepts involved in mnemonic generation.
