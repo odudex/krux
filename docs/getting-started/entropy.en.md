@@ -55,6 +55,7 @@ S = - \sum_{i=1}^{6} \left( \frac{1}{6} \log_2 \left( \frac{1}{6} \right) \right
 $$
 
      Since $\log_2(1/6) = -\log_2(6) $:
+
 $$
 S = -6 \left( \frac{1}{6} \times -\log_2(6) \right) = \log_2(6) \approx 2.585 \text{ bits}
 $$
