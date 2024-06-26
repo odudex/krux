@@ -179,7 +179,7 @@ $$
 S = 0.291509 + 0.445307 + 0.39711 + 0.464386 + 0.494132 + 0.423018 = 2.515462
 $$
 
-Thus, the Shannon entropy for the given distribution of dice rolls is approximately $2.52$ bits per roll.
+Thus, the Shannon's entropy for the given distribution of dice rolls is approximately $2.52$ bits per roll.
 
 This will give you a different value than $\log_2(6)$ due to the deviations in the empirical probabilities.
 
@@ -193,7 +193,7 @@ $$
 
 Calculating Shannon's entropy on a real sample of dice rolls provides insights into the actual randomness and fairness of the dice and rolling conditions. Deviations from the theoretical entropy reflect the natural imperfections and variances inherent in real-world scenarios. This understanding helps in evaluating and improving the fairness and randomness of dice or similar systems.
 
-Shannon's entropy evaluates the statistical probability distribution of samples of a dice roll. An even distribution results in higher entropy, closer to the theoretical maximum entropy, which assumes perfectly distributed rolls. An uneven distribution, created, for example, by a biased die, will result in lower Shannon entropy. In an extreme case, with a terribly biased die that always lands on the same side, Shannon's entropy will be zero.
+Shannon's entropy evaluates the statistical probability distribution of samples of a dice roll. An even distribution results in higher entropy, closer to the theoretical maximum entropy, which assumes perfectly distributed rolls. An uneven distribution, created, for example, by a biased die, will result in lower Shannon's entropy. In an extreme case, with a terribly biased die that always lands on the same side, Shannon's entropy will be zero.
 
 ## Cryptographic Entropy
 
@@ -203,14 +203,14 @@ Cryptographic entropy, on the other hand, requires a higher standard of unpredic
 
 ### Pattern Detection
 
-It is possible to have dice rolls with even distribution but poor cryptographic entropy. This is the case with patterns. Sequences like 123456123456123..., 111122223333..., and 654321654321... are examples of patterns with poor entropy but even distribution and high Shannon entropy.
+It is possible to have dice rolls with an even distribution but poor cryptographic entropy. This issue arises when patterns are present in the sequences. Examples include sequences like 123456123456123..., 111122223333..., and 654321654321..., which exhibit poor cryptographic entropy despite having even distribution and high Shannon's entropy.
 
-To mitigate this issue, Krux implemented a pattern detection algorithm that evaluates the Shannon entropy of rolls' derivatives. In practice, the algorithm detects arithmetic progression components in the sample and raises a warning if a threshold is crossed.
+To mitigate this issue, Krux has implemented a pattern detection algorithm that evaluates the Shannon's entropy of the rolls' derivatives. In practice, this algorithm detects arithmetic progression components in the dice rolls and raises a warning if a certain threshold is crossed.
 
 ## What Krux Does?
 
 - Krux requires a minimum number of rolls based on theoretical entropy.
-- Krux warns the user if low Shannon entropy, calculated with the actual rolls, is detected.
+- Krux warns the user if low Shannon's entropy, calculated with the actual rolls, is detected.
 - Krux warns the user if pattern elements are detected within the actual rolls.
 
 ## Conclusion
