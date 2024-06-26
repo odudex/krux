@@ -50,15 +50,15 @@ Consider a fair six-sided die. The possible outcomes when rolling one die are {1
    - Each outcome has a probability $p_i = \frac{1}{6}$.
    - The entropy $S$ for one die roll is calculated as:
 
-$$
-S = - \sum_{i=1}^{6} \left( \frac{1}{6} \log_2 \left( \frac{1}{6} \right) \right)
-$$
+   $$
+   S = - \sum_{i=1}^{6} \left( \frac{1}{6} \log_2 \left( \frac{1}{6} \right) \right)
+   $$
 
-   Since \( \log_2(1/6) = -\log_2(6) \):
+   Since $\log_2(1/6) = -\log_2(6) $:
 
-$$
-S = -6 \left( \frac{1}{6} \times -\log_2(6) \right) = \log_2(6) \approx 2.585 \text{ bits}
-$$
+   $$
+   S = -6 \left( \frac{1}{6} \times -\log_2(6) \right) = \log_2(6) \approx 2.585 \text{ bits}
+   $$
 
 2. **Multiple Dice Rolls:**
    - For multiple dice, the entropy increases as the number of possible outcomes increases. For $k$ fair dice, the number of possible outcomes is $6^k$.
