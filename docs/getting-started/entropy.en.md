@@ -111,18 +111,23 @@ Probabilities for each outcome:
 $$
 p_1 = \frac{4}{50} = 0.08 
 $$
+
 $$
 p_2 = \frac{9}{50} = 0.18 
 $$
+
 $$
 p_3 = \frac{7}{50} = 0.14 
 $$
+
 $$
 p_4 = \frac{10}{50} = 0.2 
 $$
+
 $$
 p_5 = \frac{12}{50} = 0.24 
 $$
+
 $$
 p_6 = \frac{8}{50} = 0.16 
 $$
@@ -171,11 +176,11 @@ $$
 S = 0.291509 + 0.445307 + 0.39711 + 0.464386 + 0.494132 + 0.423018 = 2.515462
 $$
 
-Thus, the Shannon entropy for the given distribution of dice rolls is approximately $2.52$ bits.
+Thus, the Shannon entropy for the given distribution of dice rolls is approximately $2.52$ bits per roll.
 
-This will give you a different value than $\log_2(6) $ due to the deviations in the empirical probabilities.
+This will give you a different value than $\log_2(6)$ due to the deviations in the empirical probabilities.
 
-The total entropy for the $N = 50 $ rolls is:
+The total entropy for the $N = 50$ rolls is:
 
 $$
 S_{total} = S \times N = 2.515 + 50 \approx 125.8 \text{ bits}
