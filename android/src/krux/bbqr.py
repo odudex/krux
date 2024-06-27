@@ -192,6 +192,7 @@ def base32_decode_stream(encoded_str):
     if 0 < bits_left < 8:
         remaining_byte = (buffer << (8 - bits_left)) & 0xFF
         if remaining_byte != 0:
+            # Dead code? remaining bits seem to always be padding (null)
             decoded_bytes.append(remaining_byte)
 
     return bytes(decoded_bytes)
@@ -221,3 +222,16 @@ def base32_encode_stream(data, add_padding=False):
         padding_length = (8 - (encoded_length % 8)) % 8
         for _ in range(padding_length):
             yield "="
+
+
+def int2base36(n):
+    """Convert integer n to a base36 string."""
+    if not 0 <= n <= 1295:  # ensure the number is within the valid range
+        raise ValueError("Number out of range")
+
+    def tostr(x):
+        """Convert integer x to a base36 character."""
+        return chr(48 + x) if x < 10 else chr(65 + x - 10)
+
+    quotient, remainder = divmod(n, 36)
+    return tostr(quotient) + tostr(remainder)

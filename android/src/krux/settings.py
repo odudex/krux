@@ -29,7 +29,7 @@ try:
 except ImportError:
     import json
 
-from kivy.storage.jsonstore import JsonStore
+from kivy.storage.jsonstore import JsonStore  # Custom for Android
 
 import os
 import board  # Custom for Android
