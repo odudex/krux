@@ -28,7 +28,7 @@ from embit import bip39
 from ..display import DEFAULT_PADDING, FONT_HEIGHT, BOTTOM_PROMPT_LINE
 from ..krux_settings import Settings
 from ..qr import FORMAT_UR
-from ..key import Key, P2WPKH
+from ..key import Key, P2WSH, SCRIPT_LONG_NAMES
 from ..krux_settings import t
 from . import (
     Page,
@@ -64,6 +64,7 @@ class Login(Page):
                     (t("About"), self.about),
                     (t("Shutdown"), self.shutdown),
                 ],
+                back_label=None,
             ),
         )
 
@@ -75,7 +76,6 @@ class Login(Page):
                 (t("Via Camera"), self.load_key_from_camera),
                 (t("Via Manual Input"), self.load_key_from_manual_input),
                 (t("From Storage"), self.load_mnemonic_from_storage),
-                (t("Back"), lambda: MENU_EXIT),
             ],
         )
         index, status = submenu.run_loop()
@@ -90,7 +90,6 @@ class Login(Page):
             [
                 (t("QR Code"), self.load_key_from_qr_code),
                 ("Tiny Seed",None),  # Android custom
-                (t("Back"), lambda: MENU_EXIT),
             ],
         )
         index, status = submenu.run_loop()
@@ -107,7 +106,6 @@ class Login(Page):
                 (t("Word Numbers"), self.pre_load_key_from_digits),
                 ("Tiny Seed (Bits)", self.load_key_from_tiny_seed),
                 ("Stackbit 1248", self.load_key_from_1248),
-                (t("Back"), lambda: MENU_EXIT),
             ],
         )
         index, status = submenu.run_loop()
@@ -134,7 +132,6 @@ class Login(Page):
                 (t("Via Words"), lambda: self.load_key_from_text(new=True)),
                 (t("Via D6"), self.new_key_from_dice),
                 (t("Via D20"), lambda: self.new_key_from_dice(True)),
-                (t("Back"), lambda: MENU_EXIT),
             ],
         )
         index, status = submenu.run_loop()
@@ -214,7 +211,10 @@ class Login(Page):
         multisig = Settings().wallet.multisig
         network = NETWORKS[Settings().wallet.network]
         account = 0
-        script_type = P2WPKH
+        if multisig:
+            script_type = P2WSH
+        else:
+            script_type = SCRIPT_LONG_NAMES.get(Settings().wallet.script_type)
         from ..wallet import Wallet
 
         while True:
@@ -239,7 +239,6 @@ class Login(Page):
                     (t("Load Wallet"), lambda: None),
                     (t("Passphrase"), lambda: None),
                     (t("Customize"), lambda: None),
-                    (t("Back"), lambda: MENU_EXIT),
                 ],
                 offset=info_len * FONT_HEIGHT + DEFAULT_PADDING,
             )
@@ -301,7 +300,10 @@ class Login(Page):
 
     def load_key_from_qr_code(self):
         """Handler for the 'via qr code' menu item"""
-        data, qr_format = self.capture_qr_code()
+        from .qr_capture import QRCodeCapture
+
+        qr_capture = QRCodeCapture(self.ctx)
+        data, qr_format = qr_capture.qr_capture_loop()
         if data is None:
             self.flash_error(t("Failed to load mnemonic"))
             return MENU_CONTINUE
@@ -546,7 +548,6 @@ class Login(Page):
                 (t("Decimal"), self.load_key_from_digits),
                 (t("Hexadecimal"), self.load_key_from_hexadecimal),
                 (t("Octal"), self.load_key_from_octal),
-                (t("Back"), lambda: MENU_EXIT),
             ],
         )
         index, status = submenu.run_loop()
@@ -722,7 +723,7 @@ class Login(Page):
 
     def about(self):
         """Handler for the 'about' menu item"""
-
+        # Android Custom
         from ..metadata import VERSION
 
         self.ctx.display.clear()

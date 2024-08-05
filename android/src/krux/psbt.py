@@ -28,6 +28,7 @@ from .baseconv import base_decode
 from .krux_settings import t
 from .qr import FORMAT_PMOFN, FORMAT_BBQR
 from .key import Key, P2PKH, P2SH, P2SH_P2WPKH, P2SH_P2WSH, P2WPKH, P2WSH, P2TR
+from .sats_vb import SatsVB
 
 # PSBT Output Types:
 CHANGE = 0
@@ -35,6 +36,14 @@ SELF_TRANSFER = 1
 SPEND = 2
 
 # We always uses thin spaces after the ₿ in this file
+
+
+class Counter(dict):
+    """Helper class for dict"""
+
+    def __getitem__(self, key):
+        """Avoids error when key is missing"""
+        return self.get(key, 0)
 
 
 class PSBTSigner:
@@ -46,26 +55,37 @@ class PSBTSigner:
         self.ur_type = None
         self.qr_format = qr_format
         self.policy = None
+        self.is_b64_file = False
+
         # Parse the PSBT
         if psbt_filename:
             gc.collect()
             from .sd_card import SD_PATH
 
+            file_path = "/%s/%s" % (SD_PATH, psbt_filename)
             try:
-                file_path = "/%s/%s" % (SD_PATH, psbt_filename)
                 with open(file_path, "rb") as file:
                     self.psbt = PSBT.read_from(file, compress=1)
-                    try:
-                        self.validate()
-                    except:
+                self.validate()
+            except:
+                try:
+                    self.policy = None  # Reset policy
+                    self.is_b64_file = self.file_is_base64_encoded(file_path)
+                    if self.is_b64_file:
+                        # BlueWallet exports PSBTs as base64 encoded files
+                        # So it will be decoded and loaded uncompressed
+                        with open(file_path, "r") as file:
+                            psbt_data = file.read()
+                        self.psbt = PSBT.parse(base_decode(psbt_data, 64))
+                    else:
                         # Legacy will fail to get policy from compressed PSBT
                         # so we load it uncompressed
-                        self.policy = None  # Reset policy
-                        file.seek(0)  # Reset the file pointer to the beginning
-                        self.psbt = PSBT.read_from(file)
-                self.base_encoding = 64  # In case it is exported as QR code
-            except Exception as e:
-                raise ValueError("Error loading PSBT file: %s" % e)
+                        with open(file_path, "rb") as file:
+                            file.seek(0)  # Reset the file pointer to the beginning
+                            self.psbt = PSBT.read_from(file)
+                except Exception as e:
+                    raise ValueError("Error loading PSBT file: %s" % e)
+            self.base_encoding = 64  # In case it is exported as QR code
         elif isinstance(psbt_data, UR):
             try:
                 self.psbt = PSBT.parse(
@@ -104,6 +124,22 @@ class PSBTSigner:
                 self.validate()
             except Exception as e:
                 raise ValueError("Invalid PSBT: %s" % e)
+
+    def file_is_base64_encoded(self, file_path, chunk_size=64):
+        """Checks if a file is base64 encoded"""
+        with open(file_path, "rb") as file:
+            chunk = file.read(chunk_size)
+            if not chunk:
+                raise ValueError("Empty file")
+            # Check if chunk length is divisible by 4
+            if len(chunk) % 4 != 0:
+                return False
+            try:
+                # Try to decode the chunk as base64
+                base_decode(chunk, 64)
+                return True
+            except Exception:
+                return False
 
     def validate(self):
         """Validates the PSBT"""
@@ -260,9 +296,12 @@ class PSBTSigner:
         resume_spend_str = ""
         resume_self_or_change_str = ""
 
+        output_policy_count = Counter()
+
         xpubs = self.xpubs()
         for i, out in enumerate(self.psbt.outputs):
             out_policy = get_policy(out, self.psbt.tx.vout[i].script_pubkey, xpubs)
+            output_policy_count[out_policy["type"]] += 1
             output_type = self._classify_output(out_policy, i, out)
 
             if output_type == CHANGE:
@@ -314,6 +353,12 @@ class PSBTSigner:
             )
 
         fee = inp_amount - spend_amount - self_amount - change_amount
+        satvb = fee / SatsVB.get_vbytes(
+            self.policy,
+            output_policy_count,
+            len(self.psbt.inputs),
+            len(self.psbt.outputs),
+        )
 
         # fee percent with 1 decimal precision using math.ceil (minimum of 0.1)
         fee_percent = max(
@@ -328,6 +373,8 @@ class PSBTSigner:
             + " ("
             + replace_decimal_separator("%.1f" % fee_percent)
             + "%)"
+            + (" ~%.1f" % satvb)
+            + " sat/vB"
         )
 
         messages = []

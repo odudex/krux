@@ -29,7 +29,6 @@ from . import (
     Page,
     Menu,
     MENU_CONTINUE,
-    MENU_EXIT,
     ESC_KEY,
     LETTERS,
     UPPERCASE_LETTERS,
@@ -55,7 +54,6 @@ class Tools(Page):
                     (t("Descriptor Addresses"), self.descriptor_addresses),
                     (t("Remove Mnemonic"), self.rm_stored_mnemonic),
                     (t("Wipe Device"), None),  # Wipe not available for Android
-                    (t("Back"), lambda: MENU_EXIT),
                 ],
             ),
         )

@@ -21,12 +21,12 @@
 # THE SOFTWARE.
 
 from ..display import BOTTOM_PROMPT_LINE
-from ..krux_settings import t, Settings, AES_BLOCK_SIZE
+from ..krux_settings import t, Settings
+from ..encryption import AES_BLOCK_SIZE
 from . import (
     Page,
     Menu,
     MENU_CONTINUE,
-    MENU_EXIT,
     ESC_KEY,
     LETTERS,
     UPPERCASE_LETTERS,
@@ -52,6 +52,7 @@ class EncryptionKey(Page):
                 (t("Type Key"), self.load_key),
                 (t("Scan Key QR Code"), self.load_qr_encryption_key),
             ],
+            back_label=None,
         )
         _, key = submenu.run_loop()
         if key in (ESC_KEY, MENU_CONTINUE):
@@ -76,7 +77,11 @@ class EncryptionKey(Page):
 
     def load_qr_encryption_key(self):
         """Loads and returns a key from a QR code"""
-        data, _ = self.capture_qr_code()
+
+        from .qr_capture import QRCodeCapture
+
+        qr_capture = QRCodeCapture(self.ctx)
+        data, _ = qr_capture.qr_capture_loop()
         if data is None:
             self.flash_error(t("Failed to load key"))
             return None
@@ -107,7 +112,6 @@ class EncryptMnemonic(Page):
                 ),
             ),
             (t("Encrypted QR Code"), self.encrypted_qr_code),
-            (t("Back"), lambda: MENU_EXIT),
         ]
         submenu = Menu(self.ctx, encrypt_outputs_menu)
         _, _ = submenu.run_loop()
@@ -253,7 +257,6 @@ class LoadEncryptedMnemonic(Page):
                     ),
                 )
             )
-        mnemonic_ids_menu.append((t("Back"), lambda: MENU_EXIT))
         submenu = Menu(self.ctx, mnemonic_ids_menu)
         index, status = submenu.run_loop()
         if index == len(submenu.menu) - 1:

@@ -45,7 +45,7 @@ from ..display import (
     STATUS_BAR_HEIGHT,
 )
 from ..qr import to_qr_codes
-from ..krux_settings import t, Settings, DefaultWallet
+from ..krux_settings import t, Settings
 from ..sd_card import SDHandler
 
 MENU_CONTINUE = 0
@@ -55,8 +55,6 @@ MENU_SHUTDOWN = 2
 ESC_KEY = 1
 FIXED_KEYS = 3  # 'More' key only appears when there are multiple keysets
 
-ANTI_GLARE_WAIT_TIME = 500
-QR_CODE_STEP_TIME = 100
 SHUTDOWN_WAIT_TIME = 300
 
 TOGGLE_BRIGHTNESS = (BUTTON_PAGE, BUTTON_PAGE_PREV)
@@ -84,7 +82,6 @@ class Page:
     def __init__(self, ctx, menu=None):
         self.ctx = ctx
         self.menu = menu
-        self._time_frame = 0
         # context has its own keypad mapping in case touch is not used
         self.y_keypad_map = []
         self.x_keypad_map = []
@@ -109,8 +106,8 @@ class Page:
                     t("Load from SD card"),
                     None if not self.has_sd_card() else lambda: None,
                 ),
-                (t("Back"), lambda: None),
             ],
+            back_status=lambda: None,
         )
         index, _ = load_menu.run_loop()
         return index
@@ -203,89 +200,6 @@ class Page:
         if self.ctx.input.touch is not None:
             self.ctx.input.touch.clear_regions()
         return buffer
-
-    def capture_qr_code(self):
-        """Captures a singular or animated series of QR codes and displays progress to the user.
-        Returns the contents of the QR code(s).
-        """
-        self._time_frame = time.ticks_ms()
-
-        def callback(part_total, num_parts_captured, new_part):
-            # Turn on the light as long as the enter button is held down (M5stickV and Amigo)
-            if self.ctx.light:
-                if self.ctx.input.enter_value() == PRESSED:
-                    self.ctx.light.turn_on()
-                else:
-                    self.ctx.light.turn_off()
-            # If board don't have light, ENTER stops the capture
-            elif self.ctx.input.enter_event():
-                return 1
-
-            # Anti-glare mode
-            if self.ctx.input.page_event() or (
-                # Yahboom may have page or page_prev mapped to its single button
-                board.config["type"] == "yahboom"
-                and self.ctx.input.page_prev_event()
-            ):
-                if self.ctx.camera.has_antiglare():
-                    self._time_frame = time.ticks_ms()
-                    # self.ctx.display.to_portrait()  # Android custom
-                    if not self.ctx.camera.antiglare_enabled:
-                        self.ctx.camera.enable_antiglare()
-                        self.ctx.display.draw_centered_text(t("Anti-glare enabled"))
-                    else:
-                        self.ctx.camera.disable_antiglare()
-                        self.ctx.display.draw_centered_text(t("Anti-glare disabled"))
-                    time.sleep_ms(ANTI_GLARE_WAIT_TIME)
-                    # self.ctx.display.to_landscape()  # Android custom
-                    self.ctx.input.reset_ios_state()
-                    return 0
-                return 1
-
-            # Exit the capture loop with PAGE_PREV or TOUCH
-            if self.ctx.input.page_prev_event() or self.ctx.input.touch_event():
-                return 1
-
-            # Indicate progress to the user that a new part was captured
-            if new_part:
-                # self.ctx.display.to_portrait()  # Android custom
-                filled = self.ctx.display.width() * num_parts_captured
-                filled //= part_total
-                if board.config["type"] == "cube":
-                    height = 225
-                elif self.ctx.display.height() < 320:  # M5StickV
-                    height = 210
-                elif self.ctx.display.height() > 320:  # Amigo, Android
-                    height = (self.ctx.display.height() * 8) // 10  # 80%
-                else:
-                    height = 305
-                self.ctx.display.fill_rectangle(
-                    0,
-                    height,
-                    filled,
-                    15,
-                    theme.fg_color,
-                )
-                time.sleep_ms(QR_CODE_STEP_TIME)
-                # self.ctx.display.to_landscape()  # Android custom
-
-            return 0
-
-        self.ctx.display.clear()
-        self.ctx.display.draw_centered_text(t("Loading Camera.."))
-        # self.ctx.display.to_landscape()  # Android custom
-        code = None
-        qr_format = None
-        try:
-            code, qr_format = self.ctx.camera.capture_qr_code_loop(
-                callback, self.ctx.display.flipped_x_coordinates
-            )
-        except:
-            print("Camera error")
-        if self.ctx.light:
-            self.ctx.light.turn_off()
-        # self.ctx.display.to_portrait()  # Android custom
-        return (code, qr_format)
 
     def display_qr_codes(self, data, qr_format, title=""):
         """Displays a QR code or an animated series of QR codes to the user, encoding them
@@ -405,9 +319,9 @@ class Page:
         self.x_keypad_map.append(DEFAULT_PADDING)
         self.x_keypad_map.append(self.ctx.display.width() // 2)
         self.x_keypad_map.append(self.ctx.display.width() - DEFAULT_PADDING)
-        y_key_map = offset_y - FONT_HEIGHT // 2
+        y_key_map = offset_y - (3 * FONT_HEIGHT // 2)
         self.y_keypad_map.append(y_key_map)
-        y_key_map += 2 * FONT_HEIGHT
+        y_key_map += 4 * FONT_HEIGHT
         self.y_keypad_map.append(y_key_map)
         if self.ctx.input.touch is not None:
             self.ctx.input.touch.clear_regions()
@@ -448,9 +362,9 @@ class Page:
                 for region in self.x_keypad_map:
                     self.ctx.display.draw_line(
                         region,
-                        self.y_keypad_map[0],
+                        self.y_keypad_map[0] + FONT_HEIGHT,
                         region,
-                        self.y_keypad_map[0] + 2 * FONT_HEIGHT,
+                        self.y_keypad_map[0] + 3 * FONT_HEIGHT,
                         theme.frame_color,
                     )
             btn = self.ctx.input.wait_for_button()
@@ -571,9 +485,17 @@ class Menu:
     and invoke menu item callbacks that return a status
     """
 
-    def __init__(self, ctx, menu, offset=None, disable_statusbar=False):
+    def __init__(
+        self,
+        ctx,
+        menu,
+        offset=None,
+        disable_statusbar=False,
+        back_label=t("Back"),
+        back_status=lambda: MENU_EXIT,
+    ):
         self.ctx = ctx
-        self.menu = menu
+        self.menu = menu + [("< " + back_label, back_status)] if back_label else menu
         self.disable_statusbar = disable_statusbar
         if offset is None:
             # Default offset for status bar
@@ -701,6 +623,7 @@ class Menu:
     #     self.draw_ram_indicator()
 
     # def draw_ram_indicator(self):
+    #     """Draws the amount of free RAM in the status bar"""
     #     gc.collect()
     #     ram_text = "RAM: " + str(gc.mem_free())
     #     self.ctx.display.draw_string(12, 0, ram_text, GREEN)
@@ -801,6 +724,8 @@ class Menu:
         Page.y_keypad_map = [
             int(n * height_multiplier) + self.menu_offset for n in Page.y_keypad_map
         ]
+        # Expand last region to the bottom of the screen
+        Page.y_keypad_map[-1] = self.ctx.display.height()
         self.ctx.input.touch.y_regions = Page.y_keypad_map
 
         # draw dividers and outline
@@ -815,6 +740,9 @@ class Menu:
             menu_item_lines = self.ctx.display.to_lines(menu_item[0])
             offset_y = Page.y_keypad_map[i + 1] - Page.y_keypad_map[i]
             offset_y -= len(menu_item_lines) * FONT_HEIGHT
+            if i == len(self.menu_view) - 1:
+                # Compensate for the expanded last region
+                offset_y -= DEFAULT_PADDING
             offset_y //= 2
             offset_y += Page.y_keypad_map[i]
             fg_color = (
@@ -842,28 +770,41 @@ class Menu:
                     )
 
     def _draw_menu(self, selected_item_index):
+        extra_lines = 0
+        for menu_item in self.menu_view:
+            # Count extra lines for multi-line menu items
+            extra_lines += len(self.ctx.display.to_lines(menu_item[0])) - 1
         if self.menu_offset > STATUS_BAR_HEIGHT:
-            offset_y = self.menu_offset + 3 * FONT_HEIGHT // 2
+            offset_y = self.menu_offset + FONT_HEIGHT
         else:
             offset_y = len(self.menu_view) * 2
-            extra_lines = 0
-            for menu_item in self.menu_view:
-                extra_lines += len(self.ctx.display.to_lines(menu_item[0])) - 1
             offset_y += extra_lines
             offset_y *= FONT_HEIGHT
             offset_y = self.ctx.display.height() - offset_y
             offset_y //= 2
             offset_y += FONT_HEIGHT // 2
+        offset_y = max(offset_y, STATUS_BAR_HEIGHT)
+        # Usable pixels height
+        items_pad = self.ctx.display.height() - STATUS_BAR_HEIGHT
+        # Usable pixes for padding
+        items_pad -= (len(self.menu_view) + extra_lines) * FONT_HEIGHT
+        # Ensure padding is positive
+        items_pad = max(items_pad, 0)
+        # Padding between items
+        items_pad //= max(len(self.menu_view) - 1, 1)
+        # Limit padding to font height
+        items_pad = min(items_pad, FONT_HEIGHT)
         for i, menu_item in enumerate(self.menu_view):
             fg_color = (
                 theme.fg_color if menu_item[1] is not None else theme.disabled_color
             )
             menu_item_lines = self.ctx.display.to_lines(menu_item[0])
-            delta_y = (len(menu_item_lines) + 1) * FONT_HEIGHT
+            delta_y = len(menu_item_lines) * FONT_HEIGHT
+            delta_y += items_pad
             if selected_item_index == i:
                 self.ctx.display.fill_rectangle(
                     0,
-                    offset_y + 1 - FONT_HEIGHT // 2,
+                    offset_y + 1 - items_pad // 2,
                     self.ctx.display.width(),
                     delta_y - 2,
                     fg_color,
@@ -888,15 +829,11 @@ def choose_len_mnemonic(ctx):
     submenu = Menu(
         ctx,
         [
-            (t("12 words"), lambda: MENU_EXIT),
-            (t("24 words"), lambda: MENU_EXIT),
-            (t("Back"), lambda: MENU_EXIT),
+            (t("12 words"), lambda: 12),
+            (t("24 words"), lambda: 24),
         ],
+        back_status=lambda: None,
     )
-    index, _ = submenu.run_loop()
+    _, num_words = submenu.run_loop()
     ctx.display.clear()
-    if index == 0:
-        return 12
-    if index == 1:
-        return 24
-    return None
+    return num_words

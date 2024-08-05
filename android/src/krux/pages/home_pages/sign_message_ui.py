@@ -56,7 +56,10 @@ class SignMessage(Utils):
             return (None, None, "")
 
         if load_method == LOAD_FROM_CAMERA:
-            data, qr_format = self.capture_qr_code()
+            from ..qr_capture import QRCodeCapture
+
+            qr_capture = QRCodeCapture(self.ctx)
+            data, qr_format = qr_capture.qr_capture_loop()
             return (data, qr_format, "")
 
         # If load_method == LOAD_FROM_SD
@@ -199,8 +202,8 @@ class SignMessage(Utils):
                     t("Sign to SD card"),
                     None if not self.has_sd_card() else lambda: None,
                 ),
-                (t("Back"), lambda: None),
             ],
+            back_status=lambda: None,
         )
         index, _ = sign_menu.run_loop()
 

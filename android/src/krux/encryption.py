@@ -25,7 +25,7 @@ from Crypto.Cipher import AES
 import base64
 from embit.wordlists.bip39 import WORDLIST
 from kivy.storage.jsonstore import JsonStore
-from .krux_settings import Settings, PBKDF2_HMAC_ECB, PBKDF2_HMAC_CBC, AES_BLOCK_SIZE
+from .krux_settings import Settings, PBKDF2_HMAC_ECB, PBKDF2_HMAC_CBC
 
 
 STORE_FILE_PATH = "../seeds.json"
@@ -42,6 +42,7 @@ VERSION_NUMBER = {
     "AES-CBC": PBKDF2_HMAC_CBC,
 }
 
+AES_BLOCK_SIZE = 16
 QR_CODE_ITER_MULTIPLE = 10000
 
 
