@@ -52,6 +52,8 @@ FLASH_MSG_TIME = 2000
 SMALLEST_WIDTH = 135
 SMALLEST_HEIGHT = 240
 
+THIN_SPACE = " "
+
 # Splash will use horizontally-centered text plots. Uses Thin spaces to help with alignment
 # Android Custom
 SPLASH = [
