@@ -189,5 +189,7 @@ class KruxApp(App):
 # registering our new custom fontstyle
 LabelBase.register(name='JetBrainsMono_krux',
                    fn_regular='JetBrainsMono_krux.ttf')
+LabelBase.register(name='NanumGothic',
+                   fn_regular='NanumGothic-Regular.ttf')
 
 KruxApp().run()

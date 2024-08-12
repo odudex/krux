@@ -28,6 +28,7 @@ from .krux_settings import Settings
 DEFAULT_PADDING = 10
 MINIMAL_PADDING = 5
 FONT_WIDTH, FONT_HEIGHT = board.config["krux"]["display"]["font"]
+FONT_WIDTH_KO, FONT_HEIGHT_KO = board.config["krux"]["display"]["font_ko"]
 PORTRAIT, LANDSCAPE = [2, 3] if board.config["type"] == "cube" else [1, 2]
 QR_DARK_COLOR, QR_LIGHT_COLOR = (
     [16904, 61307] if board.config["type"] == "m5stickv" else [0, 6342]
@@ -75,7 +76,7 @@ class Display:
     """Display is a singleton interface for interacting with the device's display"""
 
     def __init__(self):
-        self.portrait = True
+        self.portrait = True  # Android Custom
         if board.config["type"] == "amigo":
             self.flipped_x_coordinates = (
                 Settings().hardware.display.flipped_x_coordinates
@@ -85,6 +86,10 @@ class Display:
         self.blk_ctrl = None
         if "BACKLIGHT" in board.config["krux"]["pins"]:
             self.gpio_backlight_ctrl(Settings().hardware.display.brightness)
+
+        # Custom for Android
+        self.android_font_with = lcd.font_height() * 2 // 3
+        self.android_font_with_ko = lcd.font_height()
 
     def initialize_lcd(self):
         """Initializes the LCD"""
@@ -226,13 +231,15 @@ class Display:
 
     def to_landscape(self):
         """Changes the rotation of the display to landscape"""
-        lcd.rotation(LANDSCAPE)
-        self.portrait = False
+        if self.portrait:
+            lcd.rotation(LANDSCAPE)
+            self.portrait = False
 
     def to_portrait(self):
         """Changes the rotation of the display to portrait"""
-        lcd.rotation(PORTRAIT)
-        self.portrait = True
+        if not self.portrait:
+            lcd.rotation(PORTRAIT)
+            self.portrait = True
 
     def to_lines(self, text, max_lines=None):
         """Takes a string of text and converts it to lines to display on
@@ -241,10 +248,11 @@ class Display:
         lines = []
         start = 0
         line_count = 0
-        if self.width() > SMALLEST_WIDTH:
-            columns = self.usable_width() // FONT_WIDTH
+        columns = self.usable_width() if self.width() > SMALLEST_WIDTH else self.width()
+        if Settings().i18n.locale == "ko-KR" and lcd.string_has_korean(text):
+            columns //= self.android_font_with_ko
         else:
-            columns = self.width() // FONT_WIDTH
+            columns //= self.android_font_with
 
         # Quick return if content fits in one line
         if len(text) <= columns and "\n" not in text:
@@ -336,7 +344,8 @@ class Display:
         """Draws a string to the screen"""
         if self.flipped_x_coordinates:
             x = self.width() - x
-            x -= len(text) * FONT_WIDTH
+            x -= lcd.string_width_px(text)
+            x = max(0, x)
         lcd.draw_string(x, y, text, color, bg_color)
 
     def draw_hcentered_text(
@@ -365,11 +374,25 @@ class Display:
                 bg_color,
                 FONT_WIDTH,  # radius
             )
+
+        # Workaround for Korean vertical padding with 14px font
+        ko_extra_offset = 0
+        if (
+            Settings().i18n.locale == "ko-KR"
+            and FONT_HEIGHT == 14
+            and lcd.string_has_korean("".join(lines))
+        ):
+            ko_extra_offset = 2
+
         for i, line in enumerate(lines):
             if len(line) > 0:
-                offset_x = max(0, (self.width() - FONT_WIDTH * len(line)) // 2)
+                offset_x = max(0, (self.width() - lcd.string_width_px(line)) // 2)
                 self.draw_string(
-                    offset_x, offset_y + (i * FONT_HEIGHT), line, color, bg_color
+                    offset_x,
+                    offset_y + (i * (FONT_HEIGHT + ko_extra_offset)),
+                    line,
+                    color,
+                    bg_color,
                 )
         return len(lines)  # return number of lines drawn
 
@@ -411,6 +434,21 @@ class Display:
     def max_menu_lines(self, line_offset=STATUS_BAR_HEIGHT):
         """Maximum menu items the display can fit"""
         return (self.height() - line_offset) // (2 * FONT_HEIGHT)
+
+    def render_image(self, img):
+        """Renders the image based on the board type."""
+        board_type = board.config["type"]
+
+        if board_type == "m5stickv":
+            img.lens_corr(strength=1.0, zoom=0.56)
+            lcd.display(img, oft=(0, 0), roi=(68, 52, 185, 135))
+        elif board_type == "amigo":
+            x_offset = 40 if self.flipped_x_coordinates else 120
+            lcd.display(img, oft=(x_offset, 40))
+        elif board_type == "cube":
+            lcd.display(img, oft=(0, 0), roi=(0, 0, 224, 240))
+        else:
+            lcd.display(img, oft=(0, 0), roi=(0, 0, 304, 240))
 
 
 display = Display()

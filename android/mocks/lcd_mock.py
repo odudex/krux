@@ -35,6 +35,9 @@ from kivy.clock import mainthread
 COLOR_BLACK = (0, 0, 0, 1)
 COLOR_WHITE = (1, 1, 1, 1)
 
+KOREAN_CODEPOINT_MIN = 0xAC00
+KOREAN_CODEPOINT_MAX = 0xD7A3
+
 class LCD(Widget):
 
     pressed = ListProperty([0, 0])
@@ -68,12 +71,32 @@ class LCD(Widget):
         Window.clearcolor = color
         self.canvas.clear()
 
+    def string_width_px(self, s):
+        if self.string_has_korean(s):
+            label = CoreLabel(text=s, font_size=self.font_size, font_name='NanumGothic')
+        else:
+            label = CoreLabel(text=s, font_size=self.font_size, font_name='JetBrainsMono_krux')
+        label.refresh()
+        return label.texture.size[0]
+    
+    def string_has_korean(self, s):
+        for c in s:
+            if KOREAN_CODEPOINT_MIN <= ord(c) <= KOREAN_CODEPOINT_MAX:
+                return True
+        return False
+    
+    def font_height(self):
+        return self.font_size
+
     @mainthread
     def draw_string(self, x, y, s, color=COLOR_WHITE, bgcolor=COLOR_BLACK):
 
         color = self.rgb565torgb111(color)
         bgcolor = self.rgb565torgb111(bgcolor)
-        label = CoreLabel(text=s, font_size=self.font_size, color=color, font_name='JetBrainsMono_krux' )
+        if self.string_has_korean(s):
+            label = CoreLabel(text=s, font_size=self.font_size, color=color, font_name='NanumGothic')
+        else:
+            label = CoreLabel(text=s, font_size=self.font_size, color=color, font_name='JetBrainsMono_krux')
         label.refresh()
         text = label.texture
         if self.landscape:

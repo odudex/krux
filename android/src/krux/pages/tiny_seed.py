@@ -56,7 +56,7 @@ TS_GO_POSITION = 167
 class TinySeed(Page):
     """Class for handling Tinyseed fomat"""
 
-    def __init__(self, ctx, label=None):
+    def __init__(self, ctx, label="Tiny Seed"):
         super().__init__(ctx, None)
         self.ctx = ctx
         self.label = label
@@ -999,7 +999,9 @@ class TinyScanner(Page):
         self.ctx.display.clear()
 
     def _check_buttons(self, w24, page):
-        enter_or_touch = self.ctx.input.enter_event() or self.ctx.input.touch_event()
+        enter_or_touch = self.ctx.input.enter_event() or self.ctx.input.touch_event(
+            validate_position=False
+        )
         if w24:
             if page == 0 and enter_or_touch:
                 self.capturing = True
