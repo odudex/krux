@@ -35,7 +35,7 @@ from kivy.clock import mainthread
 COLOR_BLACK = (0, 0, 0, 1)
 COLOR_WHITE = (1, 1, 1, 1)
 
-KOREAN_CODEPOINT_MIN = 0xAC00
+CHINESE_CODEPOINT_MIN = 0x4E00
 KOREAN_CODEPOINT_MAX = 0xD7A3
 
 class LCD(Widget):
@@ -72,16 +72,16 @@ class LCD(Widget):
         self.canvas.clear()
 
     def string_width_px(self, s):
-        if self.string_has_korean(s):
-            label = CoreLabel(text=s, font_size=self.font_size, font_name='NanumGothic')
+        if self.string_has_wide_glyph(s):
+            label = CoreLabel(text=s, font_size=self.font_size, font_name='NotoSans')
         else:
             label = CoreLabel(text=s, font_size=self.font_size, font_name='JetBrainsMono_krux')
         label.refresh()
         return label.texture.size[0]
     
-    def string_has_korean(self, s):
+    def string_has_wide_glyph(self, s):
         for c in s:
-            if KOREAN_CODEPOINT_MIN <= ord(c) <= KOREAN_CODEPOINT_MAX:
+            if CHINESE_CODEPOINT_MIN <= ord(c) <= KOREAN_CODEPOINT_MAX:
                 return True
         return False
     
@@ -93,8 +93,8 @@ class LCD(Widget):
 
         color = self.rgb565torgb111(color)
         bgcolor = self.rgb565torgb111(bgcolor)
-        if self.string_has_korean(s):
-            label = CoreLabel(text=s, font_size=self.font_size, color=color, font_name='NanumGothic')
+        if self.string_has_wide_glyph(s):
+            label = CoreLabel(text=s, font_size=self.font_size, color=color, font_name='NotoSans')
         else:
             label = CoreLabel(text=s, font_size=self.font_size, color=color, font_name='JetBrainsMono_krux')
         label.refresh()

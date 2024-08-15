@@ -28,7 +28,7 @@ from .krux_settings import Settings
 DEFAULT_PADDING = 10
 MINIMAL_PADDING = 5
 FONT_WIDTH, FONT_HEIGHT = board.config["krux"]["display"]["font"]
-FONT_WIDTH_KO, FONT_HEIGHT_KO = board.config["krux"]["display"]["font_ko"]
+FONT_WIDTH_WIDE, FONT_HEIGHT_WIDE = board.config["krux"]["display"]["font_ko"]
 PORTRAIT, LANDSCAPE = [2, 3] if board.config["type"] == "cube" else [1, 2]
 QR_DARK_COLOR, QR_LIGHT_COLOR = (
     [16904, 61307] if board.config["type"] == "m5stickv" else [0, 6342]
@@ -88,8 +88,8 @@ class Display:
             self.gpio_backlight_ctrl(Settings().hardware.display.brightness)
 
         # Custom for Android
-        self.android_font_with = lcd.font_height() * 2 // 3
-        self.android_font_with_ko = lcd.font_height()
+        self.android_font_with = (lcd.font_height() * 6 + 9) // 10
+        self.android_font_with_wide = lcd.font_height()
 
     def initialize_lcd(self):
         """Initializes the LCD"""
@@ -249,8 +249,8 @@ class Display:
         start = 0
         line_count = 0
         columns = self.usable_width() if self.width() > SMALLEST_WIDTH else self.width()
-        if Settings().i18n.locale == "ko-KR" and lcd.string_has_korean(text):
-            columns //= self.android_font_with_ko
+        if Settings().i18n.locale in ["ko-KR", "zh-CN"] and lcd.string_has_wide_glyph(text):
+            columns //= self.android_font_with_wide
         else:
             columns //= self.android_font_with
 
@@ -375,21 +375,12 @@ class Display:
                 FONT_WIDTH,  # radius
             )
 
-        # Workaround for Korean vertical padding with 14px font
-        ko_extra_offset = 0
-        if (
-            Settings().i18n.locale == "ko-KR"
-            and FONT_HEIGHT == 14
-            and lcd.string_has_korean("".join(lines))
-        ):
-            ko_extra_offset = 2
-
         for i, line in enumerate(lines):
             if len(line) > 0:
                 offset_x = max(0, (self.width() - lcd.string_width_px(line)) // 2)
                 self.draw_string(
                     offset_x,
-                    offset_y + (i * (FONT_HEIGHT + ko_extra_offset)),
+                    offset_y + (i * (FONT_HEIGHT)),
                     line,
                     color,
                     bg_color,
