@@ -24,11 +24,12 @@ import board
 import time
 from .themes import theme
 from .krux_settings import Settings
+from .settings import THIN_SPACE
 
 DEFAULT_PADDING = 10
 MINIMAL_PADDING = 5
 FONT_WIDTH, FONT_HEIGHT = board.config["krux"]["display"]["font"]
-FONT_WIDTH_WIDE, FONT_HEIGHT_WIDE = board.config["krux"]["display"]["font_ko"]
+FONT_WIDTH_WIDE, FONT_HEIGHT_KO = board.config["krux"]["display"]["font_wide"]
 PORTRAIT, LANDSCAPE = [2, 3] if board.config["type"] == "cube" else [1, 2]
 QR_DARK_COLOR, QR_LIGHT_COLOR = (
     [16904, 61307] if board.config["type"] == "m5stickv" else [0, 6342]
@@ -52,8 +53,6 @@ FLASH_MSG_TIME = 2000
 
 SMALLEST_WIDTH = 135
 SMALLEST_HEIGHT = 240
-
-THIN_SPACE = " "
 
 # Splash will use horizontally-centered text plots. Uses Thin spaces to help with alignment
 # Android Custom
@@ -249,6 +248,7 @@ class Display:
         start = 0
         line_count = 0
         columns = self.usable_width() if self.width() > SMALLEST_WIDTH else self.width()
+        # Android Custom
         if Settings().i18n.locale in ["ko-KR", "zh-CN"] and lcd.string_has_wide_glyph(text):
             columns //= self.android_font_with_wide
         else:
@@ -329,6 +329,14 @@ class Display:
             x_start = x_0
             x_end = x_1
         lcd.draw_line(x_start, y_0, x_end, y_1, color)
+
+    def draw_hline(self, x, y, width, color=theme.fg_color):
+        """Draws a horizontal line to the screen"""
+        self.draw_line(x, y, x + width, y, color)
+
+    def draw_vline(self, x, y, height, color=theme.fg_color):
+        """Draws a vertical line to the screen"""
+        self.draw_line(x, y, x, y + height, color)
 
     def draw_circle(self, x, y, radius, quadrant=0, color=theme.fg_color):
         """

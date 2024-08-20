@@ -72,7 +72,7 @@ config = json.loads("""
         "display": {
             "touch": true,
             "font": [30, 60],
-            "font_ko": [60, 60],
+            "font_wide": [60, 60],
             "inverted_coordinates": false,
             "qr_colors": [0, 6342]
         }
