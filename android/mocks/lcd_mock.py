@@ -72,10 +72,7 @@ class LCD(Widget):
         self.canvas.clear()
 
     def string_width_px(self, s):
-        if self.string_has_wide_glyph(s):
-            label = CoreLabel(text=s, font_size=self.font_size, font_name='NotoSans')
-        else:
-            label = CoreLabel(text=s, font_size=self.font_size, font_name='JetBrainsMono_krux')
+        label = CoreLabel(text=s, font_size=self.font_size, font_name='NotoSans')
         label.refresh()
         return label.texture.size[0]
     
@@ -93,10 +90,7 @@ class LCD(Widget):
 
         color = self.rgb565torgb111(color)
         bgcolor = self.rgb565torgb111(bgcolor)
-        if self.string_has_wide_glyph(s):
-            label = CoreLabel(text=s, font_size=self.font_size, color=color, font_name='NotoSans')
-        else:
-            label = CoreLabel(text=s, font_size=self.font_size, color=color, font_name='JetBrainsMono_krux')
+        label = CoreLabel(text=s, font_size=self.font_size, color=color, font_name='NotoSans')
         label.refresh()
         text = label.texture
         if self.landscape:
@@ -105,7 +99,7 @@ class LCD(Widget):
             y += (self._height() - self._width())//2
             self.canvas.add(Rectangle(size=text.size, pos=(x,y), texture=text))
         else:
-            y = self._height() - y - text.size[1]
+            y = self._height() - y - self.font_size
             self.canvas.add(Rectangle(size=text.size, pos=(x,y), texture=text))
 
     @mainthread

@@ -29,7 +29,7 @@ from .settings import THIN_SPACE
 DEFAULT_PADDING = 10
 MINIMAL_PADDING = 5
 FONT_WIDTH, FONT_HEIGHT = board.config["krux"]["display"]["font"]
-FONT_WIDTH_WIDE, FONT_HEIGHT_KO = board.config["krux"]["display"]["font_wide"]
+FONT_WIDTH_WIDE, FONT_HEIGHT_WIDE = board.config["krux"]["display"]["font_wide"]
 PORTRAIT, LANDSCAPE = [2, 3] if board.config["type"] == "cube" else [1, 2]
 QR_DARK_COLOR, QR_LIGHT_COLOR = (
     [16904, 61307] if board.config["type"] == "m5stickv" else [0, 6342]
@@ -51,7 +51,7 @@ STATUS_BAR_HEIGHT = (
 
 FLASH_MSG_TIME = 2000
 
-SMALLEST_WIDTH = 135
+NARROW_SCREEN_WITH = 135
 SMALLEST_HEIGHT = 240
 
 # Splash will use horizontally-centered text plots. Uses Thin spaces to help with alignment
@@ -145,7 +145,7 @@ class Display:
                 ],
             )
             self.set_pmu_backlight(Settings().hardware.display.brightness)
-        elif board.config["type"] == "yahboom":
+        elif board.config["type"] in ["yahboom", "wonder_mv"]:
             lcd.init(
                 invert=True,
                 rst=board.config["lcd"]["rst"],
@@ -185,14 +185,16 @@ class Display:
                 pin=board.config["krux"]["pins"]["BACKLIGHT"],
                 enable=True,
             )
-
+        # Calculate duty cycle
         if board.config["type"] == "cube":
-            # Calculate duty cycle
-            # Ranges from 0% to 80% duty cycle
+            # Ranges from 80% to 0% duty cycle
             # 100 is 0% duty cycle (off, not used here)
             pwm_value = 5 - int(brightness)
-            pwm_value *= 20
-            self.blk_ctrl.duty(pwm_value)
+        else:
+            # Ranges from 20% to 100% duty cycle
+            pwm_value = int(brightness)
+        pwm_value *= 20
+        self.blk_ctrl.duty(pwm_value)
 
     def qr_offset(self):
         """Retuns y offset to subtitle QR codes"""
@@ -247,7 +249,9 @@ class Display:
         lines = []
         start = 0
         line_count = 0
-        columns = self.usable_width() if self.width() > SMALLEST_WIDTH else self.width()
+        columns = (
+            self.usable_width() if self.width() > NARROW_SCREEN_WITH else self.width()
+        )
         # Android Custom
         if Settings().i18n.locale in ["ko-KR", "zh-CN"] and lcd.string_has_wide_glyph(text):
             columns //= self.android_font_with_wide
@@ -372,7 +376,9 @@ class Display:
         if info_box:
             bg_color = theme.info_bg_color
             padding = (
-                DEFAULT_PADDING if self.width() > SMALLEST_WIDTH else MINIMAL_PADDING
+                DEFAULT_PADDING
+                if self.width() > NARROW_SCREEN_WITH
+                else MINIMAL_PADDING
             )
             self.fill_rectangle(
                 padding - 3,

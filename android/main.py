@@ -30,7 +30,7 @@ Builder.load_string("""
     Label:
         id: label_1
         font_size: root.height // 30
-        font_name: 'JetBrainsMono_krux.ttf'
+        font_name: 'NotoSansCJK_CY_SC_KR_VI_Krux.ttf'
         size_hint: 1, 0.8
         pos_hint: {'top': 1}
         text_size: self.width, None
@@ -41,7 +41,7 @@ Builder.load_string("""
     Button:
         id: but_1
         font_size: root.height // 30
-        font_name: 'JetBrainsMono_krux.ttf'
+        font_name: 'NotoSansCJK_CY_SC_KR_VI_Krux.ttf'
         background_color: 0, 0, 0, 1
         color: 0, 1, 0, 1
         halign: 'center'
@@ -187,9 +187,7 @@ class KruxApp(App):
         # Can't connect camera till after on_start()
 
 # registering our new custom fontstyle
-LabelBase.register(name='JetBrainsMono_krux',
-                   fn_regular='JetBrainsMono_krux.ttf')
 LabelBase.register(name='NotoSans',
-                   fn_regular='NotoSansCJK_Krux.ttf')
+                   fn_regular='NotoSansCJK_CY_SC_KR_VI_Krux.ttf')
 
 KruxApp().run()
