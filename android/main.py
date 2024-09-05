@@ -18,6 +18,7 @@ from android_permissions import AndroidPermissions
 import mocks.load_mocks
 from  mocks.ft6x36 import touch_control
 from src.krux.power import power_manager
+from src.krux.buttons import buttons_control
 from src.krux.context import Context
 from src.krux.pages.login import Login
 from src.krux.pages.home_pages.home import Home
@@ -130,6 +131,7 @@ class RootWidget(FloatLayout):
 
     def android_back_click(self, window,key,*largs):
         if key in [27, 1001]:
+            buttons_control.page_event_flag = True
             return True
         
     def start_thread(self):
