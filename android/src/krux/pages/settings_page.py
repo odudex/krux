@@ -40,6 +40,7 @@ from ..krux_settings import (
     TouchSettings,
     ButtonsSettings,
     t,
+    locale_control,
 )
 from ..input import BUTTON_ENTER, BUTTON_PAGE, BUTTON_PAGE_PREV, BUTTON_TOUCH
 from ..sd_card import SDHandler
@@ -166,7 +167,6 @@ class SettingsPage(Page):
                 if store.save_settings():
                     self.flash_text(
                         t("Settings stored internally on flash."),
-                        duration=PERSIST_MSG_TIME,
                     )
             except:
                 self.flash_text(
@@ -313,6 +313,8 @@ class SettingsPage(Page):
                         new_category = categories[(i - 1) % len(categories)]
                     setting.__set__(settings_namespace, new_category)
                     break
+            if setting.attr == "locale":
+                locale_control.load_locale(new_category)
             if setting.attr == "theme":
                 theme.update()
             if setting.attr == "brightness":

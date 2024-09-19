@@ -99,7 +99,8 @@ class LCD(Widget):
             y += (self._height() - self._width())//2
             self.canvas.add(Rectangle(size=text.size, pos=(x,y), texture=text))
         else:
-            y = self._height() - y - self.font_size
+            y = self._height() - y - self.font_size * 3 // 4
+            y += self.font_size - text.size[1]
             self.canvas.add(Rectangle(size=text.size, pos=(x,y), texture=text))
 
     @mainthread
