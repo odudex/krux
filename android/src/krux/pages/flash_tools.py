@@ -45,7 +45,7 @@ class FlashTools(Page):
             self.ctx,
             [
                 (t("Flash Map"), self.flash_map),
-                (t("Flash Hash"), self.flash_hash),
+                (t("TC Flash Hash"), self.tc_flash_hash),
                 (t("Erase User's Data"), self.erase_users_data),
             ],
         )
@@ -128,11 +128,12 @@ class FlashTools(Page):
             if column == FLASH_ROWS:
                 column = 0
                 row += 1
+        self.ctx.input.reset_ios_state()
         self.ctx.input.wait_for_button()
 
         return MENU_CONTINUE
 
-    def flash_hash(self):
+    def tc_flash_hash(self):
         """Load the flash hash page"""
 
         if self.ctx.tc_code_enabled:
@@ -279,12 +280,12 @@ class FlashHash(Page):
         return " ".join(words[:2])
 
     def generate(self):
-        """Generates the flash hash snapshot."""
+        """Generates the Tamper Check Flash Hash snapshot."""
         self.ctx.display.clear()
         self.ctx.display.draw_hcentered_text(t("Processing.."))
         firmware_hash = self.hash_pin_with_flash()
         self.ctx.display.clear()
-        self.ctx.display.draw_hcentered_text("Flash Hash")
+        self.ctx.display.draw_hcentered_text("TC Flash Hash")
         y_offset = DEFAULT_PADDING + 2 * FONT_HEIGHT
         self.hash_to_fingerprint(firmware_hash, y_offset)
         anti_tamper_words = self.hash_to_words(firmware_hash)
@@ -300,5 +301,6 @@ class FlashHash(Page):
         spiffs_hash = self.hash_pin_with_flash(spiffs_region=True)
         anti_tamper_words = self.hash_to_words(spiffs_hash)
         self.ctx.display.draw_hcentered_text(anti_tamper_words, y_offset)
+        self.ctx.input.reset_ios_state()
         self.ctx.input.wait_for_button()
         return MENU_CONTINUE

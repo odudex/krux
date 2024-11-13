@@ -37,6 +37,7 @@ CANCEL_PRESSED = 2
 INSUFFICIENT_ENTROPY = 0
 POOR_ENTROPY = 1
 GOOD_ENTROPY = 2
+UNKNOWN_ENTROPY = 3
 
 
 class CameraEntropy(Page):
@@ -50,7 +51,7 @@ class CameraEntropy(Page):
         self.image_stats = None
         self.image_stats_vector = [0] * 3
         self.measurement_machine_state = 0
-        self.previous_measurement = POOR_ENTROPY
+        self.previous_measurement = UNKNOWN_ENTROPY
         self.stdev_index = 0
         self.y_label_offset = BOTTOM_LINE
         if board.config["type"] == "amigo":
@@ -182,6 +183,7 @@ class CameraEntropy(Page):
         img_pixels = img.width() * img.height()
         del img
 
+        # Android custom
         # Calculate Shannon's entropy:
         # Android images calculate Shannon's over 24 bits
         shannon_24b = shannon.entropy_img24b(img_bytes)

@@ -31,12 +31,14 @@ from ..display import BOTTOM_LINE, MINIMAL_PADDING
 from ..wdt import wdt
 from ..firmware import FLASH_SIZE
 from ..camera import ENTROPY_MODE
+import time
 
 FLASH_ROWS = 64
 BLOCK_SIZE = 0x1000
 TOTAL_BLOCKS = FLASH_SIZE // BLOCK_SIZE
 IMAGE_BYTES_SIZE = 0x25800
 MAX_CHUNK_INDEX = IMAGE_BYTES_SIZE // BLOCK_SIZE
+MAX_CAPTURE_PERIOD = 25  # Max. frame capture period in seconds
 
 
 class FillFlash(Page):
@@ -48,14 +50,17 @@ class FillFlash(Page):
 
     def capture_image_with_sufficient_entropy(self, entropy_measurement):
         """Capture an image with sufficient entropy."""
-        while True:
-            self.ctx.display.to_landscape()
+        start_time = time.time()  # Record the start time
+        self.ctx.display.to_landscape()
+        while time.time() - start_time < MAX_CAPTURE_PERIOD:
+            wdt.feed()
             img = sensor.snapshot()
             entropy_measurement.entropy_measurement_update(img, all_at_once=True)
             self.ctx.display.render_image(img, compact=True)
             if entropy_measurement.stdev_index > POOR_VARIANCE_TH:
                 self.ctx.display.to_portrait()
                 return img.to_bytes()
+        raise ValueError("Insufficient entropy")
 
     def fill_flash_with_camera_entropy(self):
         """Fill the flash memory with entropy data from the camera."""

@@ -148,13 +148,13 @@ class Page:
         """
         buffer = starting_buffer
         pad = Keypad(self.ctx, keysets, possible_keys_fn)
-        big_tittle = len(self.ctx.display.to_lines(title)) > 1
+        big_title = len(self.ctx.display.to_lines(title)) > 1
         while True:
             self.ctx.display.clear()
-            offset_y = MINIMAL_PADDING if big_tittle else DEFAULT_PADDING
+            offset_y = MINIMAL_PADDING if big_title else DEFAULT_PADDING
             if lcd.string_width_px(buffer) < self.ctx.display.width():
                 self.ctx.display.draw_hcentered_text(title, offset_y)
-                if big_tittle:
+                if big_title:
                     offset_y += 2 * FONT_HEIGHT
                 else:
                     offset_y += FONT_HEIGHT * 3 // 2
@@ -346,12 +346,13 @@ class Page:
         if MINIMAL_DISPLAY:
             return self.ctx.input.wait_for_button() == BUTTON_ENTER
         offset_y += (len(self.ctx.display.to_lines(text)) + 1) * FONT_HEIGHT
-        self.x_keypad_map.append(DEFAULT_PADDING)
+        self.x_keypad_map.append(0)
         self.x_keypad_map.append(self.ctx.display.width() // 2)
-        self.x_keypad_map.append(self.ctx.display.width() - DEFAULT_PADDING)
+        self.x_keypad_map.append(self.ctx.display.width())
         y_key_map = offset_y - (3 * FONT_HEIGHT // 2)
         self.y_keypad_map.append(y_key_map)
         y_key_map += 4 * FONT_HEIGHT
+        y_key_map = min(y_key_map, self.ctx.display.height())
         self.y_keypad_map.append(y_key_map)
         if self.ctx.input.touch is not None:
             self.ctx.input.touch.clear_regions()
@@ -389,14 +390,12 @@ class Page:
                         theme.no_esc_color,
                     )
             elif self.ctx.input.touch is not None:
-                for region in self.x_keypad_map:
-                    self.ctx.display.draw_line(
-                        region,
-                        self.y_keypad_map[0] + FONT_HEIGHT,
-                        region,
-                        self.y_keypad_map[0] + 3 * FONT_HEIGHT,
-                        theme.frame_color,
-                    )
+                self.ctx.display.draw_vline(
+                    self.ctx.display.width() // 2,
+                    self.y_keypad_map[0] + FONT_HEIGHT,
+                    2 * FONT_HEIGHT,
+                    theme.frame_color,
+                )
             btn = self.ctx.input.wait_for_button()
             if btn in (BUTTON_PAGE, BUTTON_PAGE_PREV):
                 answer = not answer
@@ -562,7 +561,7 @@ class Menu:
             selected_item_index = start_from_index
         while True:
             gc.collect()
-            if self.menu_offset > FONT_HEIGHT:
+            if self.menu_offset > STATUS_BAR_HEIGHT:
                 # Clear only the menu area
                 self.ctx.display.fill_rectangle(
                     0,
@@ -890,14 +889,14 @@ class Menu:
             offset_y += delta_y
 
 
-def choose_len_mnemonic(ctx, double_mnemonic=False):
+def choose_len_mnemonic(ctx, extra_option=""):
     """Reusable '12 or 24 words?" menu choice"""
     items = [
         (t("12 words"), lambda: 12),
         (t("24 words"), lambda: 24),
     ]
-    if double_mnemonic:
-        items += [(t("Double mnemonic"), lambda: 48)]
+    if extra_option:
+        items += [(extra_option, lambda: 48)]
     submenu = Menu(
         ctx,
         items,

@@ -156,7 +156,8 @@ class SettingsPage(Page):
 
         self.ctx.display.clear()
         if not self.prompt(
-            t("Enter a 6+ characters Tamper Check Code"), self.ctx.display.height() // 2
+            t("Enter a 6+ characters Tamper Check Code") + "\n" + t("(Experimental)"),
+            self.ctx.display.height() // 2,
         ):
             return MENU_CONTINUE
 
@@ -287,7 +288,7 @@ class SettingsPage(Page):
             # Case for security settings
             if settings_namespace.namespace == "settings.security":
                 # Android Custom
-                items.append((t("Tamper Check Code"), None))
+                items.append((t("Tamper Check Code"), None))  # self.enter_modify_tc_code
 
             submenu = Menu(self.ctx, items, back_status=back_status)
             index, status = submenu.run_loop()

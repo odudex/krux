@@ -54,7 +54,6 @@ class Tools(Page):
                     (t("Descriptor Addresses"), self.descriptor_addresses),
                     (t("Flash Tools"), None),  # Android custom
                     (t("Remove Mnemonic"), self.rm_stored_mnemonic),
-                    (t("Wipe Device"), None),  # Wipe not available for Android
                 ],
             ),
         )

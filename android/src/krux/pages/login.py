@@ -51,6 +51,9 @@ class Login(Page):
     SETTINGS_MENU_INDEX = 2
 
     def __init__(self, ctx):
+        shtn_reboot_label = (
+            t("Shutdown") if ctx.power_manager.has_battery() else t("Reboot")
+        )
         super().__init__(
             ctx,
             Menu(
@@ -61,7 +64,7 @@ class Login(Page):
                     (t("Settings"), self.settings),
                     (t("Tools"), self.tools),
                     (t("About"), self.about),
-                    (t("Shutdown"), self.shutdown),
+                    (shtn_reboot_label, self.shutdown),
                 ],
                 back_label=None,
             ),
@@ -161,7 +164,8 @@ class Login(Page):
 
     def new_key_from_snapshot(self):
         """Use camera's entropy to create a new mnemonic"""
-        len_mnemonic = choose_len_mnemonic(self.ctx, True)
+        extra_option = t("Double mnemonic")
+        len_mnemonic = choose_len_mnemonic(self.ctx, extra_option)
         if not len_mnemonic:
             return MENU_CONTINUE
 
@@ -393,6 +397,8 @@ class Login(Page):
                 words = data_str.split() if " " in data_str else []
                 if len(words) in (12, 24):
                     words = self.auto_complete_qr_words(words)
+                else:
+                    words = []
             except:
                 pass
 

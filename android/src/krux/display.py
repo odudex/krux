@@ -253,7 +253,11 @@ class Display:
             self.usable_width() if self.width() > NARROW_SCREEN_WITH else self.width()
         )
         # Android Custom
-        if Settings().i18n.locale in ["ko-KR", "zh-CN"] and lcd.string_has_wide_glyph(text):
+        if Settings().i18n.locale in [
+            "ko-KR",
+            "zh-CN",
+            "ja-JP",
+        ] and lcd.string_has_wide_glyph(text):
             columns //= self.android_font_with_wide
         else:
             columns //= self.android_font_with
