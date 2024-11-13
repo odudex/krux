@@ -120,6 +120,31 @@ class Bip85(Page):
             save_as_binary=False,
         )
 
+    # Custom for Android
+    def copy_to_clipboard(self, text):
+        from kivy.utils import platform
+
+        if platform == 'android':
+            from jnius import autoclass
+
+            # Get the current activity and context
+            PythonActivity = autoclass('org.kivy.android.PythonActivity')
+            activity = PythonActivity.mActivity
+            Context = autoclass('android.content.Context')
+
+            # Access the ClipboardManager
+            clipboard = activity.getSystemService(Context.CLIPBOARD_SERVICE)
+
+            # Create a ClipData object with the text to copy
+            ClipData = autoclass('android.content.ClipData')
+            clip = ClipData.newPlainText('label', text)
+
+            # Set the primary clip to copy the data to the clipboard
+            clipboard.setPrimaryClip(clip)
+        else:
+            from kivy.core.clipboard import Clipboard
+            Clipboard.copy(text)
+
     def _derive_base64_password(self):
         """Derive a BIP85 base64 password"""
         child_index = self._capture_index()
@@ -164,12 +189,9 @@ class Bip85(Page):
                     lambda: self._base64_password_qr(password, t("Base64 Password")),
                 ),
                 (
-                    t("Save to SD card"),
-                    (
-                        None
-                        if not self.has_sd_card()
-                        else lambda: self._save_b64_pwd_to_sd(info)
-                    ),
+                    # Custom for Android
+                    "Copy to Clipboard",
+                    lambda: self.copy_to_clipboard(password),
                 ),
             ]
             self.ctx.display.clear()
