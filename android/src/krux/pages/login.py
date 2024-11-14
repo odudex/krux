@@ -51,8 +51,8 @@ class Login(Page):
     SETTINGS_MENU_INDEX = 2
 
     def __init__(self, ctx):
-        shtn_reboot_label = (
-            t("Shutdown") if ctx.power_manager.has_battery() else t("Reboot")
+        shtn_reboot_label = (  # Android Custom
+            t("Shutdown") if ctx.power_manager.has_battery() or board.config["type"] == "android" else t("Reboot")
         )
         super().__init__(
             ctx,

@@ -20,9 +20,10 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+import board  # Android
 import gc
 from ...display import BOTTOM_PROMPT_LINE
-from ...qr import FORMAT_NONE, FORMAT_PMOFN
+from ...qr import FORMAT_NONE, FORMAT_UR
 from ...krux_settings import t, Settings
 from ...format import replace_decimal_separator
 from .. import (
@@ -41,8 +42,8 @@ class Home(Page):
     """Home is the main menu page of the app"""
 
     def __init__(self, ctx):
-        shtn_reboot_label = (
-            t("Shutdown") if ctx.power_manager.has_battery() else t("Reboot")
+        shtn_reboot_label = (  # Android Custom
+            t("Shutdown") if ctx.power_manager.has_battery() or board.config["type"] == "android" else t("Reboot")
         )
         super().__init__(
             ctx,
@@ -292,7 +293,7 @@ class Home(Page):
         self.ctx.display.clear()
         self.ctx.display.draw_centered_text(t("Loading.."))
 
-        qr_format = FORMAT_PMOFN if qr_format == FORMAT_NONE else qr_format
+        qr_format = FORMAT_UR if qr_format == FORMAT_NONE else qr_format
         from ...psbt import PSBTSigner
 
         signer = PSBTSigner(self.ctx.wallet, data, qr_format, psbt_filename)
