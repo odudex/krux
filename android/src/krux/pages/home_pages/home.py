@@ -23,7 +23,7 @@
 import board  # Android
 import gc
 from ...display import BOTTOM_PROMPT_LINE
-from ...qr import FORMAT_NONE, FORMAT_UR
+from ...qr import FORMAT_NONE, FORMAT_PMOFN
 from ...krux_settings import t, Settings
 from ...format import replace_decimal_separator
 from .. import (
@@ -293,7 +293,7 @@ class Home(Page):
         self.ctx.display.clear()
         self.ctx.display.draw_centered_text(t("Loading.."))
 
-        qr_format = FORMAT_UR if qr_format == FORMAT_NONE else qr_format
+        qr_format = FORMAT_PMOFN if qr_format == FORMAT_NONE else qr_format
         from ...psbt import PSBTSigner
 
         signer = PSBTSigner(self.ctx.wallet, data, qr_format, psbt_filename)
