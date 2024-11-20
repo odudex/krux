@@ -59,12 +59,13 @@ class AESCipher(object):
         data_bytes = raw.encode("latin-1") if isinstance(raw, str) else raw
         if iv:
             encryptor = AES.new(self.key, mode, iv)
-            data_bytes = iv + data_bytes
         else:
             encryptor = AES.new(self.key, mode)
         encrypted = encryptor.encrypt(
             data_bytes + b"\x00" * ((16 - (len(data_bytes) % 16)) % 16)
         )
+        if iv:
+            encrypted = iv + encrypted
         return base64.b64encode(encrypted)
 
     def decrypt(self, encrypted, mode, iv=None):
