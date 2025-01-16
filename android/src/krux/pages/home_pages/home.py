@@ -37,9 +37,6 @@ from ...format import replace_decimal_separator
 from ...key import TYPE_SINGLESIG
 
 
-MAX_POLICY_COSIGNERS_DISPLAYED = 5
-
-
 class Home(Page):
     """Home is the main menu page of the app"""
 
@@ -135,19 +132,20 @@ class Home(Page):
         from ...wallet import Wallet
 
         wallet_settings = WalletSettings(self.ctx)
-        network, multisig, script_type, account = wallet_settings.customize_wallet(
-            self.ctx.wallet.key
+        network, policy_type, script_type, account, derivation_path = (
+            wallet_settings.customize_wallet(self.ctx.wallet.key)
         )
         mnemonic = self.ctx.wallet.key.mnemonic
         passphrase = self.ctx.wallet.key.passphrase
         self.ctx.wallet = Wallet(
             Key(
                 mnemonic,
-                multisig,
+                policy_type,
                 network,
                 passphrase,
                 account,
                 script_type,
+                derivation_path,
             )
         )
         return MENU_CONTINUE
@@ -291,7 +289,7 @@ class Home(Page):
 
         if data is None and psbt_filename == "":
             # Both the camera and the file on SD card failed!
-            self.flash_error(t("Failed to load PSBT"))
+            self.flash_error(t("Failed to load"))
             return MENU_CONTINUE
 
         # PSBT read OK! Will try to sign
@@ -324,34 +322,13 @@ class Home(Page):
             if not self.prompt(t("Proceed?"), BOTTOM_PROMPT_LINE):
                 return MENU_CONTINUE
 
-        # Show the policy for multisig and miniscript PSBTs in case the wallet descriptor is not loaded
+        # Show the policy for multisig and miniscript PSBTs
+        # in case the wallet descriptor is not loaded
         if (
             not self.ctx.wallet.is_loaded()
             and not self.ctx.wallet.key.policy_type == TYPE_SINGLESIG
         ):
-            from ...key import Key
-            from ...psbt import is_multisig
-
-            policy_str = "PSBT policy:\n"
-            policy_str += signer.policy["type"] + "\n"
-            if is_multisig(signer.policy):
-                policy_str += (
-                    str(signer.policy["m"]) + " of " + str(signer.policy["n"]) + "\n"
-                )
-            fingerprints = []
-            for inp in signer.psbt.inputs:
-                # Do we need to loop through all the inputs or just one?
-                for pub in inp.bip32_derivations:
-                    fingerprint_srt = Key.format_fingerprint(
-                        inp.bip32_derivations[pub].fingerprint, True
-                    )
-                    if fingerprint_srt not in fingerprints:
-                        if len(fingerprints) > MAX_POLICY_COSIGNERS_DISPLAYED:
-                            fingerprints[-1] = "..."
-                            break
-                        fingerprints.append(fingerprint_srt)
-
-            policy_str += "\n".join(fingerprints)
+            policy_str = signer.psbt_policy_string()
             self.ctx.display.clear()
             self.ctx.display.draw_centered_text(policy_str)
             if not self.prompt(t("Proceed?"), BOTTOM_PROMPT_LINE):
@@ -400,11 +377,10 @@ class Home(Page):
         self.ctx.display.clear()
         self.ctx.display.draw_centered_text(t("Signing.."))
 
-        signer.sign()
-
         title = t("Signed PSBT")
         if index == 0:
             # Sign to QR code
+            signer.sign()
             signed_psbt, qr_format = signer.psbt_qr()
 
             # memory management
@@ -420,6 +396,7 @@ class Home(Page):
             return MENU_CONTINUE
 
         # index == 1: Sign to SD card
+        signer.sign(trim=False)
         psbt_filename = self._format_psbt_file_extension(psbt_filename)
         gc.collect()
 

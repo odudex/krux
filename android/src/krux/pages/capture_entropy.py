@@ -116,11 +116,11 @@ class CameraEntropy(Page):
                     )
                 elif entropy_level == POOR_ENTROPY:
                     self.ctx.display.draw_hcentered_text(
-                        t("Poor entropy"), self.y_label_offset, theme.del_color
+                        t("Poor entropy!"), self.y_label_offset, theme.del_color
                     )
                 else:
                     self.ctx.display.draw_hcentered_text(
-                        t("Insufficient entropy"),
+                        t("Insufficient entropy!"),
                         self.y_label_offset,
                         theme.error_color,
                     )

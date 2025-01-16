@@ -24,19 +24,6 @@ import sys
 import board  # Android
 from embit.networks import NETWORKS
 from embit.wordlists.bip39 import WORDLIST
-from ..display import DEFAULT_PADDING, FONT_HEIGHT, BOTTOM_PROMPT_LINE
-from ..krux_settings import Settings
-from ..qr import FORMAT_UR
-from ..key import (
-    Key,
-    P2WSH,
-    SCRIPT_LONG_NAMES,
-    TYPE_SINGLESIG,
-    TYPE_MULTISIG,
-    TYPE_MINISCRIPT,
-    POLICY_TYPE_IDS,
-)
-from ..krux_settings import t
 from . import (
     Page,
     Menu,
@@ -47,6 +34,22 @@ from . import (
     LETTERS,
     choose_len_mnemonic,
 )
+from ..display import DEFAULT_PADDING, FONT_HEIGHT, BOTTOM_PROMPT_LINE
+from ..krux_settings import Settings
+from ..qr import FORMAT_UR
+from ..key import (
+    Key,
+    P2WSH,
+    P2TR,
+    SCRIPT_LONG_NAMES,
+    TYPE_SINGLESIG,
+    TYPE_MULTISIG,
+    TYPE_MINISCRIPT,
+    POLICY_TYPE_IDS,
+)
+from ..krux_settings import t
+from ..settings import NAME_SINGLE_SIG, NAME_MULTISIG, NAME_MINISCRIPT
+
 
 DIGITS_HEX = "0123456789ABCDEF"
 DIGITS_OCT = "01234567"
@@ -264,10 +267,11 @@ class Login(Page):
                 return MENU_CONTINUE
             self.ctx.display.clear()
 
-        from .mnemonic_editor import MnemonicEditor
+        # If the mnemonic is not hidden, show the mnemonic editor
+        if not Settings().security.hide_mnemonic:
+            from .mnemonic_editor import MnemonicEditor
 
-        mnemonic_editor = MnemonicEditor(self.ctx, mnemonic, new)
-        mnemonic = mnemonic_editor.edit()
+            mnemonic = MnemonicEditor(self.ctx, mnemonic, new).edit()
         if mnemonic is None:
             return MENU_CONTINUE
         self.ctx.display.clear()
@@ -288,24 +292,36 @@ class Login(Page):
         account = 0
         if policy_type == TYPE_SINGLESIG:
             script_type = SCRIPT_LONG_NAMES.get(Settings().wallet.script_type)
+        elif policy_type == TYPE_MINISCRIPT and Settings().wallet.script_type == P2TR:
+            script_type = P2TR
         else:
             script_type = P2WSH
+        derivation_path = ""
         from ..wallet import Wallet
 
         while True:
-            key = Key(mnemonic, policy_type, network, passphrase, account, script_type)
-
+            key = Key(
+                mnemonic,
+                policy_type,
+                network,
+                passphrase,
+                account,
+                script_type,
+                derivation_path,
+            )
+            if not derivation_path:
+                derivation_path = key.derivation
             wallet_info = key.fingerprint_hex_str(True) + "\n"
             wallet_info += network["name"] + "\n"
             if policy_type == TYPE_SINGLESIG:
-                wallet_info += "Single-sig" + "\n"
+                wallet_info += NAME_SINGLE_SIG + "\n"
             elif policy_type == TYPE_MULTISIG:
-                wallet_info += "Multisig" + "\n"
+                wallet_info += NAME_MULTISIG + "\n"
             elif policy_type == TYPE_MINISCRIPT:
-                wallet_info += "Miniscript" + "\n"
-            wallet_info += (
-                self.fit_to_line(key.derivation_str(True), crop_middle=False) + "\n"
-            )
+                if script_type == P2TR:
+                    wallet_info += "TR "
+                wallet_info += NAME_MINISCRIPT + "\n"
+            wallet_info += key.derivation_str(True) + "\n"
             wallet_info += (
                 t("No Passphrase") if not passphrase else t("Passphrase") + ": *..*"
             )
@@ -341,7 +357,7 @@ class Login(Page):
                 from .wallet_settings import WalletSettings
 
                 wallet_settings = WalletSettings(self.ctx)
-                network, policy_type, script_type, account = (
+                network, policy_type, script_type, account, derivation_path = (
                     wallet_settings.customize_wallet(key)
                 )
 
@@ -404,7 +420,7 @@ class Login(Page):
         qr_capture = QRCodeCapture(self.ctx)
         data, qr_format = qr_capture.qr_capture_loop()
         if data is None:
-            self.flash_error(t("Failed to load mnemonic"))
+            self.flash_error(t("Failed to load"))
             return MENU_CONTINUE
 
         words = []
@@ -728,7 +744,7 @@ class Login(Page):
         words = tiny_scanner.scanner(len_mnemonic == 24)
         del tiny_scanner
         if words is None:
-            self.flash_error(t("Failed to load mnemonic"))
+            self.flash_error(t("Failed to load"))
             return MENU_CONTINUE
         return self._load_key_from_words(words)
 
