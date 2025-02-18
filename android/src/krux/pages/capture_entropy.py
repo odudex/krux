@@ -199,7 +199,7 @@ class CameraEntropy(Page):
             shannon_24b < INSUFFICIENT_SHANNONS_ENTROPY_TH
             or self.stdev_index < INSUFFICIENT_VARIANCE_TH
         ):
-            error_msg = t("Insufficient Entropy!")
+            error_msg = t("Insufficient entropy!")
             error_msg += "\n\n"
             error_msg += entropy_msg
             self.ctx.display.draw_centered_text(error_msg, theme.error_color)

@@ -78,6 +78,14 @@ class Touch:
 
     def valid_position(self, data):
         """Checks if touch position is within buttons area"""
+
+        # Custom for Android
+        # if (
+        #     hasattr(Settings().hardware.display, "flipped_orientation")
+        #     and Settings().hardware.display.flipped_orientation
+        # ):
+        #     data = (self.height - data[0], self.width - data[1])
+
         if self.x_regions and data[0] < self.x_regions[0]:
             return False
         if self.x_regions and data[0] > self.x_regions[-1]:

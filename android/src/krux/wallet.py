@@ -38,14 +38,6 @@ from .key import (
     TYPE_MINISCRIPT,
 )
 
-# Liana uses a example NUMS (Nothing-Up-My-Sleeve) key from BIP341 to create unspendable keys
-# https://github.com/bitcoin/bips/blob/master/bip-0341.mediawiki#constructing-and-spending-taproot-outputs
-# https://delvingbitcoin.org/t/unspendable-keys-in-descriptors/304/21
-# H = lift_x(0x50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0)
-BIP_341_NUMS_EXAMPLE = (
-    "0250929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0"
-)
-
 
 class AssumptionWarning(Exception):
     """An exception for assumptions that require user acceptance"""
@@ -194,7 +186,7 @@ class Wallet:
             if self.descriptor.taptree:
                 if not descriptor.keys[0].origin:
                     import hashlib
-                    from embit.ec import PublicKey
+                    from embit.ec import NUMS_PUBKEY
                     from embit.bip32 import HDKey
 
                     # In case internal key is disabled, check if NUMS is known
@@ -205,13 +197,10 @@ class Wallet:
                         hasher.update(key.sec())
                     det_chain_code = hasher.digest()
 
-                    # Use BIP341 NUMS as public key
-                    public_key = PublicKey.from_string(BIP_341_NUMS_EXAMPLE)
-
                     # Create provably unspendable deterministic key
                     version = self.descriptor.keys[0].key.version
                     provably_unspendable = HDKey(
-                        public_key, det_chain_code, version=version
+                        NUMS_PUBKEY, det_chain_code, version=version
                     )
 
                     # Compare expected provably unspendable key with first descriptor key
@@ -219,6 +208,7 @@ class Wallet:
                         descriptor.keys[0].key.to_base58()
                         != provably_unspendable.to_base58()
                     ):
+                        self.wallet_data = None
                         raise ValueError("Internal key not provably unspendable")
 
                 taproot_txt = "TR "
@@ -444,17 +434,29 @@ def parse_address(address_data):
     from embit.script import Script, address_to_scriptpubkey
 
     addr = address_data
+    sc = None
     if address_data.lower().startswith("bitcoin:"):
         addr_end = address_data.find("?")
         if addr_end == -1:
             addr_end = len(address_data)
         addr = address_data[8:addr_end]
 
-    try:
-        sc = address_to_scriptpubkey(addr)
-        if not isinstance(sc, Script):
+    if addr == addr.upper():
+        # bip173 suggests bech32 in uppercase for compact QR-Code
+        try:
+            sc = address_to_scriptpubkey(addr.lower())
+            if isinstance(sc, Script):
+                return addr.lower()
+        except:
+            pass
+
+    if not isinstance(sc, Script):
+        try:
+            sc = address_to_scriptpubkey(addr)
+        except:
             raise ValueError("invalid address")
-    except:
+
+    if not isinstance(sc, Script):
         raise ValueError("invalid address")
 
     return addr
@@ -567,12 +569,12 @@ def is_double_mnemonic(mnemonic: str):
 
     words = mnemonic.split(" ")
     if len(words) > 12:
-        from krux.bip39 import mnemonic_is_valid
+        from krux.bip39 import k_mnemonic_is_valid
 
         if (
-            mnemonic_is_valid(" ".join(words[:12]))
-            and mnemonic_is_valid(" ".join(words[12:]))
-            and mnemonic_is_valid(mnemonic)
+            k_mnemonic_is_valid(" ".join(words[:12]))
+            and k_mnemonic_is_valid(" ".join(words[12:]))
+            and k_mnemonic_is_valid(mnemonic)
         ):
             return True
 

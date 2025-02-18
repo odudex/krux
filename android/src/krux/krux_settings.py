@@ -446,7 +446,7 @@ class Settings(SettingsNamespace):
         self.hardware = HardwareSettings()
         self.i18n = I18nSettings()
         self.encryption = EncryptionSettings()
-        self.persist = PersistSettings()
+        self.persist = PersistSettings()  # Custom for Android
         self.appearance = ThemeSettings()
 
     def label(self, attr):
@@ -457,7 +457,7 @@ class Settings(SettingsNamespace):
             "hardware": t("Hardware"),
             "i18n": t("Language"),
             "encryption": t("Encryption"),
-            "persist": t("Persist"),
+            # "persist": t("Persist"),  # Custom for Android
             "appearance": t("Appearance"),
         }
 
