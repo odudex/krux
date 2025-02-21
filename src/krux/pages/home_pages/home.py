@@ -60,11 +60,21 @@ class Home(Page):
                     (t("Wallet"), self.wallet),
                     (t("Address"), self.addresses_menu),
                     (t("Sign"), self.sign),
+                    ("PGP", self.krux_pgp),
                     (shtn_reboot_label, self.shutdown),
                 ],
                 back_label=None,
             ),
         )
+
+    def krux_pgp(self):
+        """Handler for the 'PGP' menu item"""
+        from ...pgp import KruxPGP
+
+        krux_pgp = KruxPGP()
+        print("Starting PGP")
+        pub_key = krux_pgp.public_encryption_key(self.ctx.wallet.key.root)
+        self.display_qr_codes(pub_key, FORMAT_NONE, "PGP Public Key")
 
     def backup_mnemonic(self):
         """Handler for the 'Backup Mnemonic' menu item"""
