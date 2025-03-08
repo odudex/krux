@@ -148,6 +148,7 @@ class WalletSettings(Page):
             if reset_derivation:
                 # Something other than custom derivation changed, better to reset derivation
                 custom_derivation = ""
+                reset_derivation = False
             wallet_info += DERIVATION_PATH_SYMBOL + " " + derivation_path
 
             self.ctx.display.clear()
