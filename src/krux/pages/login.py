@@ -312,7 +312,7 @@ class Login(Page):
             script_type = P2TR
         else:
             script_type = P2WSH
-        derivation_path = ""
+        custom_derivation = ""
         from ..wallet import Wallet
 
         while True:
@@ -323,10 +323,8 @@ class Login(Page):
                 passphrase,
                 account,
                 script_type,
-                derivation_path,
+                custom_derivation,
             )
-            if not derivation_path:
-                derivation_path = key.derivation
             wallet_info = key.fingerprint_hex_str(True) + "\n"
             wallet_info += network["name"] + "\n"
             if policy_type == TYPE_SINGLESIG:
@@ -373,7 +371,7 @@ class Login(Page):
                 from .wallet_settings import WalletSettings
 
                 wallet_settings = WalletSettings(self.ctx)
-                network, policy_type, script_type, account, derivation_path = (
+                network, policy_type, script_type, account, custom_derivation = (
                     wallet_settings.customize_wallet(key)
                 )
 

@@ -131,7 +131,7 @@ class Home(Page):
         from ...wallet import Wallet
 
         wallet_settings = WalletSettings(self.ctx)
-        network, policy_type, script_type, account, derivation_path = (
+        network, policy_type, script_type, account, custom_derivation = (
             wallet_settings.customize_wallet(self.ctx.wallet.key)
         )
         mnemonic = self.ctx.wallet.key.mnemonic
@@ -144,7 +144,7 @@ class Home(Page):
                 passphrase,
                 account,
                 script_type,
-                derivation_path,
+                custom_derivation,
             )
         )
         return MENU_CONTINUE

@@ -128,6 +128,7 @@ class WalletSettings(Page):
         script_type = key.script_type
         account = key.account_index
         custom_derivation = key.derivation if key.custom_derivation else None
+        reset_derivation = False
         while True:
             wallet_info = network["name"] + "\n"
             # Find the policy type string from the POLICY_TYPE_IDS dictionary
@@ -142,9 +143,11 @@ class WalletSettings(Page):
                 derivation_path = self._derivation_path_str(
                     policy_type, script_type, network, account
                 )
-                custom_derivation = ""
             else:
                 derivation_path = custom_derivation
+            if reset_derivation:
+                # Something other than custom derivation changed, better to reset derivation
+                custom_derivation = ""
             wallet_info += DERIVATION_PATH_SYMBOL + " " + derivation_path
 
             self.ctx.display.clear()
@@ -176,10 +179,12 @@ class WalletSettings(Page):
             if index == 0:
                 new_network = self._coin_type()
                 if new_network is not None:
+                    reset_derivation = True
                     network = new_network
             elif index == 1:
                 new_policy_type = self._policy_type()
                 if new_policy_type is not None:
+                    reset_derivation = True
                     policy_type = new_policy_type
                     if policy_type == TYPE_SINGLESIG and script_type == P2WSH:
                         # If is single-sig, and script is p2wsh, force to pick a new type
@@ -204,6 +209,7 @@ class WalletSettings(Page):
                 else:
                     new_script_type = self._script_type()
                 if new_script_type is not None:
+                    reset_derivation = True
                     script_type = new_script_type
             elif index == 3:
                 if policy_type != TYPE_MINISCRIPT:
@@ -212,7 +218,10 @@ class WalletSettings(Page):
                         account = new_account
                 else:
                     new_derivation_path = self._derivation_path(derivation_path)
-                    if new_derivation_path is not None:
+                    if (
+                        new_derivation_path is not None
+                        and new_derivation_path != derivation_path
+                    ):
                         custom_derivation = new_derivation_path
         return network, policy_type, script_type, account, derivation_path
 
