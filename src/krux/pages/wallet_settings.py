@@ -128,7 +128,6 @@ class WalletSettings(Page):
         script_type = key.script_type
         account = key.account_index
         custom_derivation = key.derivation if key.custom_derivation else None
-        reset_derivation = False
         while True:
             wallet_info = network["name"] + "\n"
             # Find the policy type string from the POLICY_TYPE_IDS dictionary
@@ -145,10 +144,6 @@ class WalletSettings(Page):
                 )
             else:
                 derivation_path = custom_derivation
-            if reset_derivation:
-                # Something other than custom derivation changed, better to reset derivation
-                custom_derivation = ""
-                reset_derivation = False
             wallet_info += DERIVATION_PATH_SYMBOL + " " + derivation_path
 
             self.ctx.display.clear()
@@ -180,37 +175,36 @@ class WalletSettings(Page):
             if index == 0:
                 new_network = self._coin_type()
                 if new_network is not None:
-                    reset_derivation = True
+                    custom_derivation = ""
                     network = new_network
             elif index == 1:
                 new_policy_type = self._policy_type()
                 if new_policy_type is not None:
-                    reset_derivation = True
+                    custom_derivation = ""
                     policy_type = new_policy_type
                     if policy_type == TYPE_SINGLESIG and script_type == P2WSH:
-                        # If is single-sig, and script is p2wsh, force to pick a new type
-                        script_type = self._script_type()
-                        script_type = P2WPKH if script_type is None else script_type
-
+                        # If single-sig, force P2WPKH
+                        new_script_type = self._script_type()
+                        script_type = (
+                            P2WPKH if new_script_type is None else new_script_type
+                        )
                     elif policy_type == TYPE_MULTISIG:
-                        # If is multisig, force to p2wsh
-                        script_type = P2WSH
-
+                        script_type = P2WSH  # Multisig requires P2WSH
                     elif policy_type == TYPE_MINISCRIPT and script_type not in (
                         P2WSH,
                         P2TR,
                     ):
-                        # If is miniscript, pick P2WSH or P2TR
-                        script_type = self._miniscript_type()
-                        script_type = P2WSH if script_type is None else script_type
-
+                        new_script_type = self._miniscript_type()
+                        script_type = (
+                            P2WSH if new_script_type is None else new_script_type
+                        )
             elif index == 2:
                 if policy_type == TYPE_MINISCRIPT:
                     new_script_type = self._miniscript_type()
                 else:
                     new_script_type = self._script_type()
                 if new_script_type is not None:
-                    reset_derivation = True
+                    custom_derivation = ""
                     script_type = new_script_type
             elif index == 3:
                 if policy_type != TYPE_MINISCRIPT:
@@ -219,10 +213,7 @@ class WalletSettings(Page):
                         account = new_account
                 else:
                     new_derivation_path = self._derivation_path(derivation_path)
-                    if (
-                        new_derivation_path is not None
-                        and new_derivation_path != derivation_path
-                    ):
+                    if new_derivation_path not in (None, derivation_path):
                         custom_derivation = new_derivation_path
         return network, policy_type, script_type, account, derivation_path
 
