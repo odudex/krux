@@ -25,19 +25,17 @@ import time
 from .themes import theme
 from .krux_settings import Settings
 from .settings import THIN_SPACE
+from .kboard import kboard
 
 DEFAULT_PADDING = 10
 MINIMAL_PADDING = 5
 FONT_WIDTH, FONT_HEIGHT = board.config["krux"]["display"]["font"]
 FONT_WIDTH_WIDE, FONT_HEIGHT_WIDE = board.config["krux"]["display"]["font_wide"]
-PORTRAIT, LANDSCAPE = [2, 3] if board.config["type"] == "cube" else [1, 2]
-QR_DARK_COLOR, QR_LIGHT_COLOR = (
-    [16904, 61307] if board.config["type"] == "m5stickv" else [0, 6342]
-)
+PORTRAIT, LANDSCAPE = [2, 3] if kboard.is_cube else [1, 2]
+QR_DARK_COLOR, QR_LIGHT_COLOR = [16904, 61307] if kboard.is_m5stickv else [0, 6342]
 TOTAL_LINES = board.config["lcd"]["width"] // FONT_HEIGHT
 BOTTOM_LINE = (TOTAL_LINES - 1) * FONT_HEIGHT
-MINIMAL_DISPLAY = board.config["type"] in ("m5stickv", "cube")
-if MINIMAL_DISPLAY:
+if kboard.has_minimal_display:
     BOTTOM_PROMPT_LINE = BOTTOM_LINE - DEFAULT_PADDING
 else:
     # room left for no/yes buttons
@@ -45,7 +43,7 @@ else:
 
 # Status bar dimensions
 STATUS_BAR_HEIGHT = (
-    FONT_HEIGHT + 1 if MINIMAL_DISPLAY else FONT_HEIGHT + MINIMAL_PADDING
+    FONT_HEIGHT + 1 if kboard.has_minimal_display else FONT_HEIGHT + MINIMAL_PADDING
 )
 
 FLASH_MSG_TIME = 2000
@@ -74,14 +72,14 @@ class Display:
 
     def __init__(self):
         self.portrait = False
-        if board.config["type"] == "amigo":
+        if kboard.is_amigo:
             self.flipped_x_coordinates = (
                 Settings().hardware.display.flipped_x_coordinates
             )
         else:
             self.flipped_x_coordinates = False
         self.blk_ctrl = None
-        if "BACKLIGHT" in board.config["krux"]["pins"]:
+        if kboard.has_backlight:
             self.gpio_backlight_ctrl(Settings().hardware.display.brightness)
 
     def initialize_lcd(self):
@@ -139,7 +137,7 @@ class Display:
                 ],
             )
             self.set_pmu_backlight(Settings().hardware.display.brightness)
-        elif board.config["type"] in ["yahboom", "wonder_mv"]:
+        elif kboard.is_yahboom or kboard.is_wonder_mv:
             lcd.init(
                 invert=True,
                 rst=board.config["lcd"]["rst"],
@@ -147,12 +145,12 @@ class Display:
                 ss=board.config["lcd"]["ss"],
                 clk=board.config["lcd"]["clk"],
             )
-        elif board.config["type"] == "cube":
+        elif kboard.is_cube:
             lcd.init(
                 invert=True,
                 offset_h0=80,
             )
-        elif board.config["type"] == "amigo":
+        elif kboard.is_amigo:
             lcd_type = Settings().hardware.display.lcd_type
             invert = Settings().hardware.display.inverted_colors
             bgr_to_rgb = Settings().hardware.display.bgr_colors
@@ -180,7 +178,7 @@ class Display:
                 enable=True,
             )
         # Calculate duty cycle
-        if board.config["type"] == "cube":
+        if kboard.is_cube:
             # Ranges from 80% to 0% duty cycle
             # 100 is 0% duty cycle (off, not used here)
             pwm_value = 5 - int(brightness)
@@ -192,7 +190,7 @@ class Display:
 
     def qr_offset(self):
         """Retuns y offset to subtitle QR codes"""
-        if board.config["type"] == "cube":
+        if kboard.is_cube:
             return BOTTOM_LINE
         return self.width() + MINIMAL_PADDING
 
@@ -250,6 +248,8 @@ class Display:
         """Takes a string of text and converts it to lines to display on
         the screen
         """
+        if isinstance(text, list):
+            return text
         lines = []
         start = 0
         line_count = 0
@@ -375,11 +375,10 @@ class Display:
         bg_color=theme.bg_color,
         info_box=False,
         max_lines=None,
-    ):
+        highlight_prefix="",
+    ) -> int:
         """Draws text horizontally-centered on the display, at the given offset_y"""
-        lines = (
-            text if isinstance(text, list) else self.to_lines(text, max_lines=max_lines)
-        )
+        lines = self.to_lines(text, max_lines)
         if info_box:
             bg_color = theme.info_bg_color
             padding = (
@@ -406,19 +405,69 @@ class Display:
                     color,
                     bg_color,
                 )
+                if highlight_prefix:
+                    prefix_index = line.find(highlight_prefix)
+                    if prefix_index > -1:
+                        self.draw_string(
+                            offset_x,
+                            offset_y + (i * (FONT_HEIGHT)),
+                            line[: prefix_index + len(highlight_prefix)],
+                            theme.highlight_color,
+                            bg_color,
+                        )
+
+                        # check if lines before highlight_prefix also needs to be highlighted
+                        i -= 1
+                        while i > -1:
+                            line = lines[i]
+                            prefix_index = line.find(highlight_prefix)
+                            # content may need highlight
+                            if (
+                                line
+                                and prefix_index == -1
+                                and isinstance(text, str)
+                                and text[text.find(line) + len(line)] != "\n"
+                            ):
+                                offset_x = max(
+                                    0,
+                                    (self.width() - lcd.string_width_px(line)) // 2,
+                                )
+                                self.draw_string(
+                                    offset_x,
+                                    offset_y + (i * (FONT_HEIGHT)),
+                                    line,
+                                    theme.highlight_color,
+                                    bg_color,
+                                )
+                            else:
+                                break
+                            i -= 1
+
         return len(lines)  # return number of lines drawn
 
-    def draw_centered_text(self, text, color=theme.fg_color, bg_color=theme.bg_color):
-        """Draws text horizontally and vertically centered on the display"""
-        lines = text if isinstance(text, list) else self.to_lines(text)
-        lines_height = len(lines) * FONT_HEIGHT
-        offset_y = max(0, (self.height() - lines_height) // 2)
-        self.draw_hcentered_text(text, offset_y, color, bg_color)
+    def get_center_offset_y(self, lines_qtd):
+        """Return the ammount of offset_y to be at center"""
+        return max(0, (self.height() - lines_qtd * FONT_HEIGHT) // 2)
 
-    def flash_text(self, text, color=theme.fg_color, duration=FLASH_MSG_TIME):
+    def draw_centered_text(
+        self, text, color=theme.fg_color, bg_color=theme.bg_color, highlight_prefix=""
+    ):
+        """Draws text horizontally and vertically centered on the display"""
+        lines = self.to_lines(text)
+        offset_y = self.get_center_offset_y(len(lines))
+
+        if highlight_prefix == "":
+            text = lines
+        return self.draw_hcentered_text(
+            text, offset_y, color, bg_color, highlight_prefix=highlight_prefix
+        )
+
+    def flash_text(
+        self, text, color=theme.fg_color, duration=FLASH_MSG_TIME, highlight_prefix=""
+    ):
         """Flashes text centered on the display for duration ms"""
         self.clear()
-        self.draw_centered_text(text, color)
+        self.draw_centered_text(text, color, highlight_prefix=highlight_prefix)
         time.sleep_ms(duration)
         self.clear()
 
@@ -447,31 +496,40 @@ class Display:
         """Maximum menu items the display can fit"""
         return (self.height() - line_offset) // (2 * FONT_HEIGHT)
 
-    def render_image(self, img, compact=False):
+    def render_image(self, img, title_lines=0, double_subtitle=False):
         """Renders the image based on the board type."""
-        board_type = board.config["type"]
 
-        if not compact:
-            if board_type == "m5stickv":
-                img.lens_corr(strength=1.0, zoom=0.56)
-                lcd.display(img, oft=(0, 0), roi=(68, 52, 185, 135))
-            elif board_type == "amigo":
-                x_offset = 40 if self.flipped_x_coordinates else 120
-                lcd.display(img, oft=(x_offset, 40))
-            elif board_type == "cube":
-                lcd.display(img, oft=(0, 0), roi=(48, 0, 224, 240))
-            else:
-                lcd.display(img, oft=(0, 0), roi=(8, 0, 304, 240))
-        else:
-            if board_type == "m5stickv":
-                lcd.display(img, oft=(24, 0), roi=(68, 52, 185, 135))
-            elif board_type == "amigo":
-                x_offset = 40 if self.flipped_x_coordinates else 120
-                lcd.display(img, oft=(x_offset, 40))
-            elif board_type == "cube":
-                lcd.display(img, oft=(24, 0), roi=(67, 0, 186, 240))
-            else:
-                lcd.display(img, oft=(26, 0), roi=(28, 0, 264, 240))
+        # Initialize offset and region components
+        offset_x, offset_y = 0, 0
+        region_x, region_y, region_w, region_h = 8, 0, 304, 240
+
+        if kboard.is_amigo:
+            offset_x = 40 if self.flipped_x_coordinates else 120
+            offset_y = 40
+            region_x, region_y, region_w, region_h = 0, 0, 320, 240
+        elif kboard.is_m5stickv:
+            # Apply lens correction and update img reference
+            img = img.lens_corr(strength=1.0, zoom=0.56)
+            region_x, region_y, region_w, region_h = 68, 52, 185, 135
+        elif kboard.is_cube:
+            region_x, region_y, region_w, region_h = 48, 0, 224, 240
+
+        # Adjust for title if needed for boards with height < 320px
+        if title_lines and not kboard.is_amigo:
+            message_height = DEFAULT_PADDING + FONT_HEIGHT * title_lines
+            offset_x += message_height
+            region_x += message_height
+            region_w -= message_height
+            # Adjust bottom padding for double subtitle
+            if double_subtitle and not kboard.is_m5stickv:
+                # Extra cut on Cube to fit progress bar
+                # and entropy measurement on flash filling
+                region_w -= FONT_HEIGHT
+
+        # Pass precomputed values as tuples
+        lcd.display(
+            img, oft=(offset_x, offset_y), roi=(region_x, region_y, region_w, region_h)
+        )
 
 
 display = Display()

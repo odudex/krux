@@ -75,7 +75,14 @@ class Login(Page):
                 ctx,
                 [
                     (t("Load Mnemonic"), self.load_key),
-                    (t("New Mnemonic"), self.new_key),
+                    (
+                        t("New Mnemonic"),
+                        (
+                            self.new_key
+                            if not Settings().security.hide_mnemonic
+                            else None
+                        ),
+                    ),
                     (t("Settings"), self.settings),
                     (t("Tools"), self.tools),
                     (t("About"), self.about),
@@ -202,7 +209,8 @@ class Login(Page):
                 entropy_hash = binascii.hexlify(entropy_bytes).decode()
                 self.ctx.display.clear()
                 self.ctx.display.draw_centered_text(
-                    t("SHA256 of snapshot:") + "\n\n%s" % entropy_hash
+                    t("SHA256 of snapshot:") + "\n\n%s" % entropy_hash,
+                    highlight_prefix=":",
                 )
                 self.ctx.input.wait_for_button()
 
@@ -265,23 +273,8 @@ class Login(Page):
         mnemonic = " ".join(words)
 
         if charset != LETTERS:
-            from .utils import Utils
-
-            charset_type = {
-                DIGITS: Utils.BASE_DEC,
-                DIGITS_HEX: Utils.BASE_HEX,
-                DIGITS_OCT: Utils.BASE_OCT,
-            }
-            suffix_dict = {
-                DIGITS: Utils.BASE_DEC_SUFFIX,
-                DIGITS_HEX: Utils.BASE_HEX_SUFFIX,
-                DIGITS_OCT: Utils.BASE_OCT_SUFFIX,
-            }
-            numbers_str = Utils.get_mnemonic_numbers(mnemonic, charset_type[charset])
-            self.display_mnemonic(numbers_str, suffix_dict[charset])
-            if not self.prompt(t("Proceed?"), BOTTOM_PROMPT_LINE):
+            if self._confirm_key_from_digits(mnemonic, charset) is not None:
                 return MENU_CONTINUE
-            self.ctx.display.clear()
 
         # If the mnemonic is not hidden, show the mnemonic editor
         if not Settings().security.hide_mnemonic:
@@ -314,6 +307,7 @@ class Login(Page):
             script_type = P2WSH
         derivation_path = ""
         from ..wallet import Wallet
+        from ..themes import theme
 
         while True:
             key = Key(
@@ -327,7 +321,7 @@ class Login(Page):
             )
             if not derivation_path:
                 derivation_path = key.derivation
-            wallet_info = key.fingerprint_hex_str(True) + "\n"
+            wallet_info = "\n"
             wallet_info += network["name"] + "\n"
             if policy_type == TYPE_SINGLESIG:
                 wallet_info += NAME_SINGLE_SIG + "\n"
@@ -354,6 +348,12 @@ class Login(Page):
                     * FONT_HEIGHT
                     + DEFAULT_PADDING
                 ),
+            )
+            # draw fingerprint with highlight color
+            self.ctx.display.draw_hcentered_text(
+                key.fingerprint_hex_str(True),
+                color=theme.highlight_color,
+                bg_color=theme.info_bg_color,
             )
             index, _ = submenu.run_loop()
             if index == len(submenu.menu) - 1:
@@ -382,6 +382,31 @@ class Login(Page):
 
         self.ctx.wallet = Wallet(key)
         return MENU_EXIT
+
+    def _confirm_key_from_digits(self, mnemonic, charset):
+        from .utils import Utils
+
+        charset_type = {
+            DIGITS: Utils.BASE_DEC,
+            DIGITS_HEX: Utils.BASE_HEX,
+            DIGITS_OCT: Utils.BASE_OCT,
+        }
+        suffix_dict = {
+            DIGITS: Utils.BASE_DEC_SUFFIX,
+            DIGITS_HEX: Utils.BASE_HEX_SUFFIX,
+            DIGITS_OCT: Utils.BASE_OCT_SUFFIX,
+        }
+        numbers_str = Utils.get_mnemonic_numbers(mnemonic, charset_type[charset])
+        self.display_mnemonic(
+            numbers_str,
+            suffix_dict[charset],
+            fingerprint=Key.extract_fingerprint(mnemonic),
+        )
+        if not self.prompt(t("Proceed?"), BOTTOM_PROMPT_LINE):
+            return MENU_CONTINUE
+        self.ctx.display.clear()
+
+        return None
 
     def _encrypted_qr_code(self, data):
         from ..encryption import EncryptedQRCode
@@ -571,6 +596,7 @@ class Login(Page):
                 if self.prompt(
                     str(len(words) + 1) + ".\n\n" + word_num + word + "\n\n",
                     self.ctx.display.height() // 2,
+                    highlight_prefix=":",
                 ):
                     words.append(word)
 
@@ -586,10 +612,10 @@ class Login(Page):
             len_mnemonic = choose_len_mnemonic(self.ctx)
             if not len_mnemonic:
                 return MENU_CONTINUE
-            title = t("Enter %d BIP-39 words.") % len_mnemonic
+            title = t("Enter %d BIP39 words.") % len_mnemonic
         else:
             len_mnemonic = None
-            title = t("Enter each word of your BIP-39 mnemonic.")
+            title = t("Enter each word of your BIP39 mnemonic.")
 
         mnemonic_editor = MnemonicEditor(self.ctx)
         mnemonic_editor.compute_search_ranges()
@@ -622,7 +648,7 @@ class Login(Page):
     def load_key_from_octal(self):
         """Handler for the 'load mnemonic'>'via numbers'>'octal' submenu item"""
         title = t(
-            "Enter each word of your BIP-39 mnemonic as a number in octal from 1 to 4000."
+            "Enter each word of your BIP39 mnemonic as a number in octal from 1 to 4000."
         )
 
         def autocomplete(prefix):
@@ -632,9 +658,10 @@ class Login(Page):
             return None
 
         def to_word(user_input):
-            word_num = int(user_input, 8)
-            if 0 < word_num <= 2048:
-                return WORDLIST[word_num - 1]
+            if user_input:
+                word_num = int(user_input, 8)
+                if 0 < word_num <= 2048:
+                    return WORDLIST[word_num - 1]
             return ""
 
         def possible_letters(prefix):
@@ -655,7 +682,7 @@ class Login(Page):
     def load_key_from_hexadecimal(self):
         """Handler for the 'load mnemonic'>'via numbers'>'hexadecimal' submenu item"""
         title = t(
-            "Enter each word of your BIP-39 mnemonic as a number in hexadecimal from 1 to 800."
+            "Enter each word of your BIP39 mnemonic as a number in hexadecimal from 1 to 800."
         )
 
         def autocomplete(prefix):
@@ -665,9 +692,10 @@ class Login(Page):
             return None
 
         def to_word(user_input):
-            word_num = int(user_input, 16)
-            if 0 < word_num <= 2048:
-                return WORDLIST[word_num - 1]
+            if user_input:
+                word_num = int(user_input, 16)
+                if 0 < word_num <= 2048:
+                    return WORDLIST[word_num - 1]
             return ""
 
         def possible_letters(prefix):
@@ -687,7 +715,7 @@ class Login(Page):
 
     def load_key_from_digits(self):
         """Handler for the 'load mnemonic'>'via numbers'>'decimal' submenu item"""
-        title = t("Enter each word of your BIP-39 mnemonic as a number from 1 to 2048.")
+        title = t("Enter each word of your BIP39 mnemonic as a number from 1 to 2048.")
 
         def autocomplete(prefix):
             if len(prefix) == 4 or (len(prefix) == 3 and int(prefix) > 204):
@@ -695,9 +723,10 @@ class Login(Page):
             return None
 
         def to_word(user_input):
-            word_num = int(user_input)
-            if 0 < word_num <= 2048:
-                return WORDLIST[word_num - 1]
+            if user_input:
+                word_num = int(user_input)
+                if 0 < word_num <= 2048:
+                    return WORDLIST[word_num - 1]
             return ""
 
         def possible_letters(prefix):
@@ -790,15 +819,16 @@ class Login(Page):
 
         import board
         from ..metadata import VERSION
+        from ..qr import FORMAT_NONE
 
-        self.ctx.display.clear()
-        self.ctx.display.draw_centered_text(
-            "Krux\n"
-            + "selfcustody.github.io/krux\n\n"
+        title = "selfcustody.github.io/krux"
+        msg = (
+            title
+            + "\n"
             + t("Hardware")
-            + "\n%s\n\n" % board.config["type"]
+            + ": %s\n" % board.config["type"]
             + t("Version")
-            + "\n%s" % VERSION
+            + ": %s" % VERSION
         )
-        self.ctx.input.wait_for_button()
+        self.display_qr_codes(title, FORMAT_NONE, msg, highlight_prefix=":")
         return MENU_CONTINUE

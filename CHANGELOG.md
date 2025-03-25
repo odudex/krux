@@ -1,18 +1,44 @@
-# Changelog 25.02.0 - February 2025
+# Changelog 25.XX.X - XXX 2025
+
+### New Mnemonic Menu Disabled by Hide Mnemonic
+When enabled, the hide mnemonic setting also disables the New Mnemonic menu.
+
+### Highlight Fingerprint and Other Texts
+The wallet fingerprint, keypad title, settings categories and prefix texts are now shown highlighted on all screens.
+
+### More Colors on Settings Categories
+When the value of the settings category is boolean (True/False), it will be displayed in color.
+
+### Other Bug Fixes and Optimizations
+- Fix printing words instead of numbers when using "Backup Mnemonic > Other formats > Numbers".
+- Added fingerprint to mnemonic preview and editor.
+- Store encrypted mnemonic now asks if you want to use the fingerprint as ID.
+- Optimized the way we check device's board values.
+- Added QR Code to About screen.
+- Other small text changes for clarity and translation simplification.
+
+
+# Changelog 25.03.0 - March 2025
 
 ### Taproot and WSH Miniscript support
 
-- Provides an indented visualization of Miniscript for easier inspection.
+- Provides an indented visualization of Miniscript descriptor for easier inspection.
 - Includes policy and cosigner verification.
 - Supports custom derivations.
 - Detects unspendable internal keys in Taproot.
 - Contains several UI and settings modifications.
 
-### More Intuitive Tamper Check
-The Tamper Check Flash Hash now appears immediately after the Tamper Check code is created, clarifying its purpose and expected output.
+### Easter Eggs Reveal
+Hints were added to unveil hidden features, such as swiping sideways to change the keypad keyset, switching camera modes, and adjusting QR code brightness.
+
+### Rearranged Keypad Keysets 
+Keypad keysets were organized to group similar keys and help with visibility. Also the *"ABC"* key now changes to *"123"*, *"<>."* and *"abc"* according to the next keyset.
 
 ### More Camera Modes
 A zoomed camera mode is available for all cameras, and an anti-glare mode has been added to the GC0328 camera.
+
+### More Intuitive Tamper Check
+The Tamper Check Flash Hash now appears immediately after the Tamper Check code is created, clarifying its purpose and expected output.
 
 ### Display Customization Options
 Display orientation on Yahboom and WonderMV devices can now be flipped.
@@ -21,7 +47,7 @@ Display orientation on Yahboom and WonderMV devices can now be flipped.
 When signing via SD cards, all fields in a PSBT—including signatures from other keys—are preserved. This facilitates workflows across multiple devices and locations by allowing a single PSBT file to be sequentially signed by different devices.
 
 ### Other Bug Fixes and Optimizations
-- Stored mnemonics are now sorted alphabetically.
+- New encrypted mnemonics show key-strength score during confirmation. If stored, will be sorted alphabetically.
 - Flash Map drawing errors have been corrected.
 - Address scanning for Blue Wallet has been fixed following its export format change.
 - The use of “h” to indicate hardened derivation path nodes has been standardized.

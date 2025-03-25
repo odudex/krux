@@ -22,11 +22,13 @@
 
 from embit import bip39
 from embit.wordlists.bip39 import WORDLIST
-from . import Page, ESC_KEY, LETTERS, proceed_menu
+from . import Page, ESC_KEY, LETTERS
 from ..display import DEFAULT_PADDING, MINIMAL_PADDING, FONT_HEIGHT, NARROW_SCREEN_WITH
 from ..krux_settings import t
 from ..themes import theme
 from ..input import BUTTON_TOUCH, BUTTON_ENTER, BUTTON_PAGE, BUTTON_PAGE_PREV
+from ..key import Key
+from ..kboard import kboard
 
 GO_INDEX = 25
 ESC_INDEX = 24
@@ -134,13 +136,26 @@ class MnemonicEditor(Page):
         from ..wallet import is_double_mnemonic
 
         header = "BIP39" + " " + t("Mnemonic")
-        if is_double_mnemonic(" ".join(self.current_mnemonic)):
+        mnemonic = " ".join(self.current_mnemonic)
+        fingerprint = ""
+        if is_double_mnemonic(mnemonic):
             header += "*"
+        if self.valid_checksum:
+            fingerprint = Key.extract_fingerprint(mnemonic)
+            if fingerprint:
+                fingerprint = "\n" + fingerprint
+                header += fingerprint
         self.ctx.display.clear()
         self.ctx.display.draw_hcentered_text(header, MINIMAL_PADDING)
+        if fingerprint:
+            self.ctx.display.draw_hcentered_text(
+                fingerprint, MINIMAL_PADDING, theme.highlight_color
+            )
         self.header_offset = MINIMAL_PADDING * 2 + (
             len(self.ctx.display.to_lines(header)) * FONT_HEIGHT
         )
+        if kboard.has_minimal_display:
+            self.header_offset -= MINIMAL_PADDING
 
     def _map_words(self, button_index=0, page=0):
         """Map words to the screen"""
@@ -160,12 +175,12 @@ class MnemonicEditor(Page):
         word_v_padding = self.ctx.display.height() * 3 // 4
         word_v_padding //= 12
 
-        if self.ctx.input.touch is not None and not self.ctx.input.buttons_active:
+        if self.ctx.input.touch is not None:
             self.ctx.input.touch.clear_regions()
             self.ctx.input.touch.x_regions.append(0)
             self.ctx.input.touch.x_regions.append(self.ctx.display.width() // 2)
             self.ctx.input.touch.x_regions.append(self.ctx.display.width())
-            if self.mnemonic_length == 24:
+            if not self.ctx.input.buttons_active and self.mnemonic_length == 24:
                 self.ctx.display.draw_vline(
                     self.ctx.display.width() // 2,
                     self.header_offset,
@@ -174,12 +189,13 @@ class MnemonicEditor(Page):
                 )
             y_region = self.header_offset
             for _ in range(13):
-                self.ctx.display.draw_hline(
-                    MINIMAL_PADDING,
-                    y_region,
-                    self.ctx.display.width() - 2 * MINIMAL_PADDING,
-                    theme.frame_color,
-                )
+                if not self.ctx.input.buttons_active:
+                    self.ctx.display.draw_hline(
+                        MINIMAL_PADDING,
+                        y_region,
+                        self.ctx.display.width() - 2 * MINIMAL_PADDING,
+                        theme.frame_color,
+                    )
                 self.ctx.input.touch.y_regions.append(y_region)
                 y_region += word_v_padding
             self.ctx.input.touch.y_regions.append(self.ctx.display.height())
@@ -238,8 +254,8 @@ class MnemonicEditor(Page):
         menu_index = None
         if self.ctx.input.buttons_active and button_index >= ESC_INDEX:
             menu_index = button_index - ESC_INDEX
-        proceed_menu(
-            self.ctx, y_region, menu_index, go_txt, esc_txt, self.valid_checksum
+        self.draw_proceed_menu(
+            go_txt, esc_txt, y_region, menu_index, self.valid_checksum
         )
 
     def edit_word(self, index):
@@ -250,8 +266,6 @@ class MnemonicEditor(Page):
             self.compute_search_ranges()
             # if new and last word, lead input to a valid mnemonic
             if self.new_mnemonic and index == self.mnemonic_length - 1:
-                from ..key import Key
-
                 final_words = Key.get_final_word_candidates(self.current_mnemonic[:-1])
                 word = self.capture_from_keypad(
                     t("Word %d") % (index + 1),

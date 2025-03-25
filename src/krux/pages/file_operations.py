@@ -29,7 +29,7 @@ from . import (
 from ..krux_settings import t
 from ..sd_card import SDHandler
 
-FILE_SPECIAL = "1234567890()-.[]_~"
+FILE_SPECIAL = "1234567890[]-._()~"
 
 
 class SaveFile(Page):
@@ -59,6 +59,7 @@ class SaveFile(Page):
                     if not prompt or self.prompt(
                         file_description + "\n" + t("Save to SD card?") + "\n\n",
                         self.ctx.display.height() // 2,
+                        highlight_prefix=":",
                     ):
                         new_filename = self.set_filename(
                             filename,
@@ -77,7 +78,8 @@ class SaveFile(Page):
                             else:
                                 sd.write(new_filename, data)
                             self.flash_text(
-                                t("Saved to SD card") + ":\n%s" % new_filename
+                                t("Saved to SD card:") + "\n%s" % new_filename,
+                                highlight_prefix=":",
                             )
                             persisted = True
                             break

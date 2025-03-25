@@ -22,7 +22,7 @@
 
 [tool.poetry]
 name = "krux"
-version = "25.01.beta12"
+version = "25.05.beta0"
 description = "Open-source signing device firmware for Bitcoin"
 authors = ["Jeff S <jeffreesun@protonmail.com>"]
 
@@ -52,7 +52,7 @@ pyserial = { version = "^3.5", optional = true }
 qrcode = "^7.4.2"
 
 [tool.poetry.group.dev.dependencies]
-black = "^24.4.2"
+black = "^25.1.0"
 pylint = "^3.2.5"
 pytest = "^8.2.2"
 pytest-cov = "^5.0.0"

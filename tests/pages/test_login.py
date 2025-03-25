@@ -235,6 +235,8 @@ def test_new_double_mnemonic_from_snapshot(m5stickv, mocker):
     from krux.input import BUTTON_ENTER, BUTTON_PAGE
     from krux.wallet import is_double_mnemonic
     from embit.bip39 import mnemonic_from_bytes
+    from krux.display import THIN_SPACE
+    from krux.key import FINGERPRINT_SYMBOL
 
     ORIGINAL_ENTROPY = b"\x01" * 32
 
@@ -269,7 +271,11 @@ def test_new_double_mnemonic_from_snapshot(m5stickv, mocker):
     assert ctx.wallet.key.mnemonic == MNEMONIC
     assert is_double_mnemonic(MNEMONIC) == True
     ctx.display.draw_hcentered_text.assert_has_calls(
-        [mocker.call("BIP39 Mnemonic*", 5)]
+        [
+            mocker.call(
+                "BIP39 Mnemonic*\n" + FINGERPRINT_SYMBOL + THIN_SPACE + "5d4342d2", 5
+            )
+        ]
     )
     original_mnemonic_words = mnemonic_from_bytes(ORIGINAL_ENTROPY).split(" ")
     converted_mnemonic_words = ctx.wallet.key.mnemonic.split(" ")
@@ -728,11 +734,13 @@ def test_create_key_from_text(m5stickv, mocker):
 
 def test_load_key_from_digits(m5stickv, mocker, mocker_printer):
     from krux.pages.login import Login
-    from krux.input import BUTTON_ENTER, BUTTON_PAGE
+    from krux.input import BUTTON_ENTER, BUTTON_PAGE, BUTTON_PAGE_PREV
 
     cases = [
         (
             [BUTTON_ENTER]  # 1 press confirm msg
+            + [BUTTON_PAGE_PREV]  # place on btn Go
+            + [BUTTON_ENTER]  # press Go without any value should not present any error
             + (
                 # 1 press change to number "2" and 1 press to select
                 [BUTTON_PAGE, BUTTON_ENTER]
@@ -826,6 +834,8 @@ def test_load_12w_from_hexadecimal(m5stickv, mocker, mocker_printer):
 
     BTN_SEQUENCE = (
         [BUTTON_ENTER]  # 1 press confirm msg
+        + [BUTTON_PAGE_PREV]  # place on btn Go
+        + [BUTTON_ENTER]  # press Go without any value should not present any error
         + (
             # 4 press change to number "F"
             [BUTTON_PAGE_PREV, BUTTON_PAGE_PREV, BUTTON_PAGE_PREV, BUTTON_PAGE_PREV]
@@ -930,6 +940,8 @@ def test_load_12w_from_octal(m5stickv, mocker, mocker_printer):
 
     BTN_SEQUENCE = (
         [BUTTON_ENTER]  # 1 press confirm msg
+        + [BUTTON_PAGE_PREV]  # place on btn Go
+        + [BUTTON_ENTER]  # press Go without any value should not present any error
         + (
             # 4 press change to number "7"
             [BUTTON_PAGE_PREV] * 4
@@ -1287,7 +1299,7 @@ def test_about(mocker, m5stickv):
     from krux.metadata import VERSION
     from krux.input import BUTTON_ENTER
 
-    BTN_SEQUENCE = [BUTTON_ENTER, BUTTON_ENTER]
+    BTN_SEQUENCE = [BUTTON_ENTER]
 
     ctx = create_ctx(mocker, BTN_SEQUENCE)
 
@@ -1295,12 +1307,20 @@ def test_about(mocker, m5stickv):
 
     login.about()
 
+    title = "selfcustody.github.io/krux"
+    msg = (
+        title
+        + "\n"
+        + ("Hardware")
+        + ": %s\n" % board.config["type"]
+        + ("Version")
+        + ": %s" % VERSION
+    )
     ctx.input.wait_for_button.assert_called_once()
-    ctx.display.draw_centered_text.assert_called_with(
-        "Krux\nselfcustody.github.io/krux\n\nHardware\n"
-        + board.config["type"]
-        + "\n\nVersion\n"
-        + VERSION
+    ctx.display.draw_hcentered_text.assert_has_calls(
+        [
+            mocker.call(msg, 250, highlight_prefix=":"),
+        ]
     )
 
 

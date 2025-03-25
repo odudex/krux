@@ -382,7 +382,9 @@ class SeedQRView(Page):
         self.ctx.display.draw_centered_text(t("Processing.."))
 
         bmp_img.save("/sd/" + file_name)
-        self.flash_text(t("Saved to SD card") + ":\n%s" % file_name)
+        self.flash_text(
+            t("Saved to SD card:") + "\n%s" % file_name, highlight_prefix=":"
+        )
 
     def save_qr_image_menu(self):
         """Options to save QR codes as images on SD card"""
@@ -450,9 +452,9 @@ class SeedQRView(Page):
                 def toggle_brightness():
                     if self.qr_foreground == WHITE:
                         self.qr_foreground = DARKGREY
-                    elif not self.qr_foreground:
+                    elif self.qr_foreground is None:
                         self.qr_foreground = WHITE
-                    elif self.qr_foreground == DARKGREY:
+                    else:
                         self.qr_foreground = None
 
                 self.draw_grided_qr(mode)
@@ -471,6 +473,8 @@ class SeedQRView(Page):
                         mode -= 1
                         mode %= 5
                         self.lr_index = 0
+                elif button == BUTTON_PAGE:
+                    toggle_brightness()
                 if button in (BUTTON_ENTER, BUTTON_TOUCH):
                     if mode in (LINE_MODE, REGION_MODE, ZOOMED_R_MODE):
                         self.lr_index += 1
@@ -495,7 +499,7 @@ class SeedQRView(Page):
                         else None
                     ),
                 ),
-                (t("Print to QR"), printer_func),
+                (t("Print as QR"), printer_func),
             ]
             submenu = Menu(self.ctx, qr_menu, back_label=t("Back to Menu"))
             _, status = submenu.run_loop()

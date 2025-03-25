@@ -20,13 +20,13 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-import board
 import gc
 from . import Page, Menu, MENU_EXIT, MENU_CONTINUE
 from ..sd_card import SDHandler
 from ..krux_settings import t
 from ..format import generate_thousands_separator, render_decimal_separator
 from ..display import BOTTOM_PROMPT_LINE
+from ..kboard import kboard
 
 LIST_FILE_DIGITS = 9  # len on large devices per menu item
 LIST_FILE_DIGITS_SMALL = 5  # len on small devices per menu item
@@ -49,7 +49,7 @@ class FileManager(Page):
 
         custom_start_digits = LIST_FILE_DIGITS
         custom_end_digts = LIST_FILE_DIGITS + 4  # 3 more because of file type
-        if board.config["type"] == "m5stickv":
+        if kboard.is_m5stickv:
             custom_start_digits = LIST_FILE_DIGITS_SMALL
             custom_end_digts = LIST_FILE_DIGITS_SMALL + 4  # 3 more because of file type
 
@@ -166,31 +166,50 @@ class FileManager(Page):
         """Display the file details on the device's screen"""
         import uos
         import time
+        from ..display import DEFAULT_PADDING, FONT_HEIGHT
+        from ..themes import theme
 
         stats = uos.stat(file)
         size_KB = stats[6] / 1024
         size_KB_fraction = str(int(size_KB * 100))[-2:]
         created = time.localtime(stats[9])
         modified = time.localtime(stats[8])
-        format_datetime = " %s-%02d-%02d %02d:%02d"
+        format_datetime = "%s-%02d-%02d %02d:%02d"
         file = file[4:]  # remove "/sd/" prefix
 
         self.ctx.display.clear()
-        self.ctx.display.draw_hcentered_text(
-            file
-            + "\n\n"
-            + t("Size:")
-            + " "
-            + generate_thousands_separator(int(size_KB))
-            + render_decimal_separator()
-            + size_KB_fraction
-            + " KB"
-            + "\n\n"
-            + t("Created:")
-            + format_datetime % created[:5]
-            + "\n\n"
-            + t("Modified:")
-            + format_datetime % modified[:5]
+        offset_y = DEFAULT_PADDING
+        offset_y += (
+            self.ctx.display.draw_hcentered_text(
+                file
+                + "\n\n"
+                + t("Size:")
+                + " "
+                + generate_thousands_separator(int(size_KB))
+                + render_decimal_separator()
+                + size_KB_fraction
+                + " KB",
+                offset_y,
+                highlight_prefix=":",
+            )
+            + 1
+        ) * FONT_HEIGHT
+        offset_y += (
+            self.ctx.display.draw_hcentered_text(
+                t("Created:"), offset_y, color=theme.highlight_color
+            )
+        ) * FONT_HEIGHT
+        offset_y += (
+            self.ctx.display.draw_hcentered_text(
+                format_datetime % created[:5] + "\n\n", offset_y
+            )
+            * FONT_HEIGHT
         )
+        offset_y += (
+            self.ctx.display.draw_hcentered_text(
+                t("Modified:"), offset_y, color=theme.highlight_color
+            )
+        ) * FONT_HEIGHT
+        self.ctx.display.draw_hcentered_text(format_datetime % modified[:5], offset_y)
 
         return file

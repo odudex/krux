@@ -285,10 +285,11 @@ class Home(Page):
         ):
             self.ctx.display.draw_centered_text(
                 t("Warning:")
-                + "\n"
+                + " "
                 + t("Wallet output descriptor not found.")
                 + "\n\n"
-                + t("Some checks cannot be performed.")
+                + t("Some checks cannot be performed."),
+                highlight_prefix=":",
             )
             if not self.prompt(t("Proceed?"), BOTTOM_PROMPT_LINE):
                 return MENU_CONTINUE
@@ -326,7 +327,8 @@ class Home(Page):
                 + self.ctx.wallet.key.derivation_str()
                 + "\n"
                 + "PSBT: "
-                + path_mismatch
+                + path_mismatch,
+                highlight_prefix=":",
             )
             if not self.prompt(t("Proceed?"), BOTTOM_PROMPT_LINE):
                 return MENU_CONTINUE
@@ -363,7 +365,8 @@ class Home(Page):
                 + t("High fees!")
                 + "\n"
                 + replace_decimal_separator(("%.1f" % fee_percent))
-                + t("% of the amount.")
+                + t("% of the amount."),
+                highlight_prefix=":",
             )
 
             if not self.prompt(t("Proceed?"), BOTTOM_PROMPT_LINE):
@@ -371,7 +374,7 @@ class Home(Page):
 
         for message in outputs:
             self.ctx.display.clear()
-            self.ctx.display.draw_centered_text(message)
+            self.ctx.display.draw_centered_text(message, highlight_prefix=":")
             self.ctx.input.wait_for_button()
 
         # memory management
@@ -418,7 +421,9 @@ class Home(Page):
                 with open("/sd/" + psbt_filename, "wb") as f:
                     # Write PSBT data directly to the file
                     signer.psbt.write_to(f)
-            self.flash_text(t("Saved to SD card") + ":\n%s" % psbt_filename)
+            self.flash_text(
+                t("Saved to SD card:") + "\n%s" % psbt_filename, highlight_prefix=":"
+            )
 
         return MENU_CONTINUE
 

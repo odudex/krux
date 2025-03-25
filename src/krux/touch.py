@@ -153,8 +153,25 @@ class Touch:
             index = y_index
 
         # self.highlight_region(x_index, y_index)
-
         return index
+
+    def set_regions(self, x_list=None, y_list=None):
+        """Set buttons map regions x and y"""
+        if x_list:
+            if isinstance(x_list, list):
+                self.x_regions = x_list
+            else:
+                raise ValueError("x_list must be a list")
+        else:
+            self.x_regions = []
+
+        if y_list:
+            if isinstance(y_list, list):
+                self.y_regions = y_list
+            else:
+                raise ValueError("y_list must be a list")
+        else:
+            self.y_regions = []
 
     def _store_points(self, data):
         """Store pressed points and calculare an average pressed point"""

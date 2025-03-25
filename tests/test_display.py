@@ -482,7 +482,8 @@ def test_draw_string_on_inverted_display(mocker, amigo):
 
 def test_draw_hcentered_text(mocker, m5stickv):
     import krux
-    from krux.display import Display
+    from krux.display import Display, DEFAULT_PADDING
+    from krux.themes import theme
 
     mocker.patch("krux.display.lcd", new=mocker.MagicMock())
     mocker.patch("krux.display.lcd.string_width_px", side_effect=string_width_px)
@@ -497,6 +498,104 @@ def test_draw_hcentered_text(mocker, m5stickv):
 
     d.draw_string.assert_called_with(
         23, 50, "Hello world", krux.display.lcd.WHITE, krux.display.lcd.BLACK
+    )
+
+    d = Display()
+    mocker.patch.object(d, "width", new=lambda: 135)
+    mocker.spy(d, "draw_string")
+
+    d.draw_hcentered_text("prefix: highlighted", highlight_prefix=":")
+
+    d.draw_string.assert_has_calls(
+        [
+            mocker.call(
+                39,
+                DEFAULT_PADDING,
+                "prefix:",
+                theme.highlight_color,
+                theme.bg_color,
+            ),
+            mocker.call(23, 24, "highlighted", theme.fg_color, theme.bg_color),
+        ]
+    )
+
+    d = Display()
+    mocker.patch.object(d, "width", new=lambda: 135)
+    mocker.spy(d, "draw_string")
+
+    d.draw_hcentered_text(
+        "This is a very big prefix that don't fit one line: highlighted2",
+        highlight_prefix=":",
+    )
+
+    d.draw_string.assert_has_calls(
+        [
+            mocker.call(
+                47,
+                52,
+                "line:",
+                theme.highlight_color,
+                theme.bg_color,
+            ),
+            mocker.call(
+                15,
+                38,
+                "don't fit one",
+                theme.highlight_color,
+                theme.bg_color,
+            ),
+            mocker.call(
+                7,
+                24,
+                "big prefix that",
+                theme.highlight_color,
+                theme.bg_color,
+            ),
+            mocker.call(
+                11,
+                DEFAULT_PADDING,
+                "This is a very",
+                theme.highlight_color,
+                theme.bg_color,
+            ),
+            mocker.call(19, 66, "highlighted2", theme.fg_color, theme.bg_color),
+        ]
+    )
+
+    d = Display()
+    mocker.patch.object(d, "width", new=lambda: 135)
+    mocker.spy(d, "draw_string")
+
+    d.draw_hcentered_text(
+        "This is\n\n a very\nbig prefix that don't fit one line: highlighted2",
+        highlight_prefix=":",
+    )
+
+    d.draw_string.assert_has_calls(
+        [
+            mocker.call(
+                47,
+                80,
+                "line:",
+                theme.highlight_color,
+                theme.bg_color,
+            ),
+            mocker.call(
+                15,
+                66,
+                "don't fit one",
+                theme.highlight_color,
+                theme.bg_color,
+            ),
+            mocker.call(
+                7,
+                52,
+                "big prefix that",
+                theme.highlight_color,
+                theme.bg_color,
+            ),
+            mocker.call(19, 94, "highlighted2", theme.fg_color, theme.bg_color),
+        ]
     )
 
 
@@ -566,7 +665,7 @@ def test_draw_centered_text(mocker, m5stickv):
     d.draw_centered_text("Hello world", krux.display.lcd.WHITE, 0)
 
     d.draw_hcentered_text.assert_called_with(
-        "Hello world", 113, krux.display.lcd.WHITE, 0
+        ["Hello world"], 113, krux.display.lcd.WHITE, 0, highlight_prefix=""
     )
 
 
@@ -602,7 +701,7 @@ def test_flash_text(mocker, m5stickv):
     d.flash_text("test", WHITE)
 
     d.clear.assert_called()
-    d.draw_centered_text.assert_called_with("test", WHITE)
+    d.draw_centered_text.assert_called_with("test", WHITE, highlight_prefix="")
     time.sleep_ms.assert_called_with(FLASH_MSG_TIME)
 
 
@@ -616,13 +715,15 @@ def test_render_image(mocker, multiple_devices):
     img = mocker.MagicMock()
 
     # Test non-compact rendering
-    d.render_image(img, compact=False)
+    d.render_image(img, title_lines=0)
     if board.config["type"] == "m5stickv":
-        krux.display.lcd.display.assert_called_once_with(
-            img, oft=(0, 0), roi=(68, 52, 185, 135)
-        )
+        # img object is modified in place(zoom out) for m5stickv
+        assert krux.display.lcd.display.call_args.kwargs["oft"] == (0, 0)
+        assert krux.display.lcd.display.call_args.kwargs["roi"] == (68, 52, 185, 135)
     elif board.config["type"] == "amigo":
-        krux.display.lcd.display.assert_called_once_with(img, oft=(40, 40))
+        krux.display.lcd.display.assert_called_once_with(
+            img, oft=(40, 40), roi=(0, 0, 320, 240)
+        )
     elif board.config["type"] == "dock":
         krux.display.lcd.display.assert_called_once_with(
             img, oft=(0, 0), roi=(8, 0, 304, 240)
@@ -632,22 +733,64 @@ def test_render_image(mocker, multiple_devices):
             img, oft=(0, 0), roi=(48, 0, 224, 240)
         )
 
-    # Reset mock for next test
-    krux.display.lcd.display.reset_mock()
+
+def test_render_image_with_title(mocker, multiple_devices):
+    mocker.patch("krux.display.lcd", new=mocker.MagicMock())
+    import krux
+    from krux.display import Display
+    import board
+
+    d = Display()
+    img = mocker.MagicMock()
 
     # Test compact rendering
-    d.render_image(img, compact=True)
+    d.render_image(img, title_lines=1)
     if board.config["type"] == "m5stickv":
-        krux.display.lcd.display.assert_called_once_with(
-            img, oft=(24, 0), roi=(68, 52, 185, 135)
-        )
+        # img object is modified in place(zoom out) for m5stickv
+        assert krux.display.lcd.display.call_args.kwargs["oft"] == (24, 0)
+        assert krux.display.lcd.display.call_args.kwargs["roi"] == (92, 52, 161, 135)
     elif board.config["type"] == "amigo":
-        krux.display.lcd.display.assert_called_once_with(img, oft=(40, 40))
+        krux.display.lcd.display.assert_called_once_with(
+            img, oft=(40, 40), roi=(0, 0, 320, 240)
+        )
     elif board.config["type"] == "dock":
         krux.display.lcd.display.assert_called_once_with(
-            img, oft=(26, 0), roi=(28, 0, 264, 240)
+            img, oft=(26, 0), roi=(34, 0, 278, 240)
         )
     elif board.config["type"] == "cube":
         krux.display.lcd.display.assert_called_once_with(
-            img, oft=(24, 0), roi=(67, 0, 186, 240)
+            img, oft=(24, 0), roi=(72, 0, 200, 240)
+        )
+
+
+def test_render_image_with_double_subtitle(mocker, multiple_devices):
+    # Case for filling the flash with camera entropy, where there'll be:
+    # Title at the top
+    # Entropy measurement and progress bar at the bottom
+
+    mocker.patch("krux.display.lcd", new=mocker.MagicMock())
+    import krux
+    from krux.display import Display
+    import board
+
+    d = Display()
+    img = mocker.MagicMock()
+
+    # Test compact rendering
+    d.render_image(img, title_lines=1, double_subtitle=True)
+    if board.config["type"] == "m5stickv":
+        # img object is modified in place(zoom out) for m5stickv
+        assert krux.display.lcd.display.call_args.kwargs["oft"] == (24, 0)
+        assert krux.display.lcd.display.call_args.kwargs["roi"] == (92, 52, 161, 135)
+    elif board.config["type"] == "amigo":
+        krux.display.lcd.display.assert_called_once_with(
+            img, oft=(40, 40), roi=(0, 0, 320, 240)
+        )
+    elif board.config["type"] == "dock":
+        krux.display.lcd.display.assert_called_once_with(
+            img, oft=(26, 0), roi=(34, 0, 262, 240)
+        )
+    elif board.config["type"] == "cube":
+        krux.display.lcd.display.assert_called_once_with(
+            img, oft=(24, 0), roi=(72, 0, 186, 240)
         )

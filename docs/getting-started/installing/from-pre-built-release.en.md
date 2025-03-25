@@ -28,7 +28,7 @@ On Mac you may need to install `coreutils` to be able to use `sha256sum`
 brew install coreutils
 ```
 
-Fun fact: Each Krux release is signed with Krux!
+Fun fact: Each new Krux release is signed with Krux!
 
 ### Flash the firmware onto the device
 Extract the latest version of Krux you downloaded and enter the folder:
@@ -36,12 +36,12 @@ Extract the latest version of Krux you downloaded and enter the folder:
 unzip {{latest_krux}}.zip && cd {{latest_krux}}
 ```
 
-Connect the device to your computer via USB (for Maix Amigo, make sure you’re using bottom port), power it on, and run the following, replacing `DEVICE` with either `m5stickv`, `amigo`, `bit`, `cube`, `dock`, `yahboom` or `wonder_mv` (to yahboom you may need to manually specify the port, for example `/dev/ttyUSB0` on Linux or `COM6` on Windows):
+Connect the device to your computer via USB (for Maix Amigo, make sure you’re using bottom port), power it on, and run the following, replacing `DEVICE` with either `m5stickv`, `amigo`, `bit`, `cube` or `yahboom` (to yahboom you may need to manually specify the port, for example `/dev/ttyUSB0` on Linux or `COM6` on Windows):
 ```bash
 ./ktool -B goE -b 1500000 maixpy_DEVICE/kboot.kfpkg
 ```
 
-For `dock` use the `-B dan` parameter:
+For `dock` or `wonder_mv` use the `-B dan` parameter:
 ```bash
 ./ktool -B dan -b 1500000 maixpy_dock/kboot.kfpkg
 ```
@@ -68,7 +68,7 @@ See the correct port using `ls /dev/ttyUSB*`, in the example below we use `/dev/
 ```
 
 ##### Windows
-See the correct port at Device Manager > Ports (COM & LPT), in the example below we use `COM6`:
+See the correct port at **Device Manager -> Ports (COM & LPT)**, in the example below we use `COM6`:
 ```pwsh
 .\ktool-win.exe -B goE -b 1500000 maixpy_amigo\kboot.kfpkg -p COM6
 ```
