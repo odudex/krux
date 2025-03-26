@@ -69,12 +69,11 @@ class Home(Page):
 
     def krux_pgp(self):
         """Handler for the 'PGP' menu item"""
-        from ...pgp import KruxPGP
+        from .pgp_ui import PGPUI
 
-        krux_pgp = KruxPGP()
-        print("Starting PGP")
-        pub_key = krux_pgp.public_encryption_key(self.ctx.wallet.key.root)
-        self.display_qr_codes(pub_key, FORMAT_NONE, "PGP Public Key")
+        PGPUI(self.ctx).pgp_menu()
+        return MENU_CONTINUE
+        
 
     def backup_mnemonic(self):
         """Handler for the 'Backup Mnemonic' menu item"""
