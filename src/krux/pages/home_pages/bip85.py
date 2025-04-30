@@ -190,6 +190,16 @@ class Bip85(Page):
             if index == len(menu_items) - 1:
                 break
 
+    def sign_file_menu(self):
+        """Handler for the 'sign file' menu item"""
+        child_index = self._capture_index()
+        if child_index is None:
+            return
+
+        from .gpg_ui import GPG
+
+        GPG(self.ctx, child_index).gpg_menu()
+
     def export(self):
         """Exports BIP85 child mnemonics"""
         submenu = Menu(
@@ -197,6 +207,7 @@ class Bip85(Page):
             [
                 (t("BIP39 Mnemonic"), self._derive_mnemonic),
                 (t("Base64 Password"), self._derive_base64_password),
+                (t("GPG Key"), self.sign_file_menu),
             ],
         )
         submenu.run_loop()
