@@ -1,6 +1,6 @@
 # The MIT License (MIT)
 
-# Copyright (c) 2021-2023 Krux contributors
+# Copyright (c) 2021-2025 Krux contributors
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -19,21 +19,9 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
+
 import sys
-from unittest import mock
+import json
 
-MAIN_BOOT_CONFIG_SECTOR_ADDRESS = 20480
-SECTOR_ACTIVE_FIRMWARE_SLOT_1 = [90, 165, 208, 196, 0, 8, 0, 0, 0, 1, 45, 192, 60, 144, 156, 54, 100, 118, 112, 95, 111, 118, 32, 101, 120, 97, 109, 112, 108, 101, 0, 0, 90, 165, 208, 197, 0, 8, 0, 0, 0, 26, 160, 0, 36, 198, 171, 170]
-flash = bytearray(MAIN_BOOT_CONFIG_SECTOR_ADDRESS) + bytearray(SECTOR_ACTIVE_FIRMWARE_SLOT_1) + bytearray(8 * 1024 * 1024)
-
-
-def read_data(addr, amount):
-    return flash[addr : addr + amount]
-
-
-def write_data(addr, data):
-    flash[addr : addr + len(data)] = data
-
-
-if "flash" not in sys.modules:
-    sys.modules["flash"] = mock.MagicMock(read=read_data, write=write_data)
+if "ujson" not in sys.modules:
+    sys.modules["ujson"] = json
