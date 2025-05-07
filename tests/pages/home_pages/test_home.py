@@ -315,8 +315,10 @@ def test_load_bip85_from_wallet_menu(mocker, amigo, tdata):
         BUTTON_PAGE_PREV,  # Move to "Go"
         BUTTON_ENTER,  # Go
         BUTTON_ENTER,  # Load words
-        BUTTON_PAGE,  # Move to "Back"
-        BUTTON_ENTER,  # Exit
+        BUTTON_PAGE_PREV,  # Move to "< Back"
+        BUTTON_ENTER,  # Go to BIP85 Menu
+        BUTTON_PAGE,  # Move to "< Back"
+        BUTTON_ENTER,  # Leave
     ]
 
     wallet = Wallet(tdata.SINGLESIG_SIGNING_KEY)

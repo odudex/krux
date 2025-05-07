@@ -24,7 +24,7 @@ import hashlib
 import binascii
 
 from embit.util import secp256k1
-from .. import MENU_CONTINUE, Menu  # LOAD_FROM_CAMERA, LOAD_FROM_SD,
+from .. import Menu, MENU_CONTINUE  # LOAD_FROM_CAMERA, LOAD_FROM_SD,
 from .. import Page
 from ..utils import Utils
 from ...display import (
@@ -64,9 +64,6 @@ class GPG(Page):
         super().__init__(ctx)
         self.ctx = ctx
         self.private_key = self._derive_pgp_key(child_index)
-        self.pubkey_material = None
-        self.public_key = None
-        self.signature = None
 
     def gpg_menu(self):
         """Handler for the 'sign file' menu item"""
@@ -89,9 +86,9 @@ class GPG(Page):
 
     def export_pgp_pubkey(self):
         """Creates a PGP public key"""
-        self.pubkey_material = secp256k1.ec_pubkey_create(self.private_key)
-        hex_pubkey = binascii.hexlify(self.pubkey_material).decode()
-        self._display_and_export_pubkey(hex_pubkey)
+        pubkey_material = secp256k1.ec_pubkey_create(self.private_key)
+        public_key = binascii.hexlify(pubkey_material).decode()
+        self._display_and_export_pubkey(public_key)
         self.ctx.display.clear()
         self.ctx.display.draw_centered_text(t("Scan and sign GPG public key metadata"))
         if not self.prompt(t("Proceed?"), BOTTOM_PROMPT_LINE):
@@ -141,20 +138,13 @@ class GPG(Page):
         if not self.prompt(t("Sign?"), BOTTOM_PROMPT_LINE):
             return
 
-        if self.private_key is None:
-            self._derive_pgp_key()
         signature = secp256k1.ecdsa_sign(message_hash, self.private_key)
-        # # Debug - verify private key
-        # if not secp256k1.ecdsa_verify(signature, message_hash, self.pubkey_material):
-        #     print("Signature verification failed")
-        # else:
-        #     print("Signature verification succeeded")
-        self._display_signature(base_encode(signature, 64).strip().decode())
-        self._export_to_qr(signature)
+        encoded_sig = base_encode(signature, 64).strip().decode()
+        self._display_signature(encoded_sig)
+        self._export_to_qr(encoded_sig)
 
-    def _export_to_qr(self, sig):
-        """Exports the signature and public key to QR code"""
-        encoded_sig = base_encode(sig, 64).strip().decode()
+    def _export_to_qr(self, encoded_sig):
+        """Exports the signature to QR code"""
         title = t("Signature")
         self.display_qr_codes(encoded_sig, FORMAT_NONE, title)
         Utils(self.ctx).print_standard_qr(encoded_sig, FORMAT_NONE, title)

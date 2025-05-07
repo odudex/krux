@@ -158,8 +158,7 @@ class Home(Page):
 
         from .bip85 import Bip85
 
-        bip85 = Bip85(self.ctx)
-        bip85.export()
+        Bip85(self.ctx).export()
         return MENU_CONTINUE
 
     def wallet(self):
