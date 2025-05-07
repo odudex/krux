@@ -45,6 +45,7 @@
     "Checking for SD card..": "Suche nach SD-Karte..",
     "Confirm Tamper Check Code": "Bestätigen Sie den Tamper Check Code",
     "Could not determine change address.": "Änderungsadresse konnte nicht ermittelt werden.",
+    "Create GPG Public Key": "GPG Public Key erstellen",
     "Create QR Code": "Erstelle QR-Code",
     "Create QR code from text?": "QR-Code aus Text erzeugen?",
     "Created:": "Erstellt:",
@@ -107,6 +108,7 @@
     "Free:": "Frei:",
     "From Storage": "Vom Speicher",
     "Fully erase your SD card in another device to ensure data is unrecoverable": "Löschen Sie Ihre SD-Karte vollständig in einem anderen Gerät, um sicherzustellen, dass die Daten nicht wiederhergestellt werden können",
+    "GPG Key": "GPG Key",
     "Generate Mnemonic": "Mnemonik erzeugen",
     "Go": "Go",
     "Good entropy": "Gute Entropie",
@@ -232,6 +234,7 @@
     "Scan Address": "Adresse scannen",
     "Scan BIP39 Passphrase": "Scan BIP39 Passphrase",
     "Scan Key QR Code": "Schlüssel QR-Code Scannen",
+    "Scan and sign GPG public key metadata": "GPG Public Key Metadaten scannen und signieren",
     "Scanning words 1-12 again": "Wörter 1-12 erneut scannen",
     "Scanning words 13-24": "Wörter 13-24 scannen",
     "Screensaver Time": "Bildschirmschonerzeit",
@@ -248,6 +251,7 @@
     "Shutdown Time": "Abschaltzeit",
     "Shutting down..": "Herunterfahren..",
     "Sign": "Signieren",
+    "Sign File with GPG": "Datei mit GPG signieren",
     "Sign to QR code": "Am QR-Code unterschreiben",
     "Sign to SD card": "Auf SD-Karte signieren",
     "Sign?": "Signieren?",
@@ -320,9 +324,5 @@
     "is a valid address!": "ist eine gültige Adresse!",
     "swipe": "wischen",
     "unknown": "unbekannt",
-    "was NOT FOUND in the first %d addresses": "wurde in den ersten %d Adressen nicht gefunden",
-    "Create GPG Public Key": "GPG Public Key erstellen",
-    "Sign File with GPG": "Datei mit GPG signieren",
-    "Scan and sign GPG public key metadata": "GPG Public Key Metadaten scannen und signieren",
-    "GPG Key": "GPG Key"
+    "was NOT FOUND in the first %d addresses": "wurde in den ersten %d Adressen nicht gefunden"
 }

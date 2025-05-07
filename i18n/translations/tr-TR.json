@@ -45,6 +45,7 @@
     "Checking for SD card..": "SD kart kontrol ediliyor..",
     "Confirm Tamper Check Code": "Kurcalama Kontrol Kodunu Onayla",
     "Could not determine change address.": "Değişiklik adresi belirlenemedi.",
+    "Create GPG Public Key": "GPG Genel Anahtar Oluştur",
     "Create QR Code": "QR Kodu Oluştur",
     "Create QR code from text?": "Metinden QR kodu oluşturulsun mu?",
     "Created:": "Oluşturuldu:",
@@ -107,6 +108,7 @@
     "Free:": "Boş:",
     "From Storage": "Depolamadan Seç",
     "Fully erase your SD card in another device to ensure data is unrecoverable": "Verilerin geri kullanılamaz olduğundan emin olmak için SD kartınızı başka bir cihazda tamamen silin",
+    "GPG Key": "GPG Anahtarı",
     "Generate Mnemonic": "Mnemonic Oluştur",
     "Go": "Seç",
     "Good entropy": "Yeterli entropi",
@@ -232,6 +234,7 @@
     "Scan Address": "Adresi Tara",
     "Scan BIP39 Passphrase": "BIP39 Parolasını Tara",
     "Scan Key QR Code": "Anahtar QR Kodunu Tara",
+    "Scan and sign GPG public key metadata": "GPG genel anahtar verisini tara ve imzala",
     "Scanning words 1-12 again": "1-12 kelimeleri tekrar taranıyor",
     "Scanning words 13-24": "13-24 kelimeleri taranıyor",
     "Screensaver Time": "Ekran Koruyucu Süresi",
@@ -248,6 +251,7 @@
     "Shutdown Time": "Kapanma Süresi",
     "Shutting down..": "Kapatılıyor..",
     "Sign": "İmzala",
+    "Sign File with GPG": "Dosyayı GPG ile İmzala",
     "Sign to QR code": "QR koduna imzala",
     "Sign to SD card": "SD karta imzala",
     "Sign?": "İmzalansın mı?",
@@ -320,9 +324,5 @@
     "is a valid address!": "geçerli bir adres!",
     "swipe": "kaydırın",
     "unknown": "bilinmiyor",
-    "was NOT FOUND in the first %d addresses": "ilk %d adreste BULUNAMADI",
-    "Create GPG Public Key": "GPG Genel Anahtar Oluştur",
-    "Sign File with GPG": "Dosyayı GPG ile İmzala",
-    "Scan and sign GPG public key metadata": "GPG genel anahtar verisini tara ve imzala",
-    "GPG Key": "GPG Anahtarı"
+    "was NOT FOUND in the first %d addresses": "ilk %d adreste BULUNAMADI"
 }
