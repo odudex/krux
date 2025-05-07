@@ -145,7 +145,7 @@ class GPG(Page):
 
     def _export_to_qr(self, encoded_sig):
         """Exports the signature to QR code"""
-        title = t("Signature")
+        title = t("Signature:")
         self.display_qr_codes(encoded_sig, FORMAT_NONE, title)
         Utils(self.ctx).print_standard_qr(encoded_sig, FORMAT_NONE, title)
 

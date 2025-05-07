@@ -320,5 +320,9 @@
     "is a valid address!": "корректный адрес",
     "swipe": "проведите",
     "unknown": "неизвестный",
-    "was NOT FOUND in the first %d addresses": "нЕ НАЙДЕНО в первых %d адресах"
+    "was NOT FOUND in the first %d addresses": "нЕ НАЙДЕНО в первых %d адресах",
+    "Create GPG Public Key": "Создать GPG открытый ключ",
+    "Sign File with GPG": "Подписать файл GPG",
+    "Scan and sign GPG public key metadata": "Скан и подпись метаданных GPG ключа",
+    "GPG Key": "Ключ GPG"
 }

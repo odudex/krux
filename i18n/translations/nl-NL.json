@@ -320,5 +320,9 @@
     "is a valid address!": "is geen geldig adres",
     "swipe": "veeg",
     "unknown": "onbekend",
-    "was NOT FOUND in the first %d addresses": "werd NIET GEVONDEN in de eerste %d adressen"
+    "was NOT FOUND in the first %d addresses": "werd NIET GEVONDEN in de eerste %d adressen",
+    "Create GPG Public Key": "GPG-sleutel aanmaken",
+    "Sign File with GPG": "Bestand tekenen met GPG",
+    "Scan and sign GPG public key metadata": "Scan en teken GPG-sleutel metagegevens",
+    "GPG Key": "GPG-sleutel"
 }

@@ -320,5 +320,9 @@
     "is a valid address!": "geçerli bir adres!",
     "swipe": "kaydırın",
     "unknown": "bilinmiyor",
-    "was NOT FOUND in the first %d addresses": "ilk %d adreste BULUNAMADI"
+    "was NOT FOUND in the first %d addresses": "ilk %d adreste BULUNAMADI",
+    "Create GPG Public Key": "GPG Genel Anahtar Oluştur",
+    "Sign File with GPG": "Dosyayı GPG ile İmzala",
+    "Scan and sign GPG public key metadata": "GPG genel anahtar verisini tara ve imzala",
+    "GPG Key": "GPG Anahtarı"
 }

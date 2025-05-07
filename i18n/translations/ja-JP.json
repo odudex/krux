@@ -320,5 +320,9 @@
     "is a valid address!": "有効なアドレスです！",
     "swipe": "スワイプ",
     "unknown": "不明",
-    "was NOT FOUND in the first %d addresses": "最初の%dアドレスに見つかりませんでした"
+    "was NOT FOUND in the first %d addresses": "最初の%dアドレスに見つかりませんでした",
+    "Create GPG Public Key": "GPG公開鍵を作成",
+    "Sign File with GPG": "GPGで署名",
+    "Scan and sign GPG public key metadata": "GPG公開鍵メタデータを署名",
+    "GPG Key": "GPGキー"
 }

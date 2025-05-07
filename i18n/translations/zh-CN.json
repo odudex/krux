@@ -320,5 +320,9 @@
     "is a valid address!": " 非有效地址",
     "swipe": "滑动",
     "unknown": "未知",
-    "was NOT FOUND in the first %d addresses": "在前 %d 个地址中未找到"
+    "was NOT FOUND in the first %d addresses": "在前 %d 个地址中未找到",
+    "Create GPG Public Key": "创建GPG公钥",
+    "Sign File with GPG": "用GPG签名文件",
+    "Scan and sign GPG public key metadata": "扫描签名GPG公钥元数据",
+    "GPG Key": "GPG钥"
 }

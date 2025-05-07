@@ -320,5 +320,9 @@
     "is a valid address!": "là một địa chỉ hợp lệ!",
     "swipe": "vuốt",
     "unknown": "không rõ",
-    "was NOT FOUND in the first %d addresses": "kHÔNG TÌM THẤY trong %d địa chỉ đầu tiên"
+    "was NOT FOUND in the first %d addresses": "kHÔNG TÌM THẤY trong %d địa chỉ đầu tiên",
+    "Create GPG Public Key": "Tạo khóa công khai GPG",
+    "Sign File with GPG": "Ký tệp bằng GPG",
+    "Scan and sign GPG public key metadata": "Quét và ký siêu dữ liệu khóa GPG",
+    "GPG Key": "Khóa GPG"
 }

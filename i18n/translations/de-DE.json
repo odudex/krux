@@ -320,5 +320,9 @@
     "is a valid address!": "ist eine gültige Adresse!",
     "swipe": "wischen",
     "unknown": "unbekannt",
-    "was NOT FOUND in the first %d addresses": "wurde in den ersten %d Adressen nicht gefunden"
+    "was NOT FOUND in the first %d addresses": "wurde in den ersten %d Adressen nicht gefunden",
+    "Create GPG Public Key": "GPG Public Key erstellen",
+    "Sign File with GPG": "Datei mit GPG signieren",
+    "Scan and sign GPG public key metadata": "GPG Public Key Metadaten scannen und signieren",
+    "GPG Key": "GPG Key"
 }
