@@ -45,10 +45,12 @@ PWD_MAX_LEN = 86
 class Bip85(Page):
     """UI to export and load BIP85 entropy"""
 
-    def _capture_index(self):
+    def _capture_index(self, starting_buffer=""):
         """Capture the index from the user"""
         while True:
-            child = self.capture_from_keypad(t("Index"), [DIGITS])
+            child = self.capture_from_keypad(
+                t("Index"), [DIGITS], starting_buffer=starting_buffer
+            )
             if child == ESC_KEY:
                 return None
             try:
@@ -194,7 +196,7 @@ class Bip85(Page):
 
     def _sign_file_menu(self):
         """Handler for the 'sign file' menu item"""
-        child_index = self._capture_index()
+        child_index = self._capture_index(starting_buffer="0")
         if child_index is None:
             return MENU_CONTINUE
 
