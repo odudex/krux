@@ -22,7 +22,7 @@
 import board
 import time
 from . import Page
-from ..display import FONT_HEIGHT
+from ..display import FONT_HEIGHT, MINIMAL_PADDING
 from ..input import PRESSED
 from ..themes import theme
 from ..qr import QRPartParser, FORMAT_UR
@@ -31,7 +31,7 @@ from ..krux_settings import t
 from ..camera import QR_SCAN_MODE, ANTI_GLARE_MODE, ZOOMED_MODE
 
 ANTI_GLARE_WAIT_TIME = 500
-
+MESSAGE_DISPLAY_PERIOD = 5000
 PROGRESS_BAR_HEIGHT = 15
 
 
@@ -129,6 +129,7 @@ class QRCodeCapture(Page):
 
         # Flush events ocurred while loading camera
         self.ctx.input.reset_ios_state()
+        # Android Custom
         while True:
             wdt.feed()
 
@@ -162,6 +163,7 @@ class QRCodeCapture(Page):
                 ur_highlighted = False
 
             img = self.ctx.camera.snapshot()
+            # Android Custom
             self.ctx.display.render_image(img)
 
             res = img.find_qrcodes()

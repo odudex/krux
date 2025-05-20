@@ -24,7 +24,7 @@ from embit.descriptor.arguments import Key
 from embit.networks import NETWORKS
 from embit.bip32 import HARDENED_INDEX
 from .krux_settings import t
-from .qr import FORMAT_BBQR
+from .qr import FORMAT_BBQR, FORMAT_NONE
 from .key import (
     P2PKH,
     P2SH_P2WPKH,
@@ -49,7 +49,7 @@ class Wallet:
     def __init__(self, key):
         self.key = key
         self.wallet_data = None
-        self.wallet_qr_format = None
+        self.wallet_qr_format = FORMAT_NONE
         self.descriptor = None
         self.label = None
         self.policy = None
@@ -254,6 +254,11 @@ class Wallet:
             )
             i += 1
 
+    def has_change_addr(self):
+        """Returns if this wallet knows how to derive its change addresses"""
+
+        return self.descriptor.num_branches > 1
+
 
 def to_unambiguous_descriptor(descriptor):
     """If child derivation info is missing to generate receive addresses,
@@ -367,10 +372,7 @@ def parse_wallet(wallet_data, allow_assumption=None):
 
     # Try to parse as JSON and look for a 'descriptor' key
     try:
-        try:
-            import ujson as json
-        except ImportError:
-            import json
+        import ujson as json
 
         wallet_json = json.loads(wallet_data)
         if "descriptor" in wallet_json:
@@ -569,7 +571,7 @@ def is_double_mnemonic(mnemonic: str):
 
     words = mnemonic.split(" ")
     if len(words) > 12:
-        from krux.bip39 import k_mnemonic_is_valid
+        from .bip39 import k_mnemonic_is_valid
 
         if (
             k_mnemonic_is_valid(" ".join(words[:12]))

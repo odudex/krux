@@ -56,7 +56,7 @@ from ..settings import (
 from ..key import P2PKH, P2SH_P2WPKH, P2WPKH, P2WSH, P2TR
 
 PASSPHRASE_MAX_LEN = 200
-DERIVATION_KEYPAD = "123456789/0h"
+DERIVATION_KEYPAD = "1234567890/h"
 
 MINISCRIPT_DEFAULT_DERIVATION = "m/48h/0h/0h/2h"
 
@@ -68,7 +68,7 @@ class PassphraseEditor(Page):
         super().__init__(ctx, None)
         self.ctx = ctx
 
-    def load_passphrase_menu(self):
+    def load_passphrase_menu(self, mnemonic):
         """Load a passphrase from keypad or QR code"""
         passphrase = ""
         while True:
@@ -83,8 +83,23 @@ class PassphraseEditor(Page):
             _, passphrase = submenu.run_loop()
             if passphrase in (ESC_KEY, MENU_EXIT):
                 return None
+
+            from ..themes import theme
+            from ..key import Key
+
             self.ctx.display.clear()
-            self.ctx.display.draw_hcentered_text(t("Passphrase") + ": " + passphrase)
+            self.ctx.display.draw_hcentered_text(
+                Key.extract_fingerprint(mnemonic, passphrase),
+                color=theme.highlight_color,
+            )
+            self.ctx.display.draw_hcentered_text(
+                t("Passphrase") + ":",
+                DEFAULT_PADDING + FONT_HEIGHT * 2,
+                theme.highlight_color,
+            )
+            self.ctx.display.draw_hcentered_text(
+                passphrase, DEFAULT_PADDING + FONT_HEIGHT * 3
+            )
             if self.prompt(
                 t("Proceed?"),
                 BOTTOM_PROMPT_LINE,
@@ -127,7 +142,7 @@ class WalletSettings(Page):
         policy_type = key.policy_type
         script_type = key.script_type
         account = key.account_index
-        custom_derivation = key.derivation if key.custom_derivation else None
+        derivation_path = key.derivation
         while True:
             wallet_info = network["name"] + "\n"
             # Find the policy type string from the POLICY_TYPE_IDS dictionary
@@ -138,13 +153,10 @@ class WalletSettings(Page):
                     break
             wallet_info += policy_type_str + "\n"
             wallet_info += str(script_type).upper() + "\n"
-            if policy_type != TYPE_MINISCRIPT or not custom_derivation:
+            if not derivation_path:
                 derivation_path = self._derivation_path_str(
                     policy_type, script_type, network, account
                 )
-                custom_derivation = ""
-            else:
-                derivation_path = custom_derivation
             wallet_info += DERIVATION_PATH_SYMBOL + " " + derivation_path
 
             self.ctx.display.clear()
@@ -176,10 +188,12 @@ class WalletSettings(Page):
             if index == 0:
                 new_network = self._coin_type()
                 if new_network is not None:
+                    derivation_path = ""
                     network = new_network
             elif index == 1:
                 new_policy_type = self._policy_type()
                 if new_policy_type is not None:
+                    derivation_path = ""
                     policy_type = new_policy_type
                     if policy_type == TYPE_SINGLESIG and script_type == P2WSH:
                         # If is single-sig, and script is p2wsh, force to pick a new type
@@ -204,16 +218,18 @@ class WalletSettings(Page):
                 else:
                     new_script_type = self._script_type()
                 if new_script_type is not None:
+                    derivation_path = ""
                     script_type = new_script_type
             elif index == 3:
                 if policy_type != TYPE_MINISCRIPT:
                     new_account = self._account(account)
                     if new_account is not None:
+                        derivation_path = ""
                         account = new_account
                 else:
                     new_derivation_path = self._derivation_path(derivation_path)
                     if new_derivation_path is not None:
-                        custom_derivation = new_derivation_path
+                        derivation_path = new_derivation_path
         return network, policy_type, script_type, account, derivation_path
 
     def _coin_type(self):
@@ -359,10 +375,12 @@ class WalletSettings(Page):
                 self.ctx.display.clear()
                 if not self.prompt(
                     t("Some nodes are not hardened:")
-                    + "\n"
+                    + "\n\n"
                     + not_hardened_txt
+                    + "\n"
                     + t("Proceed?"),
                     self.ctx.display.height() // 2,
+                    highlight_prefix=":",
                 ):
                     # Allow user to edit the derivation path
                     continue

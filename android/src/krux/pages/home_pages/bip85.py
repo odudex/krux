@@ -30,6 +30,7 @@ from ...krux_settings import Settings
 from .. import (
     Menu,
     Page,
+    MENU_CONTINUE,
     DIGITS,
     ESC_KEY,
     choose_len_mnemonic,
@@ -44,10 +45,12 @@ PWD_MAX_LEN = 86
 class Bip85(Page):
     """UI to export and load BIP85 entropy"""
 
-    def _capture_index(self):
+    def _capture_index(self, starting_buffer=""):
         """Capture the index from the user"""
         while True:
-            child = self.capture_from_keypad(t("Index"), [DIGITS])
+            child = self.capture_from_keypad(
+                t("Index"), [DIGITS], starting_buffer=starting_buffer
+            )
             if child == ESC_KEY:
                 return None
             try:
@@ -66,11 +69,11 @@ class Bip85(Page):
         """Derive a BIP85 mnemonic"""
         num_words = choose_len_mnemonic(self.ctx)
         if not num_words:
-            return
+            return MENU_CONTINUE
 
         child_index = self._capture_index()
         if child_index is None:
-            return
+            return MENU_CONTINUE
 
         bip85_words = bip85.derive_mnemonic(
             self.ctx.wallet.key.root,
@@ -80,6 +83,7 @@ class Bip85(Page):
         self.ctx.display.clear()
 
         from ...key import Key
+        from ...themes import theme
 
         key = Key(
             bip85_words,
@@ -94,12 +98,14 @@ class Bip85(Page):
                 fingerprint=key.fingerprint_hex_str(True),
             )
         else:
-            self.ctx.display.draw_centered_text(key.fingerprint_hex_str(True))
+            self.ctx.display.draw_centered_text(
+                key.fingerprint_hex_str(True), color=theme.highlight_color
+            )
         if self.prompt(t("Load?"), BOTTOM_PROMPT_LINE):
             from ...wallet import Wallet
 
             self.ctx.wallet = Wallet(key)
-        return
+        return MENU_CONTINUE
 
     def _base64_password_qr(self, code, title):
         """Export BIP85 base64 password as QR"""
@@ -149,7 +155,7 @@ class Bip85(Page):
         """Derive a BIP85 base64 password"""
         child_index = self._capture_index()
         if child_index is None:
-            return
+            return MENU_CONTINUE
 
         # Capture the password length
         while True:
@@ -157,7 +163,7 @@ class Bip85(Page):
                 t("Password Length"), [DIGITS], starting_buffer=DEFAULT_PWD_LEN
             )
             if pwd_len_txt == ESC_KEY:
-                return
+                return MENU_CONTINUE
             try:
                 pwd_len = int(pwd_len_txt)
             except:  # Empty input
@@ -180,8 +186,8 @@ class Bip85(Page):
         password = base_encode(entropy, 64).decode().strip()
         password = password[:pwd_len]
         info = password
-        info += "\n\n" + t("Index: %s") % child_index
-        info += "\n" + t("Length: %s") % pwd_len
+        info += "\n\n" + t("Index") + ": %s" % child_index
+        info += "\n" + t("Length:") + " %s" % pwd_len
         while True:
             menu_items = [
                 (
@@ -195,7 +201,9 @@ class Bip85(Page):
                 ),
             ]
             self.ctx.display.clear()
-            info_len = self.ctx.display.draw_hcentered_text(info, info_box=True)
+            info_len = self.ctx.display.draw_hcentered_text(
+                info, info_box=True, highlight_prefix=":"
+            )
             info_len *= FONT_HEIGHT
             info_len += DEFAULT_PADDING
             submenu = Menu(
@@ -206,14 +214,27 @@ class Bip85(Page):
             index, _ = submenu.run_loop()
             if index == len(menu_items) - 1:
                 break
+        return MENU_CONTINUE
+
+    def _sign_file_menu(self):
+        """Handler for the 'sign file' menu item"""
+        child_index = self._capture_index(starting_buffer="0")
+        if child_index is None:
+            return MENU_CONTINUE
+
+        from .gpg_ui import GPG
+
+        GPG(self.ctx, child_index).gpg_menu()
+        return MENU_CONTINUE
 
     def export(self):
         """Exports BIP85 child mnemonics"""
-        submenu = Menu(
+        Menu(
             self.ctx,
             [
                 (t("BIP39 Mnemonic"), self._derive_mnemonic),
                 (t("Base64 Password"), self._derive_base64_password),
+                (t("GPG Key"), self._sign_file_menu),
             ],
-        )
-        submenu.run_loop()
+        ).run_loop()
+        return MENU_CONTINUE

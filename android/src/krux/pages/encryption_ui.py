@@ -20,9 +20,10 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-from ..display import BOTTOM_PROMPT_LINE
+from ..display import DEFAULT_PADDING, FONT_HEIGHT, BOTTOM_PROMPT_LINE
 from ..krux_settings import t, Settings
 from ..encryption import AES_BLOCK_SIZE
+from ..themes import theme
 from . import (
     Page,
     Menu,
@@ -44,7 +45,50 @@ class EncryptionKey(Page):
         super().__init__(ctx, None)
         self.ctx = ctx
 
-    def encryption_key(self):
+    def key_strength(self, key_string):
+        """Check the strength of a key."""
+
+        if len(key_string) < 8:
+            return t("Weak")
+
+        # Helper function to check if character is alphanumeric
+        def is_alnum(c):
+            return ("a" <= c <= "z") or ("A" <= c <= "Z") or ("0" <= c <= "9")
+
+        # Check for presence of character types
+        has_upper = any(c.isupper() for c in key_string)
+        has_lower = any(c.islower() for c in key_string)
+        has_digit = any(c.isdigit() for c in key_string)
+        has_special = any(not is_alnum(c) for c in key_string)
+
+        # Count how many character types are present
+        score = sum([has_upper, has_lower, has_digit, has_special])
+
+        # Add length score to score
+        key_len = len(key_string)
+        if key_len >= 12:
+            score += 1
+        if key_len >= 16:
+            score += 1
+        if key_len >= 20:
+            score += 1
+        if key_len >= 40:
+            score += 1
+
+        set_len = len(set(key_string))
+        if set_len < 6:
+            score -= 1
+        if set_len < 3:
+            score -= 1
+
+        # Determine key strength
+        if score >= 4:
+            return t("Strong")
+        if score >= 3:
+            return t("Medium")
+        return t("Weak")
+
+    def encryption_key(self, creating=False):
         """Loads and returns an ecnryption key from keypad or QR code"""
         submenu = Menu(
             self.ctx,
@@ -60,7 +104,21 @@ class EncryptionKey(Page):
 
         if key:
             self.ctx.display.clear()
-            self.ctx.display.draw_hcentered_text(t("Key") + ": " + key)
+            offset_y = DEFAULT_PADDING
+            key_lines = self.ctx.display.draw_hcentered_text(
+                "{}: {}".format(t("Key"), key), offset_y, highlight_prefix=":"
+            )
+            if creating:
+                strength = self.key_strength(key)
+                offset_y += (key_lines + 1) * FONT_HEIGHT
+                color = theme.error_color if strength == t("Weak") else theme.fg_color
+                self.ctx.display.draw_hcentered_text(
+                    "{}: {}".format(t("Strength"), strength),
+                    offset_y,
+                    color,
+                    highlight_prefix=":",
+                )
+
             if self.prompt(
                 t("Proceed?"),
                 BOTTOM_PROMPT_LINE,
@@ -124,7 +182,7 @@ class EncryptMnemonic(Page):
         error_txt = t("Mnemonic was not encrypted")
 
         key_capture = EncryptionKey(self.ctx)
-        key = key_capture.encryption_key()
+        key = key_capture.encryption_key(creating=True)
         if key is None:
             self.flash_error(t("Key was not provided"))
             return None
@@ -150,10 +208,8 @@ class EncryptMnemonic(Page):
 
         mnemonic_id = None
         self.ctx.display.clear()
-        if self.prompt(
-            t(
-                "Give this mnemonic a custom ID? Otherwise current fingerprint will be used"
-            ),
+        if not self.prompt(
+            t("Use fingerprint as ID?"),
             self.ctx.display.height() // 2,
         ):
             mnemonic_id = self.capture_from_keypad(
@@ -177,7 +233,7 @@ class EncryptMnemonic(Page):
 
         mnemonic_storage = MnemonicStorage()
         if mnemonic_id in mnemonic_storage.list_mnemonics(sd_card):
-            self.flash_text(
+            self.flash_error(
                 t("ID already exists") + "\n" + t("Encrypted mnemonic was not stored")
             )
             del mnemonic_storage
@@ -189,11 +245,14 @@ class EncryptMnemonic(Page):
         if mnemonic_storage.store_encrypted(key, mnemonic_id, words, sd_card, i_vector):
             self.ctx.display.clear()
             self.ctx.display.draw_centered_text(
-                t("Encrypted mnemonic was stored with ID:") + " " + mnemonic_id
+                t("Encrypted mnemonic stored with ID:") + " " + mnemonic_id,
+                highlight_prefix=":",
             )
         else:
             self.ctx.display.clear()
-            self.ctx.display.draw_centered_text(t("Failed to store mnemonic"))
+            self.ctx.display.draw_centered_text(
+                t("Failed to store mnemonic"), theme.error_color
+            )
         self.ctx.input.wait_for_button()
         del mnemonic_storage
 
@@ -231,6 +290,7 @@ class LoadEncryptedMnemonic(Page):
     def load_from_storage(self, remove_opt=False):
         """Lists all encrypted mnemonics stored is flash and SD card"""
         from ..encryption import MnemonicStorage
+        from ..settings import THIN_SPACE
 
         mnemonic_ids_menu = []
         mnemonic_storage = MnemonicStorage()
@@ -241,7 +301,7 @@ class LoadEncryptedMnemonic(Page):
         for mnemonic_id in sorted(mnemonics):
             mnemonic_ids_menu.append(
                 (
-                    mnemonic_id + "(flash)",
+                    mnemonic_id + " (flash)",
                     lambda m_id=mnemonic_id: (
                         self._remove_encrypted_mnemonic(m_id)
                         if remove_opt
@@ -252,7 +312,7 @@ class LoadEncryptedMnemonic(Page):
         for mnemonic_id in sorted(sd_mnemonics):
             mnemonic_ids_menu.append(
                 (
-                    mnemonic_id + "(SD card)",
+                    mnemonic_id + " (SD" + THIN_SPACE + "card)",
                     lambda m_id=mnemonic_id: (
                         self._remove_encrypted_mnemonic(m_id, sd_card=True)
                         if remove_opt

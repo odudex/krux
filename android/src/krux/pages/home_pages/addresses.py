@@ -31,6 +31,7 @@ from .. import (
     MENU_CONTINUE,
     MENU_EXIT,
 )
+from ...format import format_address
 
 SCAN_ADDRESS_LIMIT = 50
 
@@ -52,7 +53,14 @@ class Addresses(Page):
             [
                 (t("Scan Address"), self.pre_scan_address),
                 (t("Receive Addresses"), self.list_address_type),
-                (t("Change Addresses"), lambda: self.list_address_type(1)),
+                (
+                    t("Change Addresses"),
+                    (
+                        None
+                        if not self.ctx.wallet.has_change_addr()
+                        else lambda: self.list_address_type(1)
+                    ),
+                ),
             ],
         )
         submenu.run_loop()
@@ -60,7 +68,10 @@ class Addresses(Page):
 
     def list_address_type(self, addr_type=0):
         """Handler for the 'receive addresses' or 'change addresses' menu item"""
-        if self.ctx.wallet.is_multisig() and not self.ctx.wallet.is_loaded():
+        if not self.ctx.wallet.is_loaded() and (
+            self.ctx.wallet.is_multisig() or self.ctx.wallet.is_miniscript()
+        ):
+            self.flash_error(t("Please load a wallet output descriptor"))
             return MENU_CONTINUE
 
         loading_txt = (
@@ -87,7 +98,7 @@ class Addresses(Page):
             )
             for addr in addresses:
                 pos_str = str(address_index) + "." + THIN_SPACE
-                qr_title = pos_str + addr
+                qr_title = pos_str + format_address(addr)
                 items.append(
                     (
                         self.fit_to_line(addr, pos_str, fixed_chars=3),
@@ -137,7 +148,14 @@ class Addresses(Page):
             self.ctx,
             [
                 (t("Receive"), self.scan_address),
-                (t("Change"), lambda: self.scan_address(1)),
+                (
+                    t("Change"),
+                    (
+                        None
+                        if not self.ctx.wallet.has_change_addr()
+                        else lambda: self.scan_address(1)
+                    ),
+                ),
             ],
         )
         submenu.run_loop()
@@ -162,7 +180,7 @@ class Addresses(Page):
             self.flash_error(t("Invalid address"))
             return MENU_CONTINUE
 
-        self.show_address(data, title=addr, quick_exit=True)
+        self.show_address(data, title=format_address(addr), quick_exit=True)
 
         if self.ctx.wallet.is_loaded() or not self.ctx.wallet.is_multisig():
             self.ctx.display.clear()
@@ -206,9 +224,9 @@ class Addresses(Page):
 
             self.ctx.display.clear()
             result_message = (
-                is_valid_txt % (str(num_checked - 1) + ". \n\n" + addr)
+                is_valid_txt % (str(num_checked - 1) + ". \n\n" + format_address(addr))
                 if found
-                else not_found_txt % (addr, num_checked)
+                else not_found_txt % (format_address(addr), num_checked)
             )
             self.ctx.display.draw_centered_text(result_message)
             self.ctx.input.wait_for_button()

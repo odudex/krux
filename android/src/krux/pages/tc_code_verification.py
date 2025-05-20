@@ -23,11 +23,10 @@
 from . import (
     Page,
     ESC_KEY,
-    DIGITS,
     LETTERS,
     UPPERCASE_LETTERS,
+    NUM_SPECIAL_1,
     NUM_SPECIAL_2,
-    NUM_SPECIAL_3,
 )
 from ..krux_settings import t, TC_CODE_PATH, TC_CODE_PBKDF2_ITERATIONS
 
@@ -41,7 +40,7 @@ class TCCodeVerification(Page):
 
     def capture(self, changing_tc_code=False, return_hash=False):
         """Capture Tamper Check Code from user"""
-        import hashlib
+        import uhashlib_hw
         from machine import unique_id
 
         label = (
@@ -50,14 +49,14 @@ class TCCodeVerification(Page):
             else t("Tamper Check Code")
         )
         tc_code = self.capture_from_keypad(
-            label, [DIGITS, LETTERS, UPPERCASE_LETTERS, NUM_SPECIAL_2, NUM_SPECIAL_3]
+            label, [NUM_SPECIAL_1, LETTERS, UPPERCASE_LETTERS, NUM_SPECIAL_2]
         )
         if tc_code == ESC_KEY:
             return False
         # Hashes the tamper check code
         tc_code_bytes = tc_code.encode()
         # Tamper Check Code hash will be used in "TC Flash Hash"
-        tc_code_hash = hashlib.sha256(tc_code_bytes).digest()
+        tc_code_hash = uhashlib_hw.sha256(tc_code_bytes).digest()
 
         # Read the contents of tamper check code file
         with open(TC_CODE_PATH, "rb") as f:
@@ -67,8 +66,8 @@ class TCCodeVerification(Page):
         self.ctx.display.draw_centered_text(t("Processing.."))
 
         # Generate PBKDF2 stretched secret
-        secret = hashlib.pbkdf2_hmac(
-            "sha256", tc_code_hash, unique_id(), TC_CODE_PBKDF2_ITERATIONS
+        secret = uhashlib_hw.pbkdf2_hmac_sha256(
+            tc_code_hash, unique_id(), TC_CODE_PBKDF2_ITERATIONS
         )
         if secret == file_secret:
             if return_hash:

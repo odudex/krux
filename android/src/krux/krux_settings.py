@@ -33,6 +33,7 @@ from .settings import (
     POLICY_TYPE_NAMES,
 )
 from .key import SCRIPT_LONG_NAMES
+from .kboard import kboard
 
 BAUDRATES = [1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200]
 
@@ -57,6 +58,8 @@ PBKDF2_HMAC_ECB = 0
 PBKDF2_HMAC_CBC = 1
 
 THERMAL_ADAFRUIT_TXT = "thermal/adafruit"
+CNC_FILE_DRIVER = "cnc/file"
+CNC_GRBL_DRIVER = "cnc/grbl"
 
 
 def t(slug):
@@ -307,16 +310,25 @@ class DisplaySettings(SettingsNamespace):
     """Custom display settings for Maix Cube"""
 
     namespace = "settings.display"
-    default_brightness = "1" if board.config["type"] == "m5stickv" else "3"
-    brightness = CategorySetting(
-        "brightness", default_brightness, ["1", "2", "3", "4", "5"]
-    )
+    if kboard.can_control_brightness:
+        default_brightness = "1" if kboard.is_m5stickv else "3"
+        brightness = CategorySetting(
+            "brightness", default_brightness, ["1", "2", "3", "4", "5"]
+        )
+    if kboard.can_flip_orientation:
+        flipped_orientation = CategorySetting(
+            "flipped_orientation", False, [False, True]
+        )
 
     def label(self, attr):
         """Returns a label for UI when given a setting name or namespace"""
-        return {
-            "brightness": t("Brightness"),
-        }[attr]
+        options = {}
+        if kboard.can_control_brightness:
+            options["brightness"] = t("Brightness")
+        if kboard.can_flip_orientation:
+            options["flipped_orientation"] = t("Flipped Orientation")
+
+        return options[attr]
 
 
 class HardwareSettings(SettingsNamespace):
@@ -327,11 +339,11 @@ class HardwareSettings(SettingsNamespace):
     def __init__(self):
         self.printer = PrinterSettings()
         self.buttons = ButtonsSettings()
-        if board.config["type"] in ["amigo", "yahboom", "wonder_mv"]:
+        if kboard.has_touchscreen:
             self.touch = TouchSettings()
-        if board.config["type"] == "amigo":
+        if kboard.is_amigo:
             self.display = DisplayAmgSettings()
-        elif board.config["type"] in ["cube", "m5stickv", "wonder_mv"]:
+        elif kboard.can_flip_orientation or kboard.can_control_brightness:
             self.display = DisplaySettings()
 
     def label(self, attr):
@@ -341,11 +353,11 @@ class HardwareSettings(SettingsNamespace):
             "printer": t("Printer"),
         }
         hardware_menu["buttons"] = t("Buttons")
-        if board.config["type"] in ["amigo", "yahboom", "wonder_mv"]:
+        if kboard.has_touchscreen:
             hardware_menu["touchscreen"] = t("Touchscreen")
-        if board.config["type"] == "amigo":
+        if kboard.is_amigo:
             hardware_menu["display_amg"] = t("Display")
-        elif board.config["type"] in ["cube", "m5stickv", "wonder_mv"]:
+        elif kboard.can_flip_orientation or kboard.can_control_brightness:
             hardware_menu["display"] = t("Display")
 
         return hardware_menu[attr]

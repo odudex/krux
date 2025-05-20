@@ -33,9 +33,7 @@ class Descriptor(DescriptorBase):
             if miniscript.type != "B":
                 raise DescriptorError("Top level miniscript should be 'B'")
             # check all branches have the same length
-            branches = {
-                len(k.branches) for k in miniscript.keys if k.branches is not None
-            }
+            branches = {k.num_branches for k in miniscript.keys}
             if len(branches) > 1:
                 raise DescriptorError("All branches should have the same length")
         self.sh = sh
@@ -61,6 +59,9 @@ class Descriptor(DescriptorBase):
 
     @property
     def num_branches(self):
+        if self.miniscript is not None:
+            return max({k.num_branches for k in self.miniscript.keys})
+
         return max([k.num_branches for k in self.keys])
 
     def branch(self, branch_index=None):

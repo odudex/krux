@@ -24,11 +24,7 @@
 # the settings view
 # from .sd_card import SDHandler
 
-try:
-    import ujson as json
-except ImportError:
-    import json
-
+import ujson as json
 from kivy.storage.jsonstore import JsonStore  # Custom for Android
 
 import os
