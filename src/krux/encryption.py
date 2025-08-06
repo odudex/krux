@@ -104,7 +104,7 @@ class MnemonicStorage:
         else:
             iterations = stored_value.get("key_iterations")
             version = stored_value.get("version")
-            mode = kef.VERSIONS[version]["mode"]
+            mode = kef.get_version_mode(version)
             data = base_decode(stored_value.get("data"), 64)
             return self._deprecated_decrypt(key, mnemonic_id, iterations, mode, data)
         return None
@@ -191,7 +191,7 @@ class EncryptedQRCode:
             (self.mnemonic_id, self.version, self.iterations, self.encrypted_data) = (
                 kef.unwrap(data)
             )
-            version_name = kef.VERSIONS[self.version]["name"]
+            version_name = kef.get_version_name(self.version)
         except:
             return None
 

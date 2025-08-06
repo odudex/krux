@@ -32,95 +32,218 @@ MODE_ECB = ucryptolib.MODE_ECB
 MODE_CBC = ucryptolib.MODE_CBC
 MODE_CTR = ucryptolib.MODE_CTR
 MODE_GCM = ucryptolib.MODE_GCM
-VERSIONS = {
-    # initial versions: released 2023.08 to encrypt bip39 entropy bytes
-    0: {
-        "name": "AES-ECB v1",
-        "mode": MODE_ECB,
-        "auth": -16,
-    },
-    1: {
-        "name": "AES-CBC v1",
-        "mode": MODE_CBC,
-        "auth": -16,
-    },
-    # AES in ECB mode
-    5: {
-        # smallest ECB ciphertext, w/ unsafe padding: for high entropy mnemonics, passphrases, etc
-        "name": "AES-ECB",
-        "mode": MODE_ECB,
-        "auth": 3,
-    },
-    6: {
-        # safe padding: for mid-sized plaintext w/o duplicate blocks
-        "name": "AES-ECB +p",
-        "mode": MODE_ECB,
-        "pkcs_pad": True,
-        "auth": -4,
-    },
-    7: {
-        # compressed, w/ safe padding: for larger plaintext; may compact otherwise duplicate blocks
-        "name": "AES-ECB +c",
-        "mode": MODE_ECB,
-        "pkcs_pad": True,
-        "auth": -4,
-        "compress": True,
-    },
-    # AES in CBC mode
-    10: {
-        # smallest CBC cipherext, w/ unsafe padding: for mnemonics, passphrases, etc
-        "name": "AES-CBC",
-        "mode": MODE_CBC,
-        "auth": 4,
-    },
-    11: {
-        # safe padding: for mid-sized plaintext
-        "name": "AES-CBC +p",
-        "mode": MODE_CBC,
-        "pkcs_pad": True,
-        "auth": -4,
-    },
-    12: {
-        # compressed, w/ safe padding: for larger plaintext
-        "name": "AES-CBC +c",
-        "mode": MODE_CBC,
-        "pkcs_pad": True,
-        "auth": -4,
-        "compress": True,
-    },
-    # AES in CTR stream mode
-    15: {
-        # doesn't require padding: for small and mid-sized plaintext
-        "name": "AES-CTR",
-        "mode": MODE_CTR,
-        "pkcs_pad": None,
-        "auth": -4,
-    },
-    16: {
-        # compressed: for larger plaintext
-        "name": "AES-CTR +c",
-        "mode": MODE_CTR,
-        "pkcs_pad": None,
-        "auth": -4,
-        "compress": True,
-    },
-    # AES in GCM stream mode
-    20: {
-        # doesn't require padding: for small and mid-sized plaintext
-        "name": "AES-GCM",
-        "mode": MODE_GCM,
-        "pkcs_pad": None,
-        "auth": 4,
-    },
-    21: {
-        # compressed: for larger plaintext
-        "name": "AES-GCM +c",
-        "mode": MODE_GCM,
-        "pkcs_pad": None,
-        "auth": 4,
-        "compress": True,
-    },
-}
+
+AVAILABLE_VERSIONS = [0, 1, 5, 6, 7, 10, 11, 12, 15, 16, 20, 21]
+
+# Bit flag meanings
+FLAG_PKCS_PAD = 1
+FLAG_COMPRESS = 2
+FLAG_NO_PAD = 4
+
+VERSION_0_MODE = MODE_ECB
+VERSION_0_AUTH = -16
+VERSION_0_FLAGS = 0
+
+VERSION_1_MODE = MODE_CBC
+VERSION_1_AUTH = -16
+VERSION_1_FLAGS = 0
+
+VERSION_5_MODE = MODE_ECB
+VERSION_5_AUTH = 3
+VERSION_5_FLAGS = 0
+
+VERSION_6_MODE = MODE_ECB
+VERSION_6_AUTH = -4
+VERSION_6_FLAGS = FLAG_PKCS_PAD
+
+VERSION_7_MODE = MODE_ECB
+VERSION_7_AUTH = -4
+VERSION_7_FLAGS = FLAG_PKCS_PAD + FLAG_COMPRESS
+
+VERSION_10_MODE = MODE_CBC
+VERSION_10_AUTH = 4
+VERSION_10_FLAGS = 0
+
+VERSION_11_MODE = MODE_CBC
+VERSION_11_AUTH = -4
+VERSION_11_FLAGS = FLAG_PKCS_PAD
+
+VERSION_12_MODE = MODE_CBC
+VERSION_12_AUTH = -4
+VERSION_12_FLAGS = FLAG_PKCS_PAD + FLAG_COMPRESS
+
+VERSION_15_MODE = MODE_CTR
+VERSION_15_AUTH = -4
+VERSION_15_FLAGS = FLAG_NO_PAD
+
+VERSION_16_MODE = MODE_CTR
+VERSION_16_AUTH = -4
+VERSION_16_FLAGS = FLAG_NO_PAD + FLAG_COMPRESS
+
+VERSION_20_MODE = MODE_GCM
+VERSION_20_AUTH = 4
+VERSION_20_FLAGS = FLAG_NO_PAD
+
+VERSION_21_MODE = MODE_GCM
+VERSION_21_AUTH = 4
+VERSION_21_FLAGS = FLAG_NO_PAD + FLAG_COMPRESS
+
+# Create lookup tables as tuples for efficient indexing
+_VERSION_MODES = (
+    VERSION_0_MODE,  # 0
+    VERSION_1_MODE,  # 1
+    None,  # 2
+    None,  # 3
+    None,  # 4
+    VERSION_5_MODE,  # 5
+    VERSION_6_MODE,  # 6
+    VERSION_7_MODE,  # 7
+    None,  # 8
+    None,  # 9
+    VERSION_10_MODE,  # 10
+    VERSION_11_MODE,  # 11
+    VERSION_12_MODE,  # 12
+    None,  # 13
+    None,  # 14
+    VERSION_15_MODE,  # 15
+    VERSION_16_MODE,  # 16
+    None,  # 17
+    None,  # 18
+    None,  # 19
+    VERSION_20_MODE,  # 20
+    VERSION_21_MODE,  # 21
+)
+
+_VERSION_AUTHS = (
+    VERSION_0_AUTH,  # 0
+    VERSION_1_AUTH,  # 1
+    0,  # 2
+    0,  # 3
+    0,  # 4
+    VERSION_5_AUTH,  # 5
+    VERSION_6_AUTH,  # 6
+    VERSION_7_AUTH,  # 7
+    0,  # 8
+    0,  # 9
+    VERSION_10_AUTH,  # 10
+    VERSION_11_AUTH,  # 11
+    VERSION_12_AUTH,  # 12
+    0,  # 13
+    0,  # 14
+    VERSION_15_AUTH,  # 15
+    VERSION_16_AUTH,  # 16
+    0,  # 17
+    0,  # 18
+    0,  # 19
+    VERSION_20_AUTH,  # 20
+    VERSION_21_AUTH,  # 21
+)
+
+_VERSION_FLAGS = (
+    VERSION_0_FLAGS,  # 0
+    VERSION_1_FLAGS,  # 1
+    0,  # 2
+    0,  # 3
+    0,  # 4
+    VERSION_5_FLAGS,  # 5
+    VERSION_6_FLAGS,  # 6
+    VERSION_7_FLAGS,  # 7
+    0,  # 8
+    0,  # 9
+    VERSION_10_FLAGS,  # 10
+    VERSION_11_FLAGS,  # 11
+    VERSION_12_FLAGS,  # 12
+    0,  # 13
+    0,  # 14
+    VERSION_15_FLAGS,  # 15
+    VERSION_16_FLAGS,  # 16
+    0,  # 17
+    0,  # 18
+    0,  # 19
+    VERSION_20_FLAGS,  # 20
+    VERSION_21_FLAGS,  # 21
+)
+
+# Create lookup table for version names
+_VERSION_NAMES = (
+    "AES-ECB v1",  # 0
+    "AES-CBC v1",  # 1
+    None,  # 2
+    None,  # 3
+    None,  # 4
+    "AES-ECB",  # 5
+    "AES-ECB +p",  # 6
+    "AES-ECB +c",  # 7
+    None,  # 8
+    None,  # 9
+    "AES-CBC",  # 10
+    "AES-CBC +p",  # 11
+    "AES-CBC +c",  # 12
+    None,  # 13
+    None,  # 14
+    "AES-CTR",  # 15
+    "AES-CTR +c",  # 16
+    None,  # 17
+    None,  # 18
+    None,  # 19
+    "AES-GCM",  # 20
+    "AES-GCM +c",  # 21
+)
+
+
+def get_version_name(version):
+    """Get the name of a KEF version for display purposes"""
+    try:
+        name = _VERSION_NAMES[version]
+        if name is None:
+            raise ValueError("KEF version is not available")
+        return name
+    except IndexError:
+        raise ValueError("KEF version is not available")
+
+
+def get_version_mode(version):
+    """Get mode for a version"""
+    try:
+        return _VERSION_MODES[version]
+    except IndexError:
+        return None
+
+
+def get_version_auth(version):
+    """Get auth for a version"""
+    try:
+        return _VERSION_AUTHS[version]
+    except IndexError:
+        return 0
+
+
+def get_version_flags(version):
+    """Get flags for a version"""
+    try:
+        return _VERSION_FLAGS[version]
+    except IndexError:
+        return 0
+
+
+def has_pkcs_padding(version):
+    """Check if version uses PKCS padding"""
+    flags = get_version_flags(version)
+    return (flags & FLAG_PKCS_PAD) != 0
+
+
+def has_compression(version):
+    """Check if version uses compression"""
+    flags = get_version_flags(version)
+    return (flags & FLAG_COMPRESS) != 0
+
+
+def has_no_padding(version):
+    """Check if version uses no padding (None)"""
+    flags = get_version_flags(version)
+    return (flags & FLAG_NO_PAD) != 0
+
+
 MODE_NUMBERS = {
     "AES-ECB": MODE_ECB,
     "AES-CBC": MODE_CBC,
@@ -146,11 +269,11 @@ class Cipher:
 
     def encrypt(self, plain, version, iv=b"", fail_unsafe=True):
         """AES encrypt according to KEF rules defined by version, returns payload bytes"""
-        mode = VERSIONS[version]["mode"]
+        mode = get_version_mode(version)
         v_iv = MODE_IVS.get(mode, 0)
-        v_pkcs_pad = VERSIONS[version].get("pkcs_pad", False)
-        v_auth = VERSIONS[version].get("auth", 0)
-        v_compress = VERSIONS[version].get("compress", False)
+        v_pkcs_pad = has_pkcs_padding(version) if not has_no_padding(version) else None
+        v_auth = get_version_auth(version)
+        v_compress = has_compression(version)
         auth = b""
         if iv is None:
             iv = b""
@@ -222,11 +345,11 @@ class Cipher:
 
     def decrypt(self, payload, version):
         """AES Decrypt according to KEF rules defined by version, returns plaintext bytes"""
-        mode = VERSIONS[version]["mode"]
+        mode = get_version_mode(version)
         v_iv = MODE_IVS.get(mode, 0)
-        v_pkcs_pad = VERSIONS[version].get("pkcs_pad", False)
-        v_auth = VERSIONS[version].get("auth", 0)
-        v_compress = VERSIONS[version].get("compress", False)
+        v_pkcs_pad = has_pkcs_padding(version) if not has_no_padding(version) else None
+        v_auth = get_version_auth(version)
+        v_compress = has_compression(version)
 
         # validate payload size early
         min_payload = 1 if mode in (MODE_CTR, MODE_GCM) else AES_BLOCK_SIZE
@@ -357,19 +480,21 @@ def suggest_versions(plaintext, mode_name):
         p_nul_suffix = bool(plaintext.encode()[-1] == 0x00)
 
     candidates = []
-    for version, values in VERSIONS.items():
-        # strategy: eliminate bad choices of versions
-        # TODO: explore a strategy that cuts to the best one right away
+    # Check all possible versions using a static list
+    for version in AVAILABLE_VERSIONS:
+        mode = get_version_mode(version)
 
-        if values is None or values["mode"] is None:
+        # skip if version doesn't exist
+        if mode is None:
             continue
 
         # never use a version that is not the correct mode
-        if values["mode"] != MODE_NUMBERS[mode_name]:
+        if mode != MODE_NUMBERS[mode_name]:
             continue
-        v_compress = values.get("compress", False)
-        v_auth = values.get("auth", 0)
-        v_pkcs_pad = values.get("pkcs_pad", False)
+
+        v_compress = has_compression(version)
+        v_auth = get_version_auth(version)
+        v_pkcs_pad = has_pkcs_padding(version)
 
         # never use non-compressed ECB when plaintext has duplicate blocks
         if p_duplicates and mode_name == "AES-ECB" and not v_compress:
@@ -431,11 +556,8 @@ def wrap(id_, version, iterations, payload):
         raise ValueError("Invalid ID")
 
     try:
-        if not (
-            0 <= version <= 255
-            and VERSIONS[version] is not None
-            and VERSIONS[version]["mode"] is not None
-        ):
+        mode = get_version_mode(version)
+        if not (0 <= version <= 255 and mode is not None):
             raise ValueError
     except:
         raise ValueError("Invalid version")
@@ -454,12 +576,15 @@ def wrap(id_, version, iterations, payload):
     except:
         raise ValueError("Invalid iterations")
 
-    extra = MODE_IVS.get(VERSIONS[version]["mode"], 0)
-    if VERSIONS[version].get("auth", 0) > 0:
-        extra += VERSIONS[version]["auth"]
+    extra = MODE_IVS.get(mode, 0)
+    v_auth = get_version_auth(version)
+    if v_auth > 0:
+        extra += v_auth
     if not isinstance(payload, bytes):
         raise ValueError("Payload is not bytes")
-    if VERSIONS[version].get("pkcs_pad", False) in (True, False):
+
+    # Check if version uses PKCS padding or no specific padding
+    if has_pkcs_padding(version) or (not has_no_padding(version)):
         if (len(payload) - extra) % 16 != 0:
             raise ValueError("Ciphertext is not aligned")
         if (len(payload) - extra) // 16 < 1:
@@ -478,7 +603,7 @@ def unwrap(kef_bytes):
     try:
         # out-of-order reading to validate version early
         version = kef_bytes[1 + len_id]
-        if VERSIONS[version] is None or VERSIONS[version]["mode"] is None:
+        if get_version_mode(version) is None:
             raise ValueError
     except:
         raise ValueError("Invalid format")
@@ -493,10 +618,16 @@ def unwrap(kef_bytes):
         iterations = kef_iterations
 
     payload = kef_bytes[len_id + 5 :]
-    extra = MODE_IVS.get(VERSIONS[version]["mode"], 0)
-    if VERSIONS[version].get("auth", 0) > 0:
-        extra += VERSIONS[version]["auth"]
-    if VERSIONS[version].get("pkcs_pad", False) in (True, False):
+
+    # Use the new functions instead of dictionary lookups
+    mode = get_version_mode(version)
+    extra = MODE_IVS.get(mode, 0)
+    auth = get_version_auth(version)
+    if auth > 0:
+        extra += auth
+
+    # Check padding requirements
+    if has_pkcs_padding(version) or (not has_no_padding(version)):
         if (len(payload) - extra) % 16 != 0:
             raise ValueError("Ciphertext is not aligned")
         if (len(payload) - extra) // 16 < 1:

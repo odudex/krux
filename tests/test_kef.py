@@ -588,26 +588,28 @@ def test_faithful_encryption(m5stickv):
     )
     cipher = kef.Cipher(b"key", "salt", 10000)
     wrong = kef.Cipher("wrong", b"wrong", 10000)
-    for v, values in kef.VERSIONS.items():
-        if values is None or values["mode"] is None:
+    for v in kef.AVAILABLE_VERSIONS:
+        mode = kef.get_version_mode(v)
+        if mode is None:
             continue
 
         for plain in testplaintexts:
-            iv = I_VECTOR[: kef.MODE_IVS.get(values["mode"], 0)]
+            iv = I_VECTOR[: kef.MODE_IVS.get(mode, 0)]
             try:
                 encrypted = cipher.encrypt(plain, v, iv)
             except ValueError as err:
                 if str(err) == "Cannot validate decryption for this plaintext":
                     encrypted = cipher.encrypt(plain, v, iv, fail_unsafe=False)
             print(v, len(iv), plain)
-            if values.get("auth", 0):
+            v_auth = kef.get_version_auth(v)
+            if v_auth:
                 assert cipher.decrypt(encrypted, v) == plain
             else:
                 # versions that don't authenticate get close, must unpad/verify somehow
                 assert plain in cipher.decrypt(encrypted, v)
 
             # wrong key fails to decrypt silently, usually
-            if values.get("auth", 0):
+            if v_auth:
                 assert wrong.decrypt(encrypted, v) == None
             else:
                 assert plain not in wrong.decrypt(encrypted, v)
@@ -676,14 +678,15 @@ def test_broken_decryption_cases(m5stickv):
     )
 
     cipher = kef.Cipher("key", b"salt", 100000)
-    for version in kef.VERSIONS:
-        if kef.VERSIONS[version] is None or kef.VERSIONS[version]["mode"] is None:
+    for version in kef.AVAILABLE_VERSIONS:
+        mode = kef.get_version_mode(version)
+        if mode is None:
             continue
 
-        iv = I_VECTOR[: kef.MODE_IVS.get(kef.VERSIONS[version]["mode"], 0)]
-        v_auth = kef.VERSIONS[version].get("auth", 0)
-        v_pkcs_pad = kef.VERSIONS[version].get("pkcs_pad", False)
-        v_name = kef.VERSIONS[version]["name"]
+        iv = I_VECTOR[: kef.MODE_IVS.get(mode, 0)]
+        v_auth = kef.get_version_auth(version)
+        v_pkcs_pad = kef.has_pkcs_padding(version)
+        v_name = kef.get_version_name(version)
 
         for plain in plaintexts:
             encrypted = cipher.encrypt(plain, version, iv, fail_unsafe=False)
@@ -818,17 +821,18 @@ def test_suggest_versions(m5stickv):
 
     # call it with plaintext (bytes or str) and mode_name
     for mode_name, mode in kef.MODE_NUMBERS.items():
-        if (
-            mode is None
-            or len(
-                [
-                    x
-                    for x in kef.VERSIONS.values()
-                    if isinstance(x, dict) and x["mode"] == mode
-                ]
-            )
-            == 0
-        ):
+        if mode is None:
+            disabled_mode_names.append(mode_name)
+            continue
+        
+        # Check if any version supports this mode
+        has_version = False
+        for version in kef.AVAILABLE_VERSIONS:
+            if kef.get_version_mode(version) == mode:
+                has_version = True
+                break
+        
+        if not has_version:
             disabled_mode_names.append(mode_name)
             continue
 
@@ -847,16 +851,16 @@ def test_suggest_versions(m5stickv):
         suggesteds = kef.suggest_versions(plain, mode_name)
 
         # begin debugging
-        print(len(plain), mode_name, [kef.VERSIONS[x]["name"] for x in suggesteds])
+        print(len(plain), mode_name, [kef.get_version_name(x) for x in suggesteds])
         version = suggesteds[0]
         if isinstance(plain, str):
             plain = plain.encode()
-        iv = b"\x00" * kef.MODE_IVS.get(kef.VERSIONS[version]["mode"], 0)
+        iv = b"\x00" * kef.MODE_IVS.get(kef.get_version_mode(version), 0)
         encryptor = kef.Cipher("key", b"salt", 100000)
         encryptor.decrypt(encryptor.encrypt(plain, suggesteds[0], iv), suggesteds[0])
 
         # end debugging
-        assert version_name in [kef.VERSIONS[x]["name"] for x in suggesteds]
+        assert version_name in [kef.get_version_name(x) for x in suggesteds]
 
 
 def test_suggest_versions_with_disabled_versions(m5stickv):
@@ -903,12 +907,13 @@ def test_wrapping_is_faithful(m5stickv):
     key, id_, iterations = b"key", "a label", 10000
 
     cipher = kef.Cipher(key, id_, iterations)
-    for v, values in kef.VERSIONS.items():
-        if values is None or values["mode"] is None:
+    for v in kef.AVAILABLE_VERSIONS:
+        mode = kef.get_version_mode(v)
+        if mode is None:
             continue
 
         for plain in testplaintexts:
-            iv = I_VECTOR[: kef.MODE_IVS.get(values["mode"], 0)]
+            iv = I_VECTOR[: kef.MODE_IVS.get(mode, 0)]
             payload = cipher.encrypt(plain, v, iv, fail_unsafe=False)
 
             # for id_ wrap() is tolerant of str or bytes -- when wrapping
@@ -972,12 +977,13 @@ def test_wrap_exceptions(m5stickv):
     cipher = kef.Cipher("key", b"salt", 100000)
     for id_ in valid_ids:
         for version in valid_versions:
-            if kef.VERSIONS[version] is None or kef.VERSIONS[version]["mode"] is None:
+            mode = kef.get_version_mode(version)
+            if mode is None:
                 continue
 
             for iterations in valid_iterations:
                 for plaintext in plaintexts:
-                    iv = b"\x00" * kef.MODE_IVS.get(kef.VERSIONS[version]["mode"], 0)
+                    iv = b"\x00" * kef.MODE_IVS.get(mode, 0)
                     ciphertext = cipher.encrypt(
                         plaintext, version, iv, fail_unsafe=False
                     )
@@ -1106,17 +1112,16 @@ def test_faithful_encrypted_wrapper(m5stickv):
     salts = (b"", "salt", b"salt", "salé".encode(), int(255).to_bytes(1, "big"))
     plaintexts = (b"Hello World!", b"im sixteen bytes")
 
-    for version in kef.VERSIONS:
-        if kef.VERSIONS[version] is None or kef.VERSIONS[version]["mode"] is None:
+    for version in kef.AVAILABLE_VERSIONS:
+        mode = kef.get_version_mode(version)
+        if mode is None:
             continue
 
         for key in keys:
             for salt in salts:
                 for iteration in iterations:
                     for plain in plaintexts:
-                        iv = b"\x00" * kef.MODE_IVS.get(
-                            kef.VERSIONS[version]["mode"], 0
-                        )
+                        iv = b"\x00" * kef.MODE_IVS.get(mode, 0)
                         cipher = kef.Cipher(key, salt, iteration)
                         cipher_payload = cipher.encrypt(plain, version, iv)
                         envelope = kef.wrap(salt, version, iteration, cipher_payload)
@@ -1285,14 +1290,14 @@ def kef_self_document(version, label=None, iterations=None, limit=None):
 
         return result[: limit - 3] + "..."
 
-    # rules are declared as VERSIONS values
-    v_name = kef.VERSIONS[version]["name"]
-    v_mode = kef.VERSIONS[version]["mode"]
+    # rules are declared using the new functions
+    v_name = kef.get_version_name(version)
+    v_mode = kef.get_version_mode(version)
     mode_name = [k for k, v in kef.MODE_NUMBERS.items() if v == v_mode][0]
     v_iv = kef.MODE_IVS.get(v_mode, 0)
-    v_auth = kef.VERSIONS[version].get("auth", 0)
-    v_pkcs = kef.VERSIONS[version].get("pkcs_pad", False)
-    v_compress = kef.VERSIONS[version].get("compress", False)
+    v_auth = kef.get_version_auth(version)
+    v_pkcs = kef.has_pkcs_padding(version)
+    v_compress = kef.has_compression(version)
 
     label_key = "KEF bytes"
     if label:

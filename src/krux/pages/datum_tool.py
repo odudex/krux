@@ -349,7 +349,7 @@ class DatumToolMenu(Page):
 
         try:
             filename, contents = utils.load_file(prompt=False)
-        except OSError as e:
+        except OSError:
             self.flash_error(t("Failed to load"))
             return MENU_CONTINUE
 

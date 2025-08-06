@@ -175,8 +175,8 @@ class KEFEnvelope(Page):
             )
         except:
             return False
-        self.version_name = kef.VERSIONS[self.version]["name"]
-        self.mode = kef.VERSIONS[self.version]["mode"]
+        self.version_name = kef.get_version_name(self.version)
+        self.mode = kef.get_version_mode(self.version)
         self.mode_name = [k for k, v in kef.MODE_NUMBERS.items() if v == self.mode][0]
         return True
 
@@ -210,17 +210,20 @@ class KEFEnvelope(Page):
         )
         if self.prompt("", BOTTOM_PROMPT_LINE):
             return True
-        menu_items = [
-            (v["name"], k)
-            for k, v in kef.VERSIONS.items()
-            if isinstance(v, dict) and v["mode"] is not None
-        ]
+        # Build menu items from available versions
+        menu_items = []
+        for version in kef.AVAILABLE_VERSIONS:
+            mode = kef.get_version_mode(version)
+            if mode is not None:
+                name = kef.get_version_name(version)
+                menu_items.append((name, version))
+
         idx, _ = Menu(
             self.ctx, [(x[0], lambda: None) for x in menu_items], back_label=None
         ).run_loop()
-        self.version = [v for i, (name, v) in enumerate(menu_items) if i == idx][0]
-        self.version_name = kef.VERSIONS[self.version]["name"]
-        self.mode = kef.VERSIONS[self.version]["mode"]
+        self.version = menu_items[idx][1]
+        self.version_name = kef.get_version_name(self.version)
+        self.mode = kef.get_version_mode(self.version)
         self.mode_name = [k for k, v in kef.MODE_NUMBERS.items() if v == self.mode][0]
         self.iv_len = kef.MODE_IVS.get(self.mode, 0)
         return True
@@ -337,7 +340,7 @@ class KEFEnvelope(Page):
             self.input_label_ui(self.label, dflt_label_prompt, dflt_label_affirm)
         if self.version is None:
             self.version = kef.suggest_versions(plaintext, self.mode_name)[0]
-            self.version_name = kef.VERSIONS[self.version]["name"]
+            self.version_name = kef.get_version_name(self.version)
         self.processing_screen()
         cipher = kef.Cipher(self.__key, self.label, self.iterations)
         self.ciphertext = cipher.encrypt(plaintext, self.version, self.__iv)
