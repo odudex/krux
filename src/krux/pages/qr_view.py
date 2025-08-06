@@ -348,9 +348,7 @@ class SeedQRView(Page):
                 import image
                 import lcd
 
-                self.ctx.display.clear()
-                self.ctx.display.draw_centered_text(t("Processing.."))
-
+                self.processing_screen()
                 code, size = self.add_frame(self.code, self.qr_size)
                 raw_image = image.Image(size=(size, size))
                 for y_index in range(0, size):
@@ -390,9 +388,7 @@ class SeedQRView(Page):
         from ..sd_card import SVG_IMAGE_EXTENSION
         from .file_operations import SaveFile
 
-        self.ctx.display.clear()
-        self.ctx.display.draw_centered_text(t("Processing.."))
-
+        self.processing_screen()
         code, size = self.add_frame(self.code, self.qr_size)
 
         # Create the SVG file dynamically

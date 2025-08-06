@@ -174,8 +174,7 @@ class SettingsPage(Page):
         if tamper_check_code != tc_code_confirm:
             self.flash_error(t("Tamper check codes do not match"))
             return MENU_CONTINUE
-        self.ctx.display.clear()
-        self.ctx.display.draw_centered_text(t("Processing.."))
+        self.processing_screen()
         # Hashes the Tamper Check Code once
         tc_code_bytes = tamper_check_code.encode()
         tc_code_hash = uhashlib_hw.sha256(tc_code_bytes).digest()

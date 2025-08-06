@@ -228,9 +228,7 @@ class Addresses(Page):
         if filename == ESC_KEY:
             return
 
-        self.ctx.display.clear()
-        self.ctx.display.draw_centered_text(t("Processing.."))
-
+        self.processing_screen()
         try:
             with SDHandler():
                 with open(SDHandler.PATH_STR % filename, "w") as file:

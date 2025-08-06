@@ -467,8 +467,7 @@ class Home(Page):
             pass
 
         # PSBT read OK! Will try to sign
-        self.ctx.display.clear()
-        self.ctx.display.draw_centered_text(t("Loading.."))
+        self.processing_screen(show_loading=True)
 
         qr_format = FORMAT_PMOFN if qr_format == FORMAT_NONE else qr_format
         from ...psbt import PSBTSigner
@@ -483,8 +482,7 @@ class Home(Page):
         if not self._post_load_psbt_warn(signer):
             return MENU_CONTINUE
 
-        self.ctx.display.clear()
-        self.ctx.display.draw_centered_text(t("Processing.."))
+        self.processing_screen()
         outputs, fee_percent = signer.outputs()
 
         if not self._fees_psbt_warn(fee_percent):

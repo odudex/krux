@@ -338,8 +338,7 @@ class KEFEnvelope(Page):
         if self.version is None:
             self.version = kef.suggest_versions(plaintext, self.mode_name)[0]
             self.version_name = kef.VERSIONS[self.version]["name"]
-        self.ctx.display.clear()
-        self.ctx.display.draw_centered_text(t("Processing.."))
+        self.processing_screen()
         cipher = kef.Cipher(self.__key, self.label, self.iterations)
         self.ciphertext = cipher.encrypt(plaintext, self.version, self.__iv)
         self.__key = None
@@ -358,8 +357,7 @@ class KEFEnvelope(Page):
                 return None
         if not (self.__key or self.input_key_ui(creating=False)):
             return None
-        self.ctx.display.clear()
-        self.ctx.display.draw_centered_text(t("Processing.."))
+        self.processing_screen()
         cipher = kef.Cipher(self.__key, self.label, self.iterations)
         plaintext = cipher.decrypt(self.ciphertext, self.version)
         self.__key = None
@@ -660,8 +658,7 @@ class LoadEncryptedMnemonic(Page):
         if key in (None, "", ESC_KEY):
             self.flash_error(t("Key was not provided"))
             return MENU_CONTINUE
-        self.ctx.display.clear()
-        self.ctx.display.draw_centered_text(t("Processing.."))
+        self.processing_screen()
         mnemonic_storage = MnemonicStorage()
         try:
             words = mnemonic_storage.decrypt(key, mnemonic_id, sd_card).split()

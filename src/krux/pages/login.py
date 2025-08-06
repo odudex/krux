@@ -386,8 +386,7 @@ class Login(Page):
                     wallet_settings.customize_wallet(key)
                 )
 
-        self.ctx.display.clear()
-        self.ctx.display.draw_centered_text(t("Loading.."))
+        self.processing_screen(show_loading=True)
 
         self.ctx.wallet = Wallet(key)
         return MENU_EXIT
@@ -444,8 +443,7 @@ class Login(Page):
                 if key in (None, "", ESC_KEY):
                     self.flash_error(t("Key was not provided"))
                     return MENU_CONTINUE
-                self.ctx.display.clear()
-                self.ctx.display.draw_centered_text(t("Processing.."))
+                self.processing_screen()
                 word_bytes = encrypted_qr.decrypt(key)
                 if word_bytes is None:
                     self.flash_error(t("Failed to decrypt"))

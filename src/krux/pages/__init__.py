@@ -133,6 +133,12 @@ class Page:
         """Flashes text centered on the display for duration ms"""
         self.flash_text(text, theme.error_color)
 
+    def processing_screen(self, show_loading=False):
+        """Displays processing or loading screen message"""
+        message = t("Loading..") if show_loading else t("Processing..")
+        self.ctx.display.clear()
+        self.ctx.display.draw_centered_text(message)
+
     # pylint: disable=too-many-arguments
     def capture_from_keypad(
         self,

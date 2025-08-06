@@ -62,8 +62,7 @@ class TCCodeVerification(Page):
         with open(TC_CODE_PATH, "rb") as f:
             file_secret = f.read()
 
-        self.ctx.display.clear()
-        self.ctx.display.draw_centered_text(t("Processing.."))
+        self.processing_screen()
 
         # Generate PBKDF2 stretched secret
         secret = uhashlib_hw.pbkdf2_hmac_sha256(

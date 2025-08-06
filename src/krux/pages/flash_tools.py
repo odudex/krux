@@ -299,8 +299,7 @@ class FlashHash(Page):
 
     def generate(self):
         """Generates the Tamper Check Flash Hash snapshot."""
-        self.ctx.display.clear()
-        self.ctx.display.draw_hcentered_text(t("Processing.."))
+        self.processing_screen()
         firmware_hash = self.hash_pin_with_flash()
         self.ctx.display.clear()
         self.ctx.display.draw_hcentered_text("TC Flash Hash")
