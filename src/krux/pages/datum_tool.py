@@ -344,10 +344,14 @@ class DatumToolMenu(Page):
             return MENU_CONTINUE
 
         utils = Utils(self.ctx)
+        filename = None
+        contents = None
+
         try:
             filename, contents = utils.load_file(prompt=False)
-        except OSError:
-            pass
+        except OSError as e:
+            self.flash_error(t("Failed to load"))
+            return MENU_CONTINUE
 
         if not contents:
             return MENU_CONTINUE
@@ -511,9 +515,9 @@ class DatumTool(Page):
         from binascii import hexlify
 
         self.ctx.display.clear()
-        
+
         info_parts = [self.title]
-        
+
         status_parts = []
         if self.decrypted:
             status_parts.append("wasKEF")
@@ -522,30 +526,29 @@ class DatumTool(Page):
         if self.encodings:
             status_parts.append(",".join(str(x) for x in self.encodings))
         info_parts.append(" ".join(status_parts))
-        
+
         about_parts = []
         if self.datum:
             about_parts.append(self.datum)
         about_parts.append(self.about)
         info_parts.append(" ".join(about_parts))
-        
+
         num_lines = self.ctx.display.draw_hcentered_text(
-            "\n".join(info_parts),
-            info_box=True
+            "\n".join(info_parts), info_box=True
         )
-        
+
         if preview:
             num_lines += 1
             if isinstance(self.contents, str):
                 preview_text = '"%s"' % self.contents
             else:
                 preview_text = "0x%s" % hexlify(self.contents).decode()
-            
+
             self.ctx.display.draw_hcentered_text(
                 preview_text,
                 offset_y=DEFAULT_PADDING + num_lines * FONT_HEIGHT,
                 max_lines=1,
-                info_box=True
+                info_box=True,
             )
 
         return num_lines
