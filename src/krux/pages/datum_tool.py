@@ -511,33 +511,41 @@ class DatumTool(Page):
         from binascii import hexlify
 
         self.ctx.display.clear()
+        
+        info_parts = [self.title]
+        
+        status_parts = []
+        if self.decrypted:
+            status_parts.append("wasKEF")
+        if self.sensitive:
+            status_parts.append("secret")
+        if self.encodings:
+            status_parts.append(",".join(str(x) for x in self.encodings))
+        info_parts.append(" ".join(status_parts))
+        
+        about_parts = []
+        if self.datum:
+            about_parts.append(self.datum)
+        about_parts.append(self.about)
+        info_parts.append(" ".join(about_parts))
+        
         num_lines = self.ctx.display.draw_hcentered_text(
-            "\n".join(
-                [
-                    self.title,
-                    "".join(
-                        [
-                            "wasKEF " if self.decrypted else "",
-                            "secret " if self.sensitive else "",
-                            ",".join([str(x) for x in self.encodings]),
-                        ]
-                    ),
-                    (self.datum + " " if self.datum else "") + self.about,
-                ]
-            ),
-            info_box=True,
+            "\n".join(info_parts),
+            info_box=True
         )
+        
         if preview:
             num_lines += 1
+            if isinstance(self.contents, str):
+                preview_text = '"%s"' % self.contents
+            else:
+                preview_text = "0x%s" % hexlify(self.contents).decode()
+            
             self.ctx.display.draw_hcentered_text(
-                (
-                    '"' + self.contents + '"'
-                    if isinstance(self.contents, str)
-                    else "0x" + hexlify(self.contents).decode()
-                ),
+                preview_text,
                 offset_y=DEFAULT_PADDING + num_lines * FONT_HEIGHT,
                 max_lines=1,
-                info_box=True,
+                info_box=True
             )
 
         return num_lines
