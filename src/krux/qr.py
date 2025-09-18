@@ -140,6 +140,7 @@ class QRPartParser:
         """Returns the number of parsed parts so far"""
         if self.format == FORMAT_UR:
             # Single-part URs have no expected part indexes
+            return int(self.decoder.estimated_percent_complete() *100)
             if self.decoder.fountain_decoder.expected_part_indexes is None:
                 return 1 if self.decoder.result is not None else 0
             completion_pct = self.decoder.estimated_percent_complete()
@@ -151,12 +152,14 @@ class QRPartParser:
     def processed_parts_count(self):
         """Returns quantity of processed QR code parts"""
         if self.format == FORMAT_UR:
+            return int(self.decoder.estimated_percent_complete() * 100)
             return self.decoder.fountain_decoder.processed_parts_count
         return len(self.parts)
 
     def total_count(self):
         """Returns the total number of parts there should be"""
         if self.format == FORMAT_UR:
+            return 100
             # Single-part URs have no expected part indexes
             if self.decoder.fountain_decoder.expected_part_indexes is None:
                 return 1
@@ -177,8 +180,10 @@ class QRPartParser:
             self.total = total
             return index - 1
         elif self.format == FORMAT_UR:
+            print('"{}",'.format(data))
             if not self.decoder:
-                from ur.ur_decoder import URDecoder
+                # from ur.ur_decoder import URDecoder
+                from bc_ur import URDecoder
 
                 self.decoder = URDecoder()
             data = data.decode() if isinstance(data, bytes) else data
@@ -210,7 +215,8 @@ class QRPartParser:
     def result(self):
         """Returns the combined part data"""
         if self.format == FORMAT_UR:
-            from ur.ur import UR
+            # from ur.ur import UR
+            from bc_ur import UR
 
             return UR(self.decoder.result.type, bytearray(self.decoder.result.cbor))
 

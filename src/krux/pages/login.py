@@ -369,6 +369,145 @@ class Login(MnemonicLoader):
     def about(self):
         """Handler for the 'about' menu item"""
 
+        TEST_DATA_BYTES = b'psbt\xff\x01\x00q\x02\x00\x00\x00\x01\xcf<X\xc3)\x82\xae P\x88\xd9\xbdI\xeb\x9b\x02\xac\xdfM=\xaev\xa5\x16\xc6\xb3\x06\xb1]\xe3\xa1N\x00\x00\x00\x00\x00\xfd\xff\xff\xff\x02|?]\x05\x00\x00\x00\x00\x16\x00\x14/4\xaa\x1c\xf0\nS\xb0U\xa2\x91\xa0:}E\xf0\xa6\x98\x8bR\x80\x96\x98\x00\x00\x00\x00\x00\x16\x00\x14\xe6j\xfe\xff\xc3\x83\x8eq\xf0\xa2{\x07\xe3\xb0\x0e\xdej\xe8\xe1`\x00\x00\x00\x00\x00\x01\x01\x1f\x00\xe1\xf5\x05\x00\x00\x00\x00\x16\x00\x14\xd0\xc4\xa3\xef\t\xe9\x97\xb6\xe9\x9e9~Q\x8f\xe3\xe4\x1a\x11\x8c\xa1"\x06\x02\xe7\xab%7\xb5\xd4\x9e\x97\x03\t\xaa\xe0n\x9eI\xf3l\xe1\xc9\xfe\xbb\xd4N\xc8\xe0\xd1\xcc\xa0\xb4\xf9\xc3\x19\x18s\xc5\xda\nT\x00\x00\x80\x01\x00\x00\x80\x00\x00\x00\x80\x00\x00\x00\x00\x00\x00\x00\x00\x00"\x02\x03]I\xec\xcdT\xd0\t\x9eCgbw\xc7\xa6\xd4b]a\x1d\xa8\x8a]\xf4\x9b\xf9Qzw\x91\xa7w\xa5\x18s\xc5\xda\nT\x00\x00\x80\x01\x00\x00\x80\x00\x00\x00\x80\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+        
+        TEST_PARTS_FORMAT_MULTIPART_UR = [
+        # "ur:crypto-psbt/2-8/lpaoaycfadcycyamgrmswlhddkplkooncmswqdampahlvloyglaeaeaeaeaezczmzmzmaokefhhlahaeaeaeaecmaebbdleepktpcpnyde",
+        # "ur:crypto-psbt/1-8/lpadaycfadcycyamgrmswlhddkhkadchjojkidjyzmadaejsaoaeaeaeadtkfnhdsrdtlfplcxgdlotarygawmndaopsurgtfswmwkinva",
+        # "ur:crypto-psbt/3-8/lpaxaycfadcycyamgrmswlhddkcewtbkgupfgooemenbftkifewtolmklugmlamtmkaeaeaeaeaecmaebbvaimzezmsrlsmnjseylanegy",
+        # "ur:crypto-psbt/4-8/lpaaaycfadcycyamgrmswlhddkwtoekgatvlpfbaueimvsvyhnaeaeaeaeaeadadctaevyykahaeaeaeaecmaebbtissotwsaskeisuold",
+        # "ur:crypto-psbt/5-8/lpahaycfadcycyamgrmswlhddkwlmsrpwlnneskbgymyvlvecybylkoycpamaovdpydaemretynnmsaxaspkvtjtnngawfjzvychtbfxax",
+        # "ur:crypto-psbt/6-8/lpamaycfadcycyamgrmswlhddksozerktyglspvtttsfnbqzytsrcfcsjksktnbkghaeaelaadaeaelaaeaeaelaaeaeaeaeaestwncstl",
+        # "ur:crypto-psbt/7-8/lpataycfadcycyamgrmswlhddkaeaeaeaecpaoaxhlgawpsnghtiasnnfxioidktstoltyidhlhscapdlehlwkndytgyknktmevltdqzhn",
+        # "ur:crypto-psbt/8-8/lpayaycfadcycyamgrmswlhddkosktoncsjksktnbkghaeaelaadaeaelaaeaeaelaadaeaeaeaeaeaeaeaeaeaeaeaeaeaeaefxktbtbb",
+        "UR:BYTES/9-4/LPASAACFADFXCYCMRTFYMNHDGYFWEEIDINEOGSFWEHFEJPGEECFPHKISFPIHEEHSJYGHFYFLJOJPKSHSFDJKIOHDFWGEFGFEGHJYEYIDJLKNEEGLFPEEHTEMFPHTGEJODLFNDYFREHFMDLDRDTDWJLJZIEIHJPDEEYDTDTDTCNESJSJNJNEEJPECKKAEVDGUYLLR",
+        "UR:BYTES/10-4/LPBKAACFADFXCYCMRTFYMNHDGYJOIOESKKGRHSGREEGEKKJLHSFWIMHFHKGEGRGOFGHDESGRIEKKIDEEIYIOFGHSFGGOGYJNHTGLFLGOEMEHGYEHKTHTIOHTINFLGTEHFLJLEMJOECESGLHGDLFNDYFREHFMDLDRDWHSJTIEHEKODEKOFTJOJEDEHPIHDYFSOTGH",
+        "UR:BYTES/10-4/LPBKAACFADFXCYCMRTFYMNHDGYJOIOESKKGRHSGREEGEKKJLHSFWIMHFHKGEGRGOFGHDESGRIEKKIDEEIYIOFGHSFGGOGYJNHTGLFLGOEMEHGYEHKTHTIOHTINFLGTEHFLJLEMJOECESGLHGDLFNDYFREHFMDLDRDWHSJTIEHEKODEKOFTJOJEDEHPIHDYFSOTGH",
+        "UR:BYTES/11-4/LPBDAACFADFXCYCMRTFYMNHDGYFWEEIDINEOGSFWEHFEJPGEECFPHKISFPIHEEHSJYGHFYFLJOJPKSHSFDJKIOHDFWGEFGFEGHJYEYIDJLKNEEGLFPEEHTEMFPHTGEJODLFNDYFREHFMDLDRDTDWJLJZIEIHJPDEEYDTDTDTCNESJSJNJNEEJPECKKAEFYTKSRRP",
+        "UR:BYTES/12-4/LPBNAACFADFXCYCMRTFYMNHDGYKGHGATHKAOKEJYCKJSGEJNCYJOKBFLJSFWCWGUGUASDYEMAHBEFNDIAXFHADFTJOETDLDIFTFZFXBKAEESKNLBDKLBBGIHASBYKKATHLGEKOFPHFINCYJZGYCAFHENHGECFZJSADIOKSLBBBJYDSAYGHLBGRHLECEEDIKOFMLF",
+        "UR:BYTES/12-4/LPBNAACFADFXCYCMRTFYMNHDGYKGHGATHKAOKEJYCKJSGEJNCYJOKBFLJSFWCWGUGUASDYEMAHBEFNDIAXFHADFTJOETDLDIFTFZFXBKAEESKNLBDKLBBGIHASBYKKATHLGEKOFPHFINCYJZGYCAFHENHGECFZJSADIOKSLBBBJYDSAYGHLBGRHLECEEDIKOFMLF",
+        "UR:BYTES/13-4/LPBTAACFADFXCYCMRTFYMNHDGYESIAIHDYEHDYENDLEEETDIDLEHDIDLDYDIDLEYDIHLJYJOKPIDFYFGGRGSIYIDEYJPINIDJTEEJSISJLFXGLEHIHGRFDGMFDGREOKTJPKOFGKNIOHGECFGKSEHGDHTEOGDEYHKEOGLGYHFEMGTHGIHESGRESISGSEENYFYFXMT",
+        "UR:BYTES/13-4/LPBTAACFADFXCYCMRTFYMNHDGYESIAIHDYEHDYENDLEEETDIDLEHDIDLDYDIDLEYDIHLJYJOKPIDFYFGGRGSIYIDEYJPINIDJTEEJSISJLFXGLEHIHGRFDGMFDGREOKTJPKOFGKNIOHGECFGKSEHGDHTEOGDEYHKEOGLGYHFEMGTHGIHESGRESISGSEENYFYFXMT",
+        "UR:BYTES/14-4/LPBAAACFADFXCYCMRTFYMNHDGYEYGUHPBEKSDPASAHBSBDDAGHAXEOFMCSDLLBEEEYBNKIBNBBBDCYGODMBBCLESAACTCHDEBAFTKPEMHDGRIHLBENJTFSJNDECAATFPISGUATGRAAATHSKIAMBEHEHGGOHPHLAOCKFDFLGTKEGWHKCWHGFYCFCACPIHFZLOPKKE",
+        "UR:BYTES/14-4/LPBAAACFADFXCYCMRTFYMNHDGYEYGUHPBEKSDPASAHBSBDDAGHAXEOFMCSDLLBEEEYBNKIBNBBBDCYGODMBBCLESAACTCHDEBAFTKPEMHDGRIHLBENJTFSJNDECAATFPISGUATGRAAATHSKIAMBEHEHGGOHPHLAOCKFDFLGTKEGWHKCWHGFYCFCACPIHFZLOPKKE",
+        "UR:BYTES/15-4/LPBSAACFADFXCYCMRTFYMNHDGYFWEEIDINEOGSFWEHFEJPGEECFPHKISFPIHEEHSJYGHFYFLJOJPKSHSFDJKIOHDFWGEFGFEGHJYEYIDJLKNEEGLFPEEHTEMFPHTGEJODLFNDYFREHFMDLDRDTDWJLJZIEIHJPDEEYDTDTDTCNESJSJNJNEEJPECKKAETPLNPMMU",
+        "UR:BYTES/15-4/LPBSAACFADFXCYCMRTFYMNHDGYFWEEIDINEOGSFWEHFEJPGEECFPHKISFPIHEEHSJYGHFYFLJOJPKSHSFDJKIOHDFWGEFGFEGHJYEYIDJLKNEEGLFPEEHTEMFPHTGEJODLFNDYFREHFMDLDRDTDWJLJZIEIHJPDEEYDTDTDTCNESJSJNJNEEJPECKKAETPLNPMMU",
+        "UR:BYTES/16-4/LPBEAACFADFXCYCMRTFYMNHDGYEYGUHPBEKSDPASAHBSBDDAGHAXEOFMCSDLLBEEEYBNKIBNBBBDCYGODMBBCLESAACTCHDEBAFTKPEMHDGRIHLBENJTFSJNDECAATFPISGUATGRAAATHSKIAMBEHEHGGOHPHLAOCKFDFLGTKEGWHKCWHGFYCFCACPIHLAAYMKEM",
+        "UR:BYTES/16-4/LPBEAACFADFXCYCMRTFYMNHDGYEYGUHPBEKSDPASAHBSBDDAGHAXEOFMCSDLLBEEEYBNKIBNBBBDCYGODMBBCLESAACTCHDEBAFTKPEMHDGRIHLBENJTFSJNDECAATFPISGUATGRAAATHSKIAMBEHEHGGOHPHLAOCKFDFLGTKEGWHKCWHGFYCFCACPIHLAAYMKEM",
+        "UR:BYTES/17-4/LPBYAACFADFXCYCMRTFYMNHDGYJPEHKBGHFRECIECEBAGOHNGWADJPJYATFNISCLFTHNDMGUGYGLJSCLFWAHEODNFXBSFTBNDPETINDAHYINGTAOECJLDAKBHKAHFZJOJLHEEMGOCXIHFNGWBBFZFWHKBZHLBABDKBFLKEISDRIMINFRHTJZBGENCNAMCSBGAYFR",
+        "UR:BYTES/17-4/LPBYAACFADFXCYCMRTFYMNHDGYJPEHKBGHFRECIECEBAGOHNGWADJPJYATFNISCLFTHNDMGUGYGLJSCLFWAHEODNFXBSFTBNDPETINDAHYINGTAOECJLDAKBHKAHFZJOJLHEEMGOCXIHFNGWBBFZFWHKBZHLBABDKBFLKEISDRIMINFRHTJZBGENCNAMCSBGAYFR",
+        "UR:BYTES/18-4/LPBGAACFADFXCYCMRTFYMNHDGYJPEHKBGHFRECIECEBAGOHNGWADJPJYATFNISCLFTHNDMGUGYGLJSCLFWAHEODNFXBSFTBNDPETINDAHYINGTAOECJLDAKBHKAHFZJOJLHEEMGOCXIHFNGWBBFZFWHKBZHLBABDKBFLKEISDRIMINFRHTJZBGENCNAMWDFZDSBE",
+        "UR:BYTES/18-4/LPBGAACFADFXCYCMRTFYMNHDGYJPEHKBGHFRECIECEBAGOHNGWADJPJYATFNISCLFTHNDMGUGYGLJSCLFWAHEODNFXBSFTBNDPETINDAHYINGTAOECJLDAKBHKAHFZJOJLHEEMGOCXIHFNGWBBFZFWHKBZHLBABDKBFLKEISDRIMINFRHTJZBGENCNAMWDFZDSBE",
+        "UR:BYTES/19-4/LPBWAACFADFXCYCMRTFYMNHDGYBDDYFMCXGACAFHDRFREOAOKGEYBBBYDEAYGDAMBZGYASKEHSINHYBWIHHDFLHPENJNKBGEHNBAAAHEEMAYDNGLGUDAKPFHHNHFEEENCYDAFPEHIAGDGHFRKBCLBSBTIYBDJLHPDPAMCMCWGRAOBAKBJTBSCXKPJTGYLBYABDDS",
+        "UR:BYTES/19-4/LPBWAACFADFXCYCMRTFYMNHDGYBDDYFMCXGACAFHDRFREOAOKGEYBBBYDEAYGDAMBZGYASKEHSINHYBWIHHDFLHPENJNKBGEHNBAAAHEEMAYDNGLGUDAKPFHHNHFEEENCYDAFPEHIAGDGHFRKBCLBSBTIYBDJLHPDPAMCMCWGRAOBAKBJTBSCXKPJTGYLBYABDDS",
+        "UR:BYTES/20-4/LPBBAACFADFXCYCMRTFYMNHDGYEYGUHPBEKSDPASAHBSBDDAGHAXEOFMCSDLLBEEEYBNKIBNBBBDCYGODMBBCLESAACTCHDEBAFTKPEMHDGRIHLBENJTFSJNDECAATFPISGUATGRAAATHSKIAMBEHEHGGOHPHLAOCKFDFLGTKEGWHKCWHGFYCFCACPIHCEFPYNBG",
+        "UR:BYTES/20-4/LPBBAACFADFXCYCMRTFYMNHDGYEYGUHPBEKSDPASAHBSBDDAGHAXEOFMCSDLLBEEEYBNKIBNBBBDCYGODMBBCLESAACTCHDEBAFTKPEMHDGRIHLBENJTFSJNDECAATFPISGUATGRAAATHSKIAMBEHEHGGOHPHLAOCKFDFLGTKEGWHKCWHGFYCFCACPIHCEFPYNBG",
+        "UR:BYTES/21-4/LPBZAACFADFXCYCMRTFYMNHDGYKGHGATHKAOKEJYCKJSGEJNCYJOKBFLJSFWCWGUGUASDYEMAHBEFNDIAXFHADFTJOETDLDIFTFZFXBKAEESKNLBDKLBBGIHASBYKKATHLGEKOFPHFINCYJZGYCAFHENHGECFZJSADIOKSLBBBJYDSAYGHLBGRHLECEELDWEGSST",
+        "UR:BYTES/21-4/LPBZAACFADFXCYCMRTFYMNHDGYKGHGATHKAOKEJYCKJSGEJNCYJOKBFLJSFWCWGUGUASDYEMAHBEFNDIAXFHADFTJOETDLDIFTFZFXBKAEESKNLBDKLBBGIHASBYKKATHLGEKOFPHFINCYJZGYCAFHENHGECFZJSADIOKSLBBBJYDSAYGHLBGRHLECEELDWEGSST",
+    ]
+
+        def create_ur_decoder(force_python=False):
+            """
+            Factory function to create a URDecoder, preferring C implementation
+            """
+            if force_python:
+                from ur.ur_decoder import URDecoder
+                return URDecoder()
+            try:
+                # Try to use the C implementation first
+                import bc_ur
+                return bc_ur.URDecoder()
+            except ImportError:
+                # Fallback to Python implementation
+                print("bc_ur module not found, using Python URDecoder")
+                from ur.ur_decoder import URDecoder
+                return URDecoder()
+
+        def urobj_to_data(ur_obj):
+            """returns flatened data from a UR object. belongs in qr or qr_capture???"""
+            import urtypes
+
+            if ur_obj.type == "crypto-bip39":
+                data = urtypes.crypto.BIP39.from_cbor(ur_obj.cbor).words
+            elif ur_obj.type == "crypto-account":
+                data = (
+                    urtypes.crypto.Account.from_cbor(ur_obj.cbor)
+                    .output_descriptors[0]
+                    .descriptor()
+                )
+            elif ur_obj.type == "crypto-output":
+                data = urtypes.crypto.Output.from_cbor(ur_obj.cbor).descriptor()
+            elif ur_obj.type == "crypto-psbt":
+                data = urtypes.crypto.PSBT.from_cbor(ur_obj.cbor).data
+            elif ur_obj.type == "bytes":
+                data = urtypes.bytes.Bytes.from_cbor(ur_obj.cbor).data
+            else:
+                data = None
+            return data
+
+        import time
+
+        print("Processing Blockchain Commons UR multipart(8x53B) benchmark test.")
+        start_time = time.ticks_ms()
+
+        # Test the integration
+        decoder = create_ur_decoder()
+        # print("Created decoder: {}".format(type(decoder)))
+
+        # Test receiving parts
+        result = None
+        for part in TEST_PARTS_FORMAT_MULTIPART_UR:
+            # print("Processing part: {}".format(part))
+            success = decoder.receive_part(part)
+            # print("Success: {}".format(success))
+            # print("Progress: {:.1%}".format(decoder.estimated_percent_complete()))
+            # print("Complete: {}".format(decoder.is_complete()))
+            if decoder.is_complete():
+                if decoder.is_success():
+                    result = decoder.result
+                    # print("Decoded UR: type={}, data_len={}".format(result.type, len(result.cbor)))
+                else:
+                    print("UR decoding failed")
+                break
+        
+        from bc_ur import UR
+
+        if result:
+            ur_data = UR(decoder.result.type, bytearray(decoder.result.cbor))
+            final_data = urobj_to_data(ur_data)
+            # print("Final data type:", type(final_data))
+            # print("Final data:", final_data)
+            end_time = time.ticks_ms()
+            c_time = end_time - start_time
+            # print("Data matches reference:", final_data == TEST_DATA_BYTES)
+            print("C: {} ms".format(c_time))
+
+        start_time = time.ticks_ms()
+        
+        decoder = create_ur_decoder(force_python=True)
+
+        # Test receiving parts
+        for part in TEST_PARTS_FORMAT_MULTIPART_UR:
+            # print("Processing part: {}".format(part))
+            success = decoder.receive_part(part)
+            if not success:
+                print("Failed to process part")
+                continue
+
+            if decoder.is_complete():
+                from ur.ur import UR as URP
+
+                # print("Python decoder output:",bytearray(decoder.result.cbor))
+                ur_data = URP(decoder.result.type, bytearray(decoder.result.cbor))
+                final_data = urobj_to_data(ur_data)
+                # print("Final data:", final_data)
+                break
+
+        end_time = time.ticks_ms()
+        elapsed_time = end_time - start_time
+        print("Python: {} ms".format(elapsed_time))
+        
+        
         import board
         from ..metadata import VERSION
         from ..qr import FORMAT_NONE
