@@ -532,111 +532,91 @@ class DatumTool(Page):
         from binascii import hexlify
 
         self.ctx.display.clear()
-        parts = [
-            self.title,
-            "".join(
-                [
-                    "wasKEF " if self.decrypted else "",
-                    "secret " if self.sensitive else "",
-                    ",".join([str(x) for x in self.encodings]),
-                ]
-            ),
-            " ".join(
-                [
-                    x
-                    for x in [
-                        self.about,
-                        self.datum,
-                        about_suffix,
-                    ]
-                    if x
-                ]
-            ),
-        ]
         num_lines = self.ctx.display.draw_hcentered_text(
-            "\n".join(p for p in parts if p),
+            "\n".join(
+                [
+                    self.title,
+                    "".join(
+                        [
+                            "wasKEF " if self.decrypted else "",
+                            "secret " if self.sensitive else "",
+                            ",".join([str(x) for x in self.encodings]),
+                        ]
+                    ),
+                    " ".join(
+                        [
+                            x
+                            for x in [
+                                self.about,
+                                self.datum,
+                                about_suffix,
+                            ]
+                            if x
+                        ]
+                    ),
+                ]
+            ),
             info_box=True,
             highlight_prefix=":",
         )
         if preview:
+            num_lines += 1
             self.ctx.display.draw_hcentered_text(
                 (
                     '"' + self.contents + '"'
                     if isinstance(self.contents, str)
                     else "0x" + hexlify(self.contents).decode()
                 ),
-                offset_y=DEFAULT_PADDING + num_lines * FONT_HEIGHT + 2,
+                offset_y=DEFAULT_PADDING + num_lines * FONT_HEIGHT,
                 max_lines=1,
                 info_box=True,
             )
-            num_lines += 1
 
         return num_lines
 
     def _show_contents(self):
         """Displays infobox and contents"""
         from binascii import hexlify
-        from ..settings import THIN_SPACE
-        from ..kboard import kboard
-        import math
-        import time
 
-        page_indicator = "p" + THIN_SPACE + "%d/%s"
-        max_lines = 0
-        offset_x = (
-            DEFAULT_PADDING
-            if not kboard.is_m5stickv
-            else (self.ctx.display.width() % FONT_WIDTH) // 2
+        info_len = self._info_box(preview=False, about_suffix="pX/Y")
+        max_lines = TOTAL_LINES - (info_len + 2)
+        pages = self.ctx.display.index_pages(
+            (
+                self.contents
+                if isinstance(self.contents, str)
+                else hexlify(self.contents).decode()
+            ),
+            max_lines,
         )
-        contents = (
-            self.contents
-            if isinstance(self.contents, str)
-            else hexlify(self.contents).decode()
-        )
-        content_len = len(contents)
 
-        def _update_infobox(curr_page, total="?"):
-            info_len = self._info_box(
-                preview=False, about_suffix=page_indicator % (curr_page, total)
-            )
-            max_lines = TOTAL_LINES - (info_len + 1)
-            total = math.ceil(
-                content_len / (self.ctx.display.ascii_chars_per_line() * max_lines)
-            )
-            return info_len, total, max_lines
-
-        curr_page = 0
-        start_index = 0
-        info_len, last_page, max_lines = _update_infobox(curr_page + 1)
-
+        page = 0
         while True:
-            info_len, last_page, max_lines = _update_infobox(curr_page + 1, last_page)
-            lines = self.ctx.display.to_lines(contents[start_index:], max_lines)
+            start = pages[page]
+            if len(pages) < 10:
+                page_indicator = "p{}/{}".format(page + 1, len(pages))
+            else:
+                page_indicator = "p{}".format(page + 1)
 
-            offset_y = DEFAULT_PADDING + (info_len) * FONT_HEIGHT + 1
-            for line in lines:
-                self.ctx.display.draw_string(offset_x, offset_y, line)
+            info_len = self._info_box(preview=False, about_suffix=page_indicator)
+            offset_y = DEFAULT_PADDING + (info_len + 1) * FONT_HEIGHT
+            for line in self.ctx.display.to_lines(
+                (
+                    self.contents[start:]
+                    if isinstance(self.contents, str)
+                    else hexlify(self.contents).decode()[start:]
+                ),
+                max_lines,
+            ):
+                self.ctx.display.draw_string(DEFAULT_PADDING, offset_y, line)
                 offset_y += FONT_HEIGHT
 
-            if self.ctx.input.page_value() == PRESSED:
-                btn = FAST_FORWARD
-                time.sleep_ms(KEY_REPEAT_DELAY_MS)
-            elif self.ctx.input.page_prev_value() == PRESSED:
-                btn = FAST_BACKWARD
-                time.sleep_ms(KEY_REPEAT_DELAY_MS)
+            btn = self.ctx.input.wait_for_button()
+            if btn in (BUTTON_PAGE, SWIPE_UP, SWIPE_LEFT):
+                page = (page + 1) % len(pages)
+            elif btn in (BUTTON_PAGE_PREV, SWIPE_DOWN, SWIPE_RIGHT):
+                page = (page - 1) % len(pages)
             else:
-                btn = self.ctx.input.wait_for_button()
-            if btn in (BUTTON_PAGE, FAST_FORWARD, SWIPE_UP, SWIPE_LEFT):
-                curr_page = (curr_page + 1) % last_page
-            elif btn in (BUTTON_PAGE_PREV, FAST_BACKWARD, SWIPE_DOWN, SWIPE_RIGHT):
-                curr_page = (curr_page - 1) % last_page
-            elif btn in (BUTTON_ENTER, BUTTON_TOUCH):
                 break
-            start_index = (
-                0
-                if curr_page == 0
-                else curr_page * self.ctx.display.ascii_chars_per_line() * max_lines - 1
-            )
 
     def _analyze_contents(self):
         """

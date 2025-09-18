@@ -354,6 +354,18 @@ class Display:
 
         return lines, end
 
+    def index_pages(self, text, max_lines):
+        """Uses to_lines_endpos() to return a list of page starting positions"""
+        start, pages = 0, [0]
+        while True:
+            lines, end = self._to_lines_endpos(text[start:], max_lines)
+            if len(lines) == max_lines and lines[-1][-1] == ELLIPSIS:
+                start += end
+                pages.append(start)
+                continue
+            break
+        return pages
+    
     def clear(self):
         """Clears the display"""
         lcd.clear(theme.bg_color)
