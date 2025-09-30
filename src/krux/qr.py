@@ -180,7 +180,7 @@ class QRPartParser:
             self.total = total
             return index - 1
         elif self.format == FORMAT_UR:
-            print('"{}",'.format(data))
+        # print('"{}",'.format(data))
             if not self.decoder:
                 # from ur.ur_decoder import URDecoder
                 from bc_ur import URDecoder
