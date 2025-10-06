@@ -95,7 +95,7 @@ COPY ./vendor vendor
 RUN find vendor/urtypes -type d -name '__pycache__' -exec rm -rv {} + -depth
 
 # clean vendor/foundation-ur-py
-RUN find vendor/foundation-ur-py -type d -name '__pycache__' -exec rm -rv {} + -depth
+# RUN find vendor/foundation-ur-py -type d -name '__pycache__' -exec rm -rv {} + -depth
 
 # install vendor/embit
 RUN /kruxenv/bin/pip install vendor/embit
@@ -117,7 +117,7 @@ RUN find firmware -type d -name '__pycache__' -exec rm -rv {} + -depth
 
 # copy all vendors to DEVICE_BUILTIN
 RUN cp -r vendor/urtypes/src/urtypes "${DEVICE_BUILTIN}"
-RUN cp -r vendor/foundation-ur-py/src/ur "${DEVICE_BUILTIN}"
+# RUN cp -r vendor/foundation-ur-py/src/ur "${DEVICE_BUILTIN}"
 RUN cp -r vendor/embit/src/embit "${DEVICE_BUILTIN}"
 
 # copy Krux (src) to WORKDIR (src)

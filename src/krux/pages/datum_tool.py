@@ -423,7 +423,7 @@ class DatumTool(Page):
         from ..qr import QR_CAPACITY_BYTE, QR_CAPACITY_ALPHANUMERIC, QR_CAPACITY_NUMERIC
         from ..bbqr import encode_bbqr
         import urtypes
-        from ur.ur import UR
+        from bc_ur import UR
 
         # Helper function to check if character is alphanumeric
         def is_alnum(c):

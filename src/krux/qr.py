@@ -264,7 +264,7 @@ def to_qr_codes(data, max_width, qr_format):
                 code = qrcode.encode(part)
                 yield (code, num_parts)
         elif qr_format == FORMAT_UR:
-            from ur.ur_encoder import UREncoder
+            from bc_ur import UREncoder
 
             encoder = UREncoder(data, part_size, 0)
             while True:
