@@ -21,7 +21,7 @@
 # THE SOFTWARE.
 import gc
 from embit.psbt import PSBT, CompressMode
-from bc_ur import UR
+from uUR import UR
 import urtypes
 from urtypes.crypto import CRYPTO_PSBT
 from .baseconv import base_decode
