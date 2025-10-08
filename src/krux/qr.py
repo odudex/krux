@@ -183,7 +183,7 @@ class QRPartParser:
         # print('"{}",'.format(data))
             if not self.decoder:
                 # from ur.ur_decoder import URDecoder
-                from bc_ur import URDecoder
+                from uUR import URDecoder
 
                 self.decoder = URDecoder()
             self.decoder.receive_part(data)
@@ -215,7 +215,7 @@ class QRPartParser:
         """Returns the combined part data"""
         if self.format == FORMAT_UR:
             # from ur.ur import UR
-            from bc_ur import UR
+            from uUR import UR
 
             return UR(self.decoder.result.type, bytearray(self.decoder.result.cbor))
 
@@ -263,7 +263,7 @@ def to_qr_codes(data, max_width, qr_format):
                 code = qrcode.encode(part)
                 yield (code, num_parts)
         elif qr_format == FORMAT_UR:
-            from bc_ur import UREncoder
+            from uUR import UREncoder
 
             encoder = UREncoder(data, part_size, 0)
             while True:
