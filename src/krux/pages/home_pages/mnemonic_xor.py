@@ -63,7 +63,7 @@ class MnemonicXOR(MnemonicLoader):
             raise ValueError("Low entropy mnemonic")
 
     def xor_with_current_mnemonic(self, mnemonic_to_xor: str) -> str:
-        """XOR current mnemonic with a new part following SeedXOR implementation"""
+        """XOR current mnemonic with a new one following SeedXOR implementation"""
         from embit.bip39 import mnemonic_from_bytes, mnemonic_to_bytes
 
         # Validate same word count
@@ -133,8 +133,8 @@ class MnemonicXOR(MnemonicLoader):
             self.ctx.wallet.key.account_index,
             self.ctx.wallet.key.script_type,
         )
-        # Memorize the part fingerprint to use it after
-        part_fingerprint = key_to_xor.fingerprint_hex_str(True)
+        # Memorize the fingerprint to XOR to use later
+        fingerprint_to_xor = key_to_xor.fingerprint_hex_str(True)
 
         # Show the mnemonic to XOR with
         self._display_key_info(
@@ -160,7 +160,7 @@ class MnemonicXOR(MnemonicLoader):
         offset_y = self.ctx.display.height() // 2
         offset_y -= FONT_HEIGHT * 3
         self.ctx.display.clear()
-        for element in [current_fingerprint, "XOR", part_fingerprint, "="]:
+        for element in [current_fingerprint, "XOR", fingerprint_to_xor, "="]:
             self.ctx.display.draw_hcentered_text(element, offset_y, theme.fg_color)
             offset_y += FONT_HEIGHT
         self.ctx.display.draw_hcentered_text(
