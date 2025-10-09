@@ -22,8 +22,11 @@
 
 from .. import Menu, LETTERS, MENU_CONTINUE, MENU_EXIT
 from ..login import MnemonicLoader
-from ...krux_settings import t
+from ...krux_settings import Settings, t
 from ...display import BOTTOM_PROMPT_LINE, FONT_HEIGHT
+from ...themes import theme
+from ...key import Key
+from ...wallet import Wallet
 
 
 class MnemonicXOR(MnemonicLoader):
@@ -38,7 +41,7 @@ class MnemonicXOR(MnemonicLoader):
     def _xor_bytes(a: bytes, b: bytes) -> bytearray:
         """XOR two byte sequences of equal length"""
 
-        # All sequences should have same lenght because it would
+        # All sequences should have same length because it would
         # reveal the last bytes from the longer bytestring as they are.
         # In the case of mnemonics, it might reveal last 12 words.
         if len(a) != len(b):
@@ -54,23 +57,24 @@ class MnemonicXOR(MnemonicLoader):
     def _validate_entropy(entropy: bytes | bytearray) -> None:
         """Check for low entropy (all zeros or all ones)"""
         # TODO: apply a shannon low entropy check for XOR
-        # pylint: disable=consider-using-in
-        if entropy == len(entropy) * b"\x00" or entropy == len(entropy) * b"\xff":
+        all_zeros = bytes(len(entropy))
+        all_ones = b"\xff" * len(entropy)
+        if entropy in (all_zeros, all_ones):
             raise ValueError("Low entropy mnemonic")
 
-    def xor_with_current_mnemonic(self, part: str) -> str:
+    def xor_with_current_mnemonic(self, mnemonic_to_xor: str) -> str:
         """XOR current mnemonic with a new part following SeedXOR implementation"""
         from embit.bip39 import mnemonic_from_bytes, mnemonic_to_bytes
 
         # Validate same word count
-        current_words = self.ctx.wallet.key.mnemonic.split(" ")
-        part_words = part.split(" ")
-        if len(current_words) != len(part_words):
+        current_word_count = len(self.ctx.wallet.key.mnemonic.split())
+        to_xor_word_count = len(mnemonic_to_xor.split())
+        if current_word_count != to_xor_word_count:
             raise ValueError("Mnemonics should have same length")
 
         # Convert and validate entropies
         entropy_a = mnemonic_to_bytes(self.ctx.wallet.key.mnemonic)
-        entropy_b = mnemonic_to_bytes(part)
+        entropy_b = mnemonic_to_bytes(mnemonic_to_xor)
         self._validate_entropy(entropy_a)
         self._validate_entropy(entropy_b)
 
@@ -79,6 +83,22 @@ class MnemonicXOR(MnemonicLoader):
         self._validate_entropy(new_entropy)
 
         return mnemonic_from_bytes(new_entropy)
+
+    def _display_key_info(self, mnemonic: str, fingerprint: str, title: str) -> None:
+        """Display mnemonic or fingerprint based on hide_mnemonic setting"""
+
+        if not Settings().security.hide_mnemonic:
+            self.display_mnemonic(
+                mnemonic,
+                title=title,
+                fingerprint=fingerprint,
+            )
+        else:
+            self.ctx.display.clear()
+            self.ctx.display.draw_centered_text(
+                title + " " + fingerprint,
+                color=theme.highlight_color,
+            )
 
     def load(self):
         """Menu for XOR the current mnemonic with a share"""
@@ -99,21 +119,14 @@ class MnemonicXOR(MnemonicLoader):
         Similar method from krux.pages.login.Login without loading a key,
         instead, it add the bytes from a mnemonic's entropy to the list of entropies
         """
-        from ...key import Key
-        from ...krux_settings import Settings
-        from ...themes import theme
 
-        # Memorize the current finger print to use it after
-        old_fingerprint = self.ctx.wallet.key.fingerprint_hex_str(True)
+        # Memorize the current fingerprint to use it later
+        current_fingerprint = self.ctx.wallet.key.fingerprint_hex_str(True)
 
-        # Show part before XOR, using the same
-        # policy, network, account_index and script_type
-        # (they will not be relevant, it's just to load
-        # a key and it's fingerprint). Also, check if
-        # we will show all mnemonic or only it's fingerprint.
-        part_words = " ".join(words)
-        part_key = Key(
-            part_words,
+        # Show mnemonic which will be used for XOR with current one
+        mnemonic_to_xor = " ".join(words)
+        key_to_xor = Key(
+            mnemonic_to_xor,
             self.ctx.wallet.key.policy_type,
             self.ctx.wallet.key.network,
             "",
@@ -121,30 +134,19 @@ class MnemonicXOR(MnemonicLoader):
             self.ctx.wallet.key.script_type,
         )
         # Memorize the part fingerprint to use it after
-        part_fingerprint = part_key.fingerprint_hex_str(True)
+        part_fingerprint = key_to_xor.fingerprint_hex_str(True)
 
-        # If hide_mnemonic is set, do not show words
-        if not Settings().security.hide_mnemonic:
-            self.display_mnemonic(
-                part_words,
-                title=t("XOR With") + ":",
-                fingerprint=part_key.fingerprint_hex_str(True),
-            )
-        else:
-            self.ctx.display.clear()
-            self.ctx.display.draw_centered_text(
-                t("XOR With") + ": " + part_key.fingerprint_hex_str(True),
-                color=theme.highlight_color,
-            )
+        # Show the mnemonic to XOR with
+        self._display_key_info(
+            mnemonic_to_xor,
+            key_to_xor.fingerprint_hex_str(True),
+            t("XOR With") + ":",
+        )
 
         if not self.prompt(t("Proceed?"), BOTTOM_PROMPT_LINE):
             return MENU_CONTINUE
 
-        # Show XORed operation between current mnemonic with
-        # part mnemonic, but do not load it yet (i.e. replacing
-        # the current with this one). Show it before and ask if
-        # the user want to replace.
-        xored_mnemonic = self.xor_with_current_mnemonic(part_key.mnemonic)
+        xored_mnemonic = self.xor_with_current_mnemonic(key_to_xor.mnemonic)
         xored_key = Key(
             xored_mnemonic,
             self.ctx.wallet.key.policy_type,
@@ -154,47 +156,28 @@ class MnemonicXOR(MnemonicLoader):
             self.ctx.wallet.key.script_type,
         )
 
-        # Display some informations about the math used
-        # during XOR. The xor operation occurs on entropy
-        # and not with the fingerprints. But use fingerprints
-        # since they are shorter and could give a hint if the
-        # operation occurs as expected.
+        # Display XOR operation and resulting fingerprint:
         offset_y = self.ctx.display.height() // 2
+        offset_y -= FONT_HEIGHT * 3
         self.ctx.display.clear()
-        for i, element in enumerate(
-            [
-                old_fingerprint,
-                "XOR",
-                part_fingerprint,
-                "=",
-                xored_key.fingerprint_hex_str(True),
-            ]
-        ):
-            self.ctx.display.draw_hcentered_text(
-                element,
-                offset_y=offset_y + (FONT_HEIGHT * i),
-                color=theme.fg_color if i < 4 else theme.highlight_color,
-            )
+        for element in [current_fingerprint, "XOR", part_fingerprint, "="]:
+            self.ctx.display.draw_hcentered_text(element, offset_y, theme.fg_color)
+            offset_y += FONT_HEIGHT
+        self.ctx.display.draw_hcentered_text(
+            xored_key.fingerprint_hex_str(True), offset_y, theme.highlight_color
+        )
 
         if not self.prompt(t("Proceed?"), BOTTOM_PROMPT_LINE):
             return MENU_CONTINUE
 
-        # Now replace the current key with with xored one
-        if not Settings().security.hide_mnemonic:
-            self.display_mnemonic(
-                xored_mnemonic,
-                title=t("XOR Result") + ":",
-                fingerprint=xored_key.fingerprint_hex_str(True),
-            )
-        else:
-            self.ctx.display.clear()
-            self.ctx.display.draw_centered_text(
-                t("XOR Result") + ": " + xored_key.fingerprint_hex_str(True),
-                color=theme.highlight_color,
-            )
+        # Show the XOR result
+        self._display_key_info(
+            xored_mnemonic,
+            xored_key.fingerprint_hex_str(True),
+            t("XOR Result") + ":",
+        )
 
         if self.prompt(t("Load?"), BOTTOM_PROMPT_LINE):
-            from ...wallet import Wallet
 
             self.ctx.wallet = Wallet(xored_key)
             self.flash_text(
