@@ -78,23 +78,25 @@ SLOW_ENCODING_MAX_SIZE = 2**14  # base43,base58,bech32 not offered above this si
 
 def urobj_to_data(ur_obj):
     """returns flatened data from a UR object. belongs in qr or qr_capture???"""
-    import urtypes
+    import uURTypes
 
     if ur_obj.type == "crypto-bip39":
-        data = urtypes.crypto.BIP39.from_cbor(ur_obj.cbor).words
+        data = uURTypes.BIP39.words_from_cbor(ur_obj.cbor)
         data = " ".join(data)
     elif ur_obj.type == "crypto-account":
+        import urtypes
+
         data = (
             urtypes.crypto.Account.from_cbor(ur_obj.cbor)
             .output_descriptors[0]
             .descriptor()
         )
     elif ur_obj.type == "crypto-output":
-        data = urtypes.crypto.Output.from_cbor(ur_obj.cbor).descriptor()
+        data = uURTypes.output_from_cbor(ur_obj.cbor).descriptor()
     elif ur_obj.type == "crypto-psbt":
-        data = urtypes.crypto.PSBT.from_cbor(ur_obj.cbor).data
+        data = uURTypes.PSBT.from_cbor(ur_obj.cbor).data()
     elif ur_obj.type == "bytes":
-        data = urtypes.bytes.Bytes.from_cbor(ur_obj.cbor).data
+        data = uURTypes.Bytes.from_cbor(ur_obj.cbor).data()
     else:
         data = None
     return data
@@ -422,8 +424,6 @@ class DatumTool(Page):
         """Reusable handler for viewing a QR code"""
         from ..qr import QR_CAPACITY_BYTE, QR_CAPACITY_ALPHANUMERIC, QR_CAPACITY_NUMERIC
         from ..bbqr import encode_bbqr
-        import urtypes
-        from uUR import UR
 
         # Helper function to check if character is alphanumeric
         def is_alnum(c):
@@ -513,11 +513,13 @@ class DatumTool(Page):
                     encoded = encode_bbqr(encoded, file_type=menu_opts[idx][1][1])
 
                 elif qr_fmt == FORMAT_UR:
+                    import uURTypes
+                    from uUR import UR
                     ur_type = menu_opts[idx][1][1]
                     if ur_type == "bytes":
-                        encoded = UR(ur_type, urtypes.Bytes(encoded).to_cbor())
+                        encoded = UR(ur_type, uURTypes.Bytes(encoded).to_cbor())
                     elif ur_type == "crypto-psbt":
-                        encoded = UR(ur_type, urtypes.PSBT(encoded).to_cbor())
+                        encoded = UR(ur_type, uURTypes.PSBT(encoded).to_cbor())
                     # TODO: other urtypes
 
             try:

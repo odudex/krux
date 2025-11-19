@@ -327,9 +327,9 @@ class MnemonicLoader(Page):
 
         words = []
         if qr_format == FORMAT_UR:
-            from urtypes.crypto.bip39 import BIP39
+            import uURTypes
 
-            words = BIP39.from_cbor(data.cbor).words
+            words = uURTypes.BIP39.words_from_cbor(data.cbor)
         else:
             try:
                 data_str = data.decode() if not isinstance(data, str) else data
