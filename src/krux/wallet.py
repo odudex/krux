@@ -381,10 +381,8 @@ def parse_wallet(wallet_data, allow_assumption=None):
         try:
             import urtypes
             
-            account = urtypes.crypto.Account.from_cbor(
-                wallet_data.cbor
-            ).output_descriptors[0]
-            return Descriptor.from_string(account.descriptor()), None
+            output = uURTypes.output_from_cbor_account(wallet_data.cbor)
+            return Descriptor.from_string(output), None
         except:
             pass
 

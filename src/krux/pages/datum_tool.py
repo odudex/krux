@@ -84,13 +84,7 @@ def urobj_to_data(ur_obj):
         data = uURTypes.BIP39.words_from_cbor(ur_obj.cbor)
         data = " ".join(data)
     elif ur_obj.type == "crypto-account":
-        import urtypes
-
-        data = (
-            urtypes.crypto.Account.from_cbor(ur_obj.cbor)
-            .output_descriptors[0]
-            .descriptor()
-        )
+        data = uURTypes.output_from_cbor_account(ur_obj.cbor)
     elif ur_obj.type == "crypto-output":
         data = uURTypes.output_from_cbor(ur_obj.cbor).descriptor()
     elif ur_obj.type == "crypto-psbt":
