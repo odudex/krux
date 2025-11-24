@@ -387,7 +387,7 @@ def parse_wallet(wallet_data, allow_assumption=None):
             pass
 
         # Treat the UR as a generic UR bytes object and extract the data for further processing
-        wallet_data = uURTypes.Bytes.from_cbor(wallet_data.cbor).data()
+        wallet_data = uURTypes.bytes_from_cbor(wallet_data.cbor)
 
     # Process as a string
     wallet_data = (

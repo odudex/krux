@@ -86,11 +86,11 @@ def urobj_to_data(ur_obj):
     elif ur_obj.type == "crypto-account":
         data = uURTypes.output_from_cbor_account(ur_obj.cbor)
     elif ur_obj.type == "crypto-output":
-        data = uURTypes.output_from_cbor(ur_obj.cbor).descriptor()
+        data = uURTypes.output_from_cbor(ur_obj.cbor)
     elif ur_obj.type == "crypto-psbt":
-        data = uURTypes.PSBT.from_cbor(ur_obj.cbor).data()
+        data = uURTypes.psbt_from_cbor(ur_obj.cbor)
     elif ur_obj.type == "bytes":
-        data = uURTypes.Bytes.from_cbor(ur_obj.cbor).data()
+        data = uURTypes.bytes_from_cbor(ur_obj.cbor)
     else:
         data = None
     return data
@@ -511,9 +511,9 @@ class DatumTool(Page):
                     from uUR import UR
                     ur_type = menu_opts[idx][1][1]
                     if ur_type == "bytes":
-                        encoded = UR(ur_type, uURTypes.Bytes(encoded).to_cbor())
+                        encoded = UR(ur_type, uURTypes.bytes_to_cbor(encoded))
                     elif ur_type == "crypto-psbt":
-                        encoded = UR(ur_type, uURTypes.PSBT(encoded).to_cbor())
+                        encoded = UR(ur_type, uURTypes.psbt_to_cbor(encoded))
                     # TODO: other urtypes
 
             try:

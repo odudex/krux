@@ -93,7 +93,7 @@ class PSBTSigner:
         elif isinstance(psbt_data, UR):
             try:
                 self.psbt = PSBT.parse(
-                    uURTypes.PSBT.from_cbor(psbt_data.cbor).data()
+                    uURTypes.psbt_from_cbor(psbt_data.cbor)
                 )
                 self.ur_type = uURTypes.CRYPTO_PSBT_TYPE
                 # self.base_encoding = 64
@@ -537,7 +537,7 @@ class PSBTSigner:
             return (
                 UR(
                     uURTypes.CRYPTO_PSBT_TYPE,
-                    uURTypes.PSBT(psbt_data).to_cbor(),
+                    uURTypes.psbt_to_cbor(psbt_data),
                 ),
                 self.qr_format,
             )
