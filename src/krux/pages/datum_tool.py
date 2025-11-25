@@ -81,7 +81,7 @@ def urobj_to_data(ur_obj):
     from uUR import Types
 
     if ur_obj.type == "crypto-bip39":
-        data = Types.BIP39.words_from_cbor(ur_obj.cbor)
+        data = Types.bip39_words_from_cbor(ur_obj.cbor)
         data = " ".join(data)
     elif ur_obj.type == "crypto-account":
         data = Types.output_from_cbor_account(ur_obj.cbor)
