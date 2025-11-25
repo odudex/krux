@@ -44,7 +44,7 @@ ACTIVATING_BUTTONS = 999
 # Release must be confirmed X times
 BUTTON_RELEASE_FILTER = 10 if kboard.need_release_filter else 1
 
-QR_ANIM_PERIOD = 300  # milliseconds
+QR_ANIM_PERIOD = 200  # milliseconds
 LONG_PRESS_PERIOD = 1000  # milliseconds
 KEY_REPEAT_DELAY_MS = 100
 

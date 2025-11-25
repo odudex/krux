@@ -141,12 +141,12 @@ class QRPartParser:
         if self.format == FORMAT_UR:
             # Single-part URs have no expected part indexes
             return int(self.decoder.estimated_percent_complete() *100)
-            if self.decoder.fountain_decoder.expected_part_indexes is None:
-                return 1 if self.decoder.result is not None else 0
-            completion_pct = self.decoder.estimated_percent_complete()
-            return math.ceil(completion_pct * self.total_count() / 2) + len(
-                self.decoder.fountain_decoder.received_part_indexes
-            )
+            # if self.decoder.fountain_decoder.expected_part_indexes is None:
+            #     return 1 if self.decoder.result is not None else 0
+            # completion_pct = self.decoder.estimated_percent_complete()
+            # return math.ceil(completion_pct * self.total_count() / 2) + len(
+            #     self.decoder.fountain_decoder.received_part_indexes
+            # )
         return len(self.parts)
 
     def processed_parts_count(self):
@@ -180,9 +180,7 @@ class QRPartParser:
             self.total = total
             return index - 1
         elif self.format == FORMAT_UR:
-        # print('"{}",'.format(data))
             if not self.decoder:
-                # from ur.ur_decoder import URDecoder
                 from uUR import URDecoder
 
                 self.decoder = URDecoder()
@@ -325,7 +323,7 @@ def find_min_num_parts(data, max_width, qr_format):
     """Finds the minimum number of QR parts necessary to encode the data in
     the specified format within the max_width constraint
     """
-    encoding = "alphanumeric" if qr_format == FORMAT_BBQR else "byte"
+    encoding = "alphanumeric" if qr_format in (FORMAT_BBQR, FORMAT_UR) else "byte"
     qr_capacity = max_qr_bytes(max_width, encoding)
     if qr_format == FORMAT_PMOFN:
         data_length = len(data)
@@ -352,6 +350,8 @@ def find_min_num_parts(data, max_width, qr_format):
         # For UR, part size will be the input for "max_fragment_len"
         part_size = len(data.cbor) // num_parts
         part_size = max(part_size, UR_MIN_FRAGMENT_LENGTH)
+        part_size *= 5
+        part_size //= 4
         # UR won't use "num_parts", will use encoder.fountain_encoder.seq_len() instead
     elif qr_format == FORMAT_BBQR:
         data_length = len(data.payload)
