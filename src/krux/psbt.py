@@ -21,8 +21,7 @@
 # THE SOFTWARE.
 import gc
 from embit.psbt import PSBT, CompressMode
-from uUR import UR
-import uURTypes
+from uUR import UR, Types
 from .baseconv import base_decode
 from .krux_settings import t
 from .settings import THIN_SPACE, ELLIPSIS
@@ -93,9 +92,9 @@ class PSBTSigner:
         elif isinstance(psbt_data, UR):
             try:
                 self.psbt = PSBT.parse(
-                    uURTypes.psbt_from_cbor(psbt_data.cbor)
+                    Types.psbt_from_cbor(psbt_data.cbor)
                 )
-                self.ur_type = uURTypes.CRYPTO_PSBT_TYPE
+                self.ur_type = Types.CRYPTO_PSBT_TYPE
                 # self.base_encoding = 64
             except:
                 raise ValueError("invalid PSBT")
@@ -533,11 +532,11 @@ class PSBTSigner:
 
             psbt_data = base_encode(psbt_data, self.base_encoding)
 
-        if self.ur_type == uURTypes.CRYPTO_PSBT_TYPE:
+        if self.ur_type == Types.CRYPTO_PSBT_TYPE:
             return (
                 UR(
-                    uURTypes.CRYPTO_PSBT_TYPE,
-                    uURTypes.psbt_to_cbor(psbt_data),
+                    Types.CRYPTO_PSBT_TYPE,
+                    Types.psbt_to_cbor(psbt_data),
                 ),
                 self.qr_format,
             )

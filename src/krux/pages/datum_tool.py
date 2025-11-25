@@ -78,19 +78,19 @@ SLOW_ENCODING_MAX_SIZE = 2**14  # base43,base58,bech32 not offered above this si
 
 def urobj_to_data(ur_obj):
     """returns flatened data from a UR object. belongs in qr or qr_capture???"""
-    import uURTypes
+    from uUR import Types
 
     if ur_obj.type == "crypto-bip39":
-        data = uURTypes.BIP39.words_from_cbor(ur_obj.cbor)
+        data = Types.BIP39.words_from_cbor(ur_obj.cbor)
         data = " ".join(data)
     elif ur_obj.type == "crypto-account":
-        data = uURTypes.output_from_cbor_account(ur_obj.cbor)
+        data = Types.output_from_cbor_account(ur_obj.cbor)
     elif ur_obj.type == "crypto-output":
-        data = uURTypes.output_from_cbor(ur_obj.cbor)
+        data = Types.output_from_cbor(ur_obj.cbor)
     elif ur_obj.type == "crypto-psbt":
-        data = uURTypes.psbt_from_cbor(ur_obj.cbor)
+        data = Types.psbt_from_cbor(ur_obj.cbor)
     elif ur_obj.type == "bytes":
-        data = uURTypes.bytes_from_cbor(ur_obj.cbor)
+        data = Types.bytes_from_cbor(ur_obj.cbor)
     else:
         data = None
     return data
@@ -507,13 +507,13 @@ class DatumTool(Page):
                     encoded = encode_bbqr(encoded, file_type=menu_opts[idx][1][1])
 
                 elif qr_fmt == FORMAT_UR:
-                    import uURTypes
-                    from uUR import UR
+                    from uUR import UR, Types
+
                     ur_type = menu_opts[idx][1][1]
                     if ur_type == "bytes":
-                        encoded = UR(ur_type, uURTypes.bytes_to_cbor(encoded))
+                        encoded = UR(ur_type, Types.bytes_to_cbor(encoded))
                     elif ur_type == "crypto-psbt":
-                        encoded = UR(ur_type, uURTypes.psbt_to_cbor(encoded))
+                        encoded = UR(ur_type, Types.psbt_to_cbor(encoded))
                     # TODO: other urtypes
 
             try:
