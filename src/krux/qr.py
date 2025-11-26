@@ -350,8 +350,8 @@ def find_min_num_parts(data, max_width, qr_format):
         # For UR, part size will be the input for "max_fragment_len"
         part_size = len(data.cbor) // num_parts
         part_size = max(part_size, UR_MIN_FRAGMENT_LENGTH)
-        part_size *= 5
-        part_size //= 4
+        part_size *= 3
+        part_size //= 2
         # UR won't use "num_parts", will use encoder.fountain_encoder.seq_len() instead
     elif qr_format == FORMAT_BBQR:
         data_length = len(data.payload)
