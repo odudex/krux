@@ -1837,7 +1837,7 @@ It attest the integrity of all variants (<a href="https://github.com/selfcustody
 <div class="highlight"><pre><span></span><code>gpg<span class="w"> </span>--keyserver<span class="w"> </span>hkps://keys.openpgp.org<span class="w"> </span>--recv-keys<span class="w"> </span>B4281DDDFBBD207BFA4113138974C90299326322
 </code></pre></div>
 <p>Then, to verify yourself, run this:</p>
-<div class="highlight"><pre><span></span><code>gpg<span class="w"> </span>--verify<span class="w"> </span>krux-installer.SHA256.txt.txt.sig
+<div class="highlight"><pre><span></span><code>gpg<span class="w"> </span>--verify<span class="w"> </span>krux-installer.SHA256.txt.sig
 </code></pre></div>
 <p><strong>Windows</strong></p>
 <ul>
@@ -1853,7 +1853,7 @@ Also, you can ignore a WARNING message if it says that the key isn't a trusted o
 <p>After verify that the <a href="https://github.com/selfcustody/krux-installer/releases/download/v0.0.20/krux-installer_0.0.20_amd64.deb.sha256.txt"><code>krux-installer.SHA256.txt</code></a>
 is authentic, we can proceed with the integrity check in your <code>bash</code>/<code>zsh</code> terminal:</p>
 <p><strong>Linux / MacOS</strong></p>
-<div class="highlight"><pre><span></span><code>sha256sum<span class="w"> </span>--check<span class="w"> </span>krux-installer.SHA256.txt.txt
+<div class="highlight"><pre><span></span><code>sha256sum<span class="w"> </span>--check<span class="w"> </span>krux-installer.SHA256.txt
 </code></pre></div>
 <p><strong>Windows</strong></p>
 <p>You can verify the integrity with this command in a <code>powershell</code> terminal:</p>
