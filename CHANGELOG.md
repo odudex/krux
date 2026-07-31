@@ -6,7 +6,12 @@ Added vertical layout option for Stackbit 1248 backup display, allowing users to
 ### Migrate UR encoding to uUR MicroPython C module
 Switch from the pure-Python urtypes and foundation-ur-py packages to the new uUR C module, allowing faster UR QR codes decoding with a smaller RAM footprint.
 
+### Security Fixes
+- PSBT: stricter checks on the calculation of fee shown on screen
+- PSBT: warn before signing when the wallet coordinator did not send enough data to confirm those amounts
+
 ### Other Bug Fixes and Improvements
+- Fix display of negative amounts
 - Improve scan TinySeed and other binary visibility by drawing punches only
 - Added `flash_success` method to standardize green success flashes across confirmation screens
 - Update Embit to latest - 3ae0ef2
