@@ -182,11 +182,30 @@ def test_parser_ur_decoder_states(mocker, m5stickv, tdata):
     parser.parse(first_part)
     assert not parser.is_complete()
 
-    for terminal_state in (uUR.DECODER_NO_RESULT, uUR.DECODER_ERR_INVALID_CHECKSUM):
+    for terminal_state in (
+        uUR.DECODER_NO_RESULT,
+        uUR.DECODER_ERR_INVALID_CHECKSUM,
+        uUR.DECODER_ERR_UNSUPPORTED_SIZE,
+    ):
         parser = QRPartParser()
         mocker.patch.object(uUR, "URDecoder", stub_decoder(terminal_state))
         with pytest.raises(ValueError):
             parser.parse(first_part)
+
+
+def test_parser_ur_oversized(m5stickv):
+    """A UR over the decoder's part limit aborts the parsing on its first part"""
+    from uUR import UR, UREncoder
+    from krux.qr import QRPartParser
+
+    size = 12000
+    ur = UR("bytes", bytes([0x59, size >> 8, size & 0xFF]) + bytes(size))
+    encoder = UREncoder(ur, 10, 0)
+    assert encoder.fountain_encoder.seq_len() > 1024
+
+    parser = QRPartParser()
+    with pytest.raises(ValueError):
+        parser.parse(encoder.next_part())
 
 
 def test_to_qr_codes(mocker, m5stickv, tdata):

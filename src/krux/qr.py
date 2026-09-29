@@ -178,7 +178,12 @@ class QRPartParser:
             self.total = total
             return index - 1
         elif self.format == FORMAT_UR:
-            from uUR import URDecoder, DECODER_NO_RESULT, DECODER_ERR_INVALID_CHECKSUM
+            from uUR import (
+                URDecoder,
+                DECODER_NO_RESULT,
+                DECODER_ERR_INVALID_CHECKSUM,
+                DECODER_ERR_UNSUPPORTED_SIZE,
+            )
 
             if not self.decoder:
                 self.decoder = URDecoder()
@@ -186,6 +191,7 @@ class QRPartParser:
             if self.decoder.receive_part(data) in (
                 DECODER_NO_RESULT,
                 DECODER_ERR_INVALID_CHECKSUM,
+                DECODER_ERR_UNSUPPORTED_SIZE,
             ):
                 raise ValueError("Failed to decode UR")
         elif self.format == FORMAT_BBQR:
